@@ -2,6 +2,7 @@
 import { useState, useMemo } from "react";
 import dynamic from "next/dynamic";
 import { useApp } from "../context/AppContext";
+import { buildReportStats, ReportStats } from "../lib/analytics";
 import { FileDown, Filter, Layout, Eye, ChevronDown } from "lucide-react";
 
 // Single dynamic import wrapping both PDFDownloadLink and TradingReportPDF
@@ -35,6 +36,11 @@ interface ReportOptions {
   includeCover: boolean;
   includeStats: boolean;
   includeDailyBreakdown: boolean;
+  includeRisk: boolean;
+  includeRMultiples: boolean;
+  includeExecution: boolean;
+  includeTiming: boolean;
+  includeInstruments: boolean;
   includeTradeHistory: boolean;
   includeJournal: boolean;
 
@@ -215,121 +221,221 @@ function MultiSelect({
 // A scaled-down visual mock of what the PDF pages will look like.
 // We can't actually render react-pdf to canvas here without a worker,
 // so we build a CSS replica that mirrors the real document layout.
-function LivePreview({
-  tradeCount, winCount, lossCount, totalPnl, options,
-}: {
-  tradeCount: number;
-  winCount: number;
-  lossCount: number;
-  totalPnl: number;
-  options: ReportOptions;
-}) {
-  const winRate = tradeCount > 0 ? Math.round((winCount / tradeCount) * 100) : 0;
-
+function LivePreview({ stats, options }: { stats: ReportStats; options: ReportOptions }) {
   const pageStyle: React.CSSProperties = {
     background: "white", borderRadius: "4px",
     boxShadow: "0 4px 24px rgba(0,0,0,0.3)",
     padding: "20px", marginBottom: "12px",
     width: "100%", color: "#1a1a2e",
   };
+  const money = (n: number) => `${n >= 0 ? "+" : "-"}$${Math.abs(n).toFixed(0)}`;
+  const green = "#00b85e";
+  const red = "#cc3355";
+
+  const head = (title: string) => (
+    <div style={{ marginTop: 10, marginBottom: 6 }}>
+      <div style={{ fontSize: "7px", fontWeight: "800", color: "#555", textTransform: "uppercase", letterSpacing: "0.5px" }}>{title}</div>
+      <div style={{ height: "1px", background: "#e0e0f0", marginTop: 3 }} />
+    </div>
+  );
+
+  const grid = (items: { label: string; value: string; color?: string }[]) => (
+    <div style={{ display: "flex", gap: "4px", marginBottom: "8px", flexWrap: "wrap" }}>
+      {items.map((it) => (
+        <div key={it.label} style={{
+          flex: "1 1 28%", minWidth: 62, border: "1px solid #e0e0f0", borderRadius: "3px",
+          padding: "4px", background: "#f8f8fd",
+        }}>
+          <div style={{ fontSize: "5px", color: "#aaa", marginBottom: "2px" }}>{it.label}</div>
+          <div style={{ fontSize: "7px", fontWeight: "800", color: it.color || "#1a1a2e" }}>{it.value}</div>
+        </div>
+      ))}
+    </div>
+  );
+
+  const bar = (pct: number, positive: boolean) => (
+    <div style={{ height: "3px", background: "#f0f0f8", borderRadius: "2px", overflow: "hidden" }}>
+      <div style={{ width: `${Math.min(100, pct)}%`, height: "100%", background: positive ? green : red }} />
+    </div>
+  );
+
+  const note = (text: string) => (
+    <div style={{ fontSize: "5px", color: "#999", padding: "4px 0", fontStyle: "italic" }}>{text}</div>
+  );
+
+  const kv = (label: string, value: string, color?: string) => (
+    <div key={label} style={{
+      display: "flex", justifyContent: "space-between",
+      padding: "3px 0", borderBottom: "1px solid #f0f0f8", fontSize: "6px",
+    }}>
+      <span style={{ color: "#555", fontWeight: "700" }}>{label}</span>
+      <span style={{ color: color || "#1a1a2e", fontWeight: "800" }}>{value}</span>
+    </div>
+  );
+
+  const hours = [...stats.hourData].sort((a, b) => b.totalPnl - a.totalPnl);
+  const weekdays = stats.dowData.filter((d) => d.count > 0);
+  const peakHour = Math.max(...stats.hourData.map((x) => Math.abs(x.totalPnl)), 1);
+  const total = Math.max(stats.trades.length, 1);
+  const anySelected = options.includeCover || options.includeStats || options.includeRisk ||
+    options.includeRMultiples || options.includeExecution || options.includeTiming ||
+    options.includeInstruments || options.includeDailyBreakdown || options.includeTradeHistory;
 
   return (
-    <div style={{ transform: "scale(1)", transformOrigin: "top center" }}>
-      {/* Page 1 */}
-      <div style={pageStyle}>
+    <div style={pageStyle}>
+      {options.includeCover && (
+        <div style={{ borderBottom: "2px solid #00c464", paddingBottom: "12px", marginBottom: "12px" }}>
+          <div style={{ fontSize: "11px", fontWeight: "800", color: "#0a0a1a", letterSpacing: "-0.3px" }}>journedge</div>
+          <div style={{ fontSize: "8px", color: "#888" }}>Trading Performance Report</div>
+        </div>
+      )}
 
-        {/* Cover */}
-        {options.includeCover && (
-          <div style={{ borderBottom: "2px solid #00c464", paddingBottom: "12px", marginBottom: "12px" }}>
-            {/* Mini logo replica */}
-            <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "4px" }}>
-              <div style={{
-                width: "20px", height: "20px", borderRadius: "4px",
-                background: "linear-gradient(135deg, #111122, #111122)",
-                display: "flex", alignItems: "center", justifyContent: "center",
-                fontSize: "9px", fontWeight: "800", color: "#00e57a",
-              }}>T</div>
-              <span style={{ fontSize: "11px", fontWeight: "800", color: "#0a0a1a", letterSpacing: "-0.3px" }}>
-                journedge
-              </span>
-            </div>
-            <div style={{ fontSize: "8px", color: "#888" }}>Trading Performance Report</div>
-          </div>
-        )}
+      {options.includeStats && (
+        <div>
+          {head("Performance Summary")}
+          {grid([
+            { label: "Net P&L", value: money(stats.totalPnl), color: stats.totalPnl >= 0 ? green : red },
+            { label: "Return", value: stats.returnPct === null ? "—" : `${stats.returnPct >= 0 ? "+" : ""}${stats.returnPct.toFixed(2)}%`, color: (stats.returnPct ?? 0) >= 0 ? green : red },
+            { label: "Win Rate", value: `${stats.winRate}%` },
+            { label: "Avg R:R", value: stats.avgRR === null ? "—" : `${stats.avgRR.toFixed(2)}R` },
+            { label: "Expectancy", value: money(stats.expectancyDollars), color: stats.expectancyDollars >= 0 ? green : red },
+            { label: "$/Hour", value: stats.hourlyRate === null ? "—" : `$${stats.hourlyRate.toFixed(2)}` },
+          ])}
+        </div>
+      )}
 
-        {/* Stats */}
-        {options.includeStats && (
-          <div style={{ marginBottom: "10px" }}>
-            <div style={{ fontSize: "7px", fontWeight: "700", color: "#555", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-              Performance Summary
-            </div>
-            <div style={{ display: "flex", gap: "4px" }}>
-              {[
-                { label: "Net P&L", value: `${totalPnl >= 0 ? "+" : ""}$${Math.abs(totalPnl).toFixed(0)}`, color: totalPnl >= 0 ? "#00b85e" : "#cc3355" },
-                { label: "Win Rate", value: `${winRate}%`, color: winRate >= 50 ? "#00b85e" : "#cc3355" },
-                { label: "Trades", value: tradeCount, color: "#1a1a2e" },
-                { label: "Wins", value: winCount, color: "#00b85e" },
-                { label: "Losses", value: lossCount, color: "#cc3355" },
-              ].map((s) => (
-                <div key={s.label} style={{
-                  flex: 1, border: "1px solid #e0e0f0", borderRadius: "3px",
-                  padding: "4px", background: "#f8f8fd",
-                }}>
-                  <div style={{ fontSize: "5px", color: "#aaa", marginBottom: "2px" }}>{s.label}</div>
-                  <div style={{ fontSize: "7px", fontWeight: "800", color: s.color }}>{s.value}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
+      {options.includeRisk && (
+        <div>
+          {head("Risk & Drawdown")}
+          {grid([
+            { label: "Max DD", value: `${stats.maxDdPct.toFixed(1)}%`, color: red },
+            { label: "Sharpe", value: stats.sharpe === 0 ? "—" : stats.sharpe.toFixed(2) },
+            { label: "Sortino", value: stats.sortino === 0 ? "—" : stats.sortino.toFixed(2) },
+            { label: "Calmar", value: stats.calmar === 0 ? "—" : stats.calmar.toFixed(2) },
+          ])}
+          {stats.riskCoverage > 0 ? (
+            <>
+              {kv("Avg planned risk", `$${stats.avgRisk.toFixed(2)}`)}
+              {kv("Risk range", `$${stats.minRisk.toFixed(0)} – $${stats.maxRisk.toFixed(0)}`)}
+              {kv("Risk consistency", `${stats.riskConsistency.toFixed(0)}%`)}
+              {kv("Stop breaches", String(stats.stopBreaches))}
+            </>
+          ) : note("No stop loss recorded — re-run the exporter with a stop set.")}
+        </div>
+      )}
 
-        {/* Daily breakdown */}
-        {options.includeDailyBreakdown && (
-          <div style={{ marginBottom: "10px" }}>
-            <div style={{ fontSize: "7px", fontWeight: "700", color: "#555", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-              Daily Breakdown
-            </div>
-            {[...Array(3)].map((_, i) => (
-              <div key={i} style={{
-                display: "flex", justifyContent: "space-between",
-                padding: "3px 0", borderBottom: "1px solid #f0f0f8",
-              }}>
-                <div style={{ width: "40px", height: "5px", background: "#e0e0f0", borderRadius: "2px" }} />
-                <div style={{ width: "30px", height: "5px", background: "#e0e0f0", borderRadius: "2px" }} />
-                <div style={{ width: "20px", height: "5px", background: "#00b85e33", borderRadius: "2px" }} />
+      {options.includeRMultiples && (
+        <div>
+          {head("R-Multiple Distribution")}
+          {grid([
+            { label: "Avg R", value: `${stats.avgR >= 0 ? "+" : ""}${stats.avgR.toFixed(2)}R`, color: stats.avgR >= 0 ? green : red },
+            { label: "1R Unit", value: stats.rUnit > 0 ? `$${stats.rUnit.toFixed(0)}` : "—" },
+            { label: "Expectancy", value: stats.expectancyR === null ? "—" : `${stats.expectancyR.toFixed(2)}R` },
+          ])}
+          {stats.rBuckets.length > 0 ? stats.rBuckets.map((b) => (
+            <div key={b.bucket} style={{ padding: "2px 0", borderBottom: "1px solid #f4f4fc" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: "6px" }}>
+                <span style={{ fontWeight: "800", color: "#1a1a2e" }}>{b.bucket}</span>
+                <span style={{ color: "#555" }}>{b.count} · {Math.round((b.count / total) * 100)}%</span>
               </div>
+              {bar((b.count / total) * 100, b.positive)}
+            </div>
+          )) : note("No R-multiples for this period.")}
+        </div>
+      )}
+
+      {options.includeExecution && (
+        <div>
+          {head("Execution Quality")}
+          {stats.execCoverage > 0 ? grid([
+            { label: "Avg MAE", value: `$${stats.avgMae.toFixed(0)}`, color: red },
+            { label: "Avg MFE", value: `$${stats.avgMfe.toFixed(0)}`, color: green },
+            { label: "Entry Eff", value: `${stats.entryEff.toFixed(0)}%` },
+            { label: "Exit Eff", value: `${stats.exitEff.toFixed(0)}%` },
+          ]) : note("No MAE/MFE data — re-run the exporter with excursion scanning.")}
+        </div>
+      )}
+
+      {options.includeInstruments && stats.instruments.length > 0 && (
+        <div>
+          {head("Instrument Breakdown")}
+          <div style={{ display: "flex", gap: "3px", marginBottom: "3px" }}>
+            {["Instrument", "Tr", "WR", "Net P&L", "Avg R"].map((h, i) => (
+              <div key={h} style={{
+                fontSize: "5px", fontWeight: "800", color: "#555",
+                flex: i === 0 ? "0 0 58px" : i === 4 ? "0 0 32px" : "0 0 22px",
+                textAlign: i === 0 ? "left" : "right",
+              }}>{h}</div>
             ))}
           </div>
-        )}
+          {stats.instruments.slice(0, 6).map((r) => (
+            <div key={r.symbol} style={{ display: "flex", gap: "3px", padding: "2px 0", borderBottom: "1px solid #f4f4fc" }}>
+              <span style={{ fontSize: "6px", fontWeight: "800", color: "#1a1a2e", flex: "0 0 58px" }}>{r.symbol}</span>
+              <span style={{ fontSize: "6px", color: "#555", flex: "0 0 22px", textAlign: "right" }}>{r.trades}</span>
+              <span style={{ fontSize: "6px", color: "#555", flex: "0 0 22px", textAlign: "right" }}>{r.winRate}%</span>
+              <span style={{ fontSize: "6px", fontWeight: "800", color: r.pnl >= 0 ? green : red, flex: "0 0 22px", textAlign: "right" }}>{money(r.pnl)}</span>
+              <span style={{ fontSize: "6px", color: "#555", flex: "0 0 32px", textAlign: "right" }}>{r.avgR === null ? "—" : `${r.avgR.toFixed(2)}R`}</span>
+            </div>
+          ))}
+        </div>
+      )}
 
-        {/* Trade history */}
-        {options.includeTradeHistory && (
-          <div>
-            <div style={{ fontSize: "7px", fontWeight: "700", color: "#555", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-              Trade History
-            </div>
-            <div style={{ background: "#f0f0f8", borderRadius: "2px", padding: "3px 4px", marginBottom: "3px", display: "flex", gap: "4px" }}>
-              {["Date", "Symbol", "P&L"].map((h) => (
-                <div key={h} style={{ flex: 1, fontSize: "5px", fontWeight: "700", color: "#888" }}>{h}</div>
-              ))}
-            </div>
-            {[...Array(Math.min(tradeCount, 5))].map((_, i) => (
-              <div key={i} style={{
-                display: "flex", gap: "4px", padding: "2px 4px",
-                background: i % 2 === 0 ? "transparent" : "#fafaff",
-              }}>
-                <div style={{ flex: 1, height: "4px", background: "#e0e0f0", borderRadius: "1px" }} />
-                <div style={{ flex: 1, height: "4px", background: "#e0e0f0", borderRadius: "1px" }} />
-                <div style={{ flex: 1, height: "4px", background: i % 3 === 0 ? "#cc335533" : "#00b85e33", borderRadius: "1px" }} />
+      {options.includeTiming && hours.length > 0 && (
+        <div>
+          {head("Timing")}
+          {hours.slice(0, 6).map((h) => (
+            <div key={h.hour} style={{ padding: "2px 0", borderBottom: "1px solid #f4f4fc" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: "6px" }}>
+                <span style={{ fontWeight: "800", color: "#1a1a2e" }}>{h.label}</span>
+                <span style={{ color: "#555" }}>{h.count} trade{h.count === 1 ? "" : "s"} · {h.winRate}% · </span>
+                <span style={{ fontWeight: "800", color: h.totalPnl >= 0 ? green : red }}>{money(h.totalPnl)}</span>
               </div>
+              {bar((Math.abs(h.totalPnl) / peakHour) * 100, h.totalPnl >= 0)}
+            </div>
+          ))}
+          {weekdays.map((d) => kv(d.day, money(d.pnl), d.pnl >= 0 ? green : red))}
+        </div>
+      )}
+
+      {options.includeDailyBreakdown && (
+        <div>
+          {head("Daily Breakdown")}
+          {[...Array(3)].map((_, i) => (
+            <div key={i} style={{
+              display: "flex", justifyContent: "space-between",
+              padding: "3px 0", borderBottom: "1px solid #f0f0f8",
+            }}>
+              <div style={{ width: "40px", height: "5px", background: "#e0e0f0", borderRadius: "2px" }} />
+              <div style={{ width: "30px", height: "5px", background: "#e0e0f0", borderRadius: "2px" }} />
+              <div style={{ width: "20px", height: "5px", background: "#00b85e33", borderRadius: "2px" }} />
+            </div>
+          ))}
+        </div>
+      )}
+
+      {options.includeTradeHistory && (
+        <div>
+          {head("Trade History")}
+          <div style={{ background: "#f0f0f8", borderRadius: "2px", padding: "3px 4px", marginBottom: "3px", display: "flex", gap: "4px" }}>
+            {["Date", "Symbol", "P&L"].map((h) => (
+              <div key={h} style={{ flex: 1, fontSize: "5px", fontWeight: "700", color: "#888" }}>{h}</div>
             ))}
           </div>
-        )}
-      </div>
+          {[...Array(Math.min(stats.trades.length, 5))].map((_, i) => (
+            <div key={i} style={{
+              display: "flex", gap: "4px", padding: "2px 4px",
+              background: i % 2 === 0 ? "transparent" : "#fafaff",
+            }}>
+              <div style={{ flex: 1, height: "4px", background: "#e0e0f0", borderRadius: "2px" }} />
+              <div style={{ flex: 1, height: "4px", background: "#e0e0f0", borderRadius: "2px" }} />
+              <div style={{ flex: 1, height: "4px", background: "#00b85e33", borderRadius: "2px" }} />
+            </div>
+          ))}
+        </div>
+      )}
 
-      {/* No sections selected */}
-      {!options.includeCover && !options.includeStats && !options.includeDailyBreakdown && !options.includeTradeHistory && (
-        <div style={{ ...pageStyle, textAlign: "center", padding: "32px", color: "#aaa", fontSize: "11px" }}>
+      {!anySelected && (
+        <div style={{ textAlign: "center", padding: "32px", color: "#aaa", fontSize: "11px" }}>
           No sections selected
         </div>
       )}
@@ -348,6 +454,11 @@ export default function ExportPage() {
     includeCover: true,
     includeStats: true,
     includeDailyBreakdown: true,
+    includeRisk: true,
+    includeRMultiples: true,
+    includeExecution: true,
+    includeTiming: true,
+    includeInstruments: true,
     includeTradeHistory: true,
     includeJournal: false,
     journalLayout: "2",
@@ -372,9 +483,11 @@ export default function ExportPage() {
     });
   }, [trades, options]);
 
-  const wins   = filteredTrades.filter((t) => t.status === "win");
-  const losses = filteredTrades.filter((t) => t.status === "loss");
-  const totalPnl = filteredTrades.reduce((s, t) => s + t.pnl, 0);
+  // Same maths the PDF and the Analytics tab use, so the preview matches the file.
+  const reportStats = useMemo(
+    () => buildReportStats(filteredTrades, activeAccount?.initialBalance ?? 0),
+    [filteredTrades, activeAccount]
+  );
 
   const set = <K extends keyof ReportOptions>(key: K, val: ReportOptions[K]) =>
     setOptions((prev) => ({ ...prev, [key]: val }));
@@ -493,10 +606,35 @@ export default function ExportPage() {
         {/* ── Sections ── */}
         <SectionHeading icon={Layout} label="Report Sections" />
 
-        <Toggle label="Cover Page"         checked={options.includeCover}         onChange={(v) => set("includeCover", v)} />
-        <Toggle label="Performance Summary" checked={options.includeStats}         onChange={(v) => set("includeStats", v)} />
-        <Toggle label="Daily Breakdown"     checked={options.includeDailyBreakdown} onChange={(v) => set("includeDailyBreakdown", v)} />
-        <Toggle label="Trade History"       checked={options.includeTradeHistory}  onChange={(v) => set("includeTradeHistory", v)} />
+        <Toggle label="Cover Page"          checked={options.includeCover}          onChange={(v) => set("includeCover", v)} />
+        <Toggle label="Performance Summary" checked={options.includeStats}          onChange={(v) => set("includeStats", v)} />
+        <Toggle
+          label="Risk &amp; Drawdown"
+          sub="Drawdown, Sharpe/Sortino/Calmar, planned risk, risk consistency"
+          checked={options.includeRisk} onChange={(v) => set("includeRisk", v)}
+        />
+        <Toggle
+          label="R-Multiple Distribution"
+          sub="Average R, 1R unit and the outcome histogram"
+          checked={options.includeRMultiples} onChange={(v) => set("includeRMultiples", v)}
+        />
+        <Toggle
+          label="Execution Quality"
+          sub="MAE, MFE, entry and exit efficiency"
+          checked={options.includeExecution} onChange={(v) => set("includeExecution", v)}
+        />
+        <Toggle
+          label="Instrument Breakdown"
+          sub="Per-symbol trades, win rate, net P&L and average R"
+          checked={options.includeInstruments} onChange={(v) => set("includeInstruments", v)}
+        />
+        <Toggle
+          label="Timing"
+          sub="Best and worst hours (24h) and weekdays"
+          checked={options.includeTiming} onChange={(v) => set("includeTiming", v)}
+        />
+        <Toggle label="Daily Breakdown"      checked={options.includeDailyBreakdown} onChange={(v) => set("includeDailyBreakdown", v)} />
+        <Toggle label="Trade History"        checked={options.includeTradeHistory}  onChange={(v) => set("includeTradeHistory", v)} />
         <Toggle
           label="Journal Entries"
           sub="Requires journal entries to be written"
@@ -553,10 +691,7 @@ export default function ExportPage() {
         </div>
 
         <LivePreview
-          tradeCount={filteredTrades.length}
-          winCount={wins.length}
-          lossCount={losses.length}
-          totalPnl={totalPnl}
+          stats={reportStats}
           options={options}
         />
 

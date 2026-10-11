@@ -146,12 +146,21 @@ function PlaybookSelector({ trade }: { trade: Trade }) {
   );
 }
 
+function formatHoldTime(minutes: number): string {
+  if (minutes < 1) return "<1 min";
+  if (minutes < 60) return `${Math.round(minutes)} min`;
+  const h = Math.floor(minutes / 60);
+  const m = Math.round(minutes % 60);
+  return m === 0 ? `${h}h` : `${h}h ${m}m`;
+}
+
 export default function TradePanel({ trade, onClose, onSave }: Props) {
   const { setActivePage, setActiveTradeId, deleteTrade } = useApp();
 
   const [entryTime, setEntryTime] = useState("");
   const [exitTime, setExitTime]   = useState("");
   const [rr, setRr]               = useState("");
+  const [plannedRisk, setPlannedRisk] = useState("");
   const [mae, setMae]             = useState("");
   const [mfe, setMfe]             = useState("");
   const [link, setLink]           = useState("");
@@ -167,6 +176,7 @@ export default function TradePanel({ trade, onClose, onSave }: Props) {
       setEntryTime(trade.entryTime || "");
       setExitTime(trade.exitTime || "");
       setRr(trade.rr || "");
+      setPlannedRisk(trade.plannedRisk != null ? String(trade.plannedRisk) : "");
       setMae(trade.mae != null ? String(trade.mae) : "");
       setMfe(trade.mfe != null ? String(trade.mfe) : "");
       setLink(trade.link || "");
@@ -209,6 +219,7 @@ export default function TradePanel({ trade, onClose, onSave }: Props) {
     const updated: Trade = {
       ...trade,
       entryTime, exitTime, rr,
+      plannedRisk: plannedRisk !== "" ? parseFloat(plannedRisk) : undefined,
       mae: mae !== "" ? parseFloat(mae) : undefined,
       mfe: mfe !== "" ? parseFloat(mfe) : undefined,
       link, tags, imageUrls: images,
@@ -219,6 +230,7 @@ export default function TradePanel({ trade, onClose, onSave }: Props) {
       body: JSON.stringify({
         id: trade.id,
         entryTime, exitTime, rr,
+        plannedRisk: plannedRisk !== "" ? parseFloat(plannedRisk) : null,
         mae: mae !== "" ? parseFloat(mae) : null,
         mfe: mfe !== "" ? parseFloat(mfe) : null,
         link,
@@ -429,6 +441,49 @@ export default function TradePanel({ trade, onClose, onSave }: Props) {
               placeholder="e.g. 1:2.5"
               style={fieldInput}
             />
+          </div>
+
+          {/* Planned risk + hold time, both imported from MetaTrader */}
+          <div style={{ marginBottom: "18px" }}>
+            <label style={{
+              fontSize: "11px", color: "var(--text-muted)", fontWeight: "600",
+              display: "block", marginBottom: "8px", letterSpacing: "0.4px",
+            }}>
+              PLANNED RISK
+            </label>
+            <div style={{ display: "flex", gap: "8px" }}>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: "10px", color: "var(--text-muted)", marginBottom: "4px" }}>
+                  {trade.plannedRisk != null ? "From stop loss" : "Not recorded"}
+                </div>
+                <input
+                  type="number" step="0.01" min="0" value={plannedRisk}
+                  onChange={(e) => setPlannedRisk(e.target.value)}
+                  placeholder="e.g. 100"
+                  style={fieldInput}
+                />
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: "10px", color: "var(--text-muted)", marginBottom: "4px" }}>Held for</div>
+                <div style={{
+                  padding: "8px 10px", borderRadius: "6px", fontSize: "13px",
+                  background: "var(--bg-secondary)", border: "1px solid var(--border)", color: "#f0f0ff",
+                }}>
+                  {trade.durationMin != null ? formatHoldTime(trade.durationMin) : "—"}
+                </div>
+              </div>
+            </div>
+            {trade.plannedRisk != null && trade.plannedRisk > 0 && (
+              <div style={{ fontSize: "10px", color: "var(--text-muted)", marginTop: "6px" }}>
+                This trade closed at{" "}
+                <span style={{
+                  color: (trade.pnl / trade.plannedRisk) >= 0 ? "#00e57a" : "#ff4d6a",
+                  fontWeight: "700",
+                }}>
+                  {(trade.pnl / trade.plannedRisk).toFixed(2)}R
+                </span>
+              </div>
+            )}
           </div>
 
           {/* MAE / MFE */}

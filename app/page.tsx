@@ -4,7 +4,6 @@ import { AppProvider } from "./context/AppContext";
 import { useApp } from "./context/AppContext";
 import Sidebar from "./components/Sidebar";
 import TradePanel from "./components/TradePanel";
-import AddTradeModal from "./components/AddTradeModal";
 import Dashboard from "./pages/Dashboard";
 import ImportPage from "./pages/ImportPage";
 import CalendarPage from "./pages/CalendarPage";
@@ -16,7 +15,6 @@ import SettingsPage from "./pages/SettingsPage";
 import ExportPage from "./pages/ExportPage";
 import PlansPage from "./pages/PlansPage";
 import PlaybookPage from "./pages/PlaybookPage";
-import PositionSizerPage from "./pages/PositionSizerPage";
 import { X } from "lucide-react";
 
 const SHORTCUTS = [
@@ -28,7 +26,6 @@ const SHORTCUTS = [
   { key: "B", description: "Playbook"        },
   { key: "I", description: "Import Trades"   },
   { key: "E", description: "Export"          },
-  { key: "N", description: "New Trade"       },
   { key: "/", description: "Show Shortcuts"  },
   { key: "Esc", description: "Close modal"   },
 ];
@@ -101,7 +98,6 @@ function ShortcutsModal({ onClose }: { onClose: () => void }) {
 
 function AppShell() {
   const { activePage, setActivePage, selectedTrade, setSelectedTrade, setTrades, trades } = useApp();
-  const [showAddTrade, setShowAddTrade]         = useState(false);
   const [showShortcuts, setShowShortcuts]       = useState(false);
 
   const isEditorPage = activePage === "journal-editor";
@@ -128,11 +124,9 @@ function AppShell() {
         case "b": case "B": setActivePage("playbook");        break;
         case "i": case "I": setActivePage("import");          break;
         case "e": case "E": setActivePage("export");          break;
-        case "n": case "N": setShowAddTrade(true);            break;
         case "/":           setShowShortcuts((v) => !v);      break;
         case "Escape":
           setShowShortcuts(false);
-          setShowAddTrade(false);
           setSelectedTrade(null);
           break;
       }
@@ -144,7 +138,7 @@ function AppShell() {
 
   return (
     <div style={{ display: "flex", height: "100vh", overflow: "hidden" }}>
-      <Sidebar onAddTrade={() => setShowAddTrade(true)} />
+      <Sidebar />
 
       <main style={{
         flex: 1,
@@ -154,14 +148,13 @@ function AppShell() {
         display: isEditorPage ? "flex" : "block",
         flexDirection: isEditorPage ? "column" : undefined,
       }}>
-        {activePage === "dashboard"      && <Dashboard onAddTrade={() => setShowAddTrade(true)} />}
+        {activePage === "dashboard"      && <Dashboard />}
         {activePage === "journal"        && <JournalPage />}
         {activePage === "journal-editor" && <JournalEditorPage />}
         {activePage === "analytics"      && <AnalyticsPage />}
         {activePage === "calendar"       && <CalendarPage />}
         {activePage === "plans"          && <PlansPage />}
         {activePage === "playbook"       && <PlaybookPage />}
-        {activePage === "position-sizer" && <PositionSizerPage />}
         {activePage === "import"         && <ImportPage />}
         {activePage === "accounts"       && <AccountsPage />}
         {activePage === "export"         && <ExportPage />}
@@ -185,10 +178,6 @@ function AppShell() {
           setSelectedTrade(updated);
         }}
       />
-
-      {showAddTrade && (
-        <AddTradeModal onClose={() => setShowAddTrade(false)} />
-      )}
 
       {showShortcuts && (
         <ShortcutsModal onClose={() => setShowShortcuts(false)} />

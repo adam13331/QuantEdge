@@ -2,90 +2,52 @@
 import { useState, useRef } from "react";
 import { useApp } from "../context/AppContext";
 import { Trade } from "../lib/types";
-import { parseFidelityCSV }                        from "../lib/parseFidelityCSV";
-import { parseJournedgeCSV, isJournedgeCSV }        from "../lib/parseJournedgeCSV";
-import { parseSchwabCSV, isSchwabCSV }              from "../lib/parseSchwabCSV";
-import { parseTDAmeritradeCSV, isTDAmeritradeCSV }  from "../lib/parseTDAmeritradeCSV";
-import { parseTastytradeCSV, isTastytradeCSV }      from "../lib/parseTastytradeCSV";
-import { parseIBKRCSV, isIBKRCSV }                 from "../lib/parseIBKRCSV";
+import { parseMetaTraderCSV, isMetaTraderCSV, firstLine } from "../lib/parseMetaTraderCSV";
 import {
   Upload, CheckCircle, AlertCircle, FileText,
   ArrowRight, X, Database, RefreshCw,
 } from "lucide-react";
 
 type ParseStatus = "idle" | "success" | "error" | "importing";
-type BrokerSource = "Journedge" | "fidelity" | "schwab" | "tdameritrade" | "tastytrade" | "ibkr";
 
 interface ParseResult {
   trades: Trade[];
-  source: BrokerSource;
   count:  number;
 }
 
-const BADGE_CONFIG: Record<BrokerSource, { label: string; color: string; bg: string; border: string }> = {
-  Journedge:    { label: "Journedge Export",    color: "#00e57a", bg: "rgba(0,229,122,0.12)",   border: "rgba(0,229,122,0.3)"   },
-  fidelity:     { label: "Fidelity CSV",        color: "#4d9fff", bg: "rgba(77,159,255,0.12)",  border: "rgba(77,159,255,0.3)"  },
-  schwab:       { label: "Charles Schwab CSV",  color: "#4d9fff", bg: "rgba(77,159,255,0.12)",  border: "rgba(77,159,255,0.3)"  },
-  tdameritrade: { label: "TD Ameritrade CSV",   color: "#fb923c", bg: "rgba(251,146,60,0.12)",  border: "rgba(251,146,60,0.3)"  },
-  tastytrade:   { label: "Tastytrade CSV",      color: "#a78bfa", bg: "rgba(167,139,250,0.12)", border: "rgba(167,139,250,0.3)" },
-  ibkr:         { label: "IBKR Activity CSV",   color: "#f472b6", bg: "rgba(244,114,182,0.12)", border: "rgba(244,114,182,0.3)" },
-};
-
-function FormatBadge({ source }: { source: BrokerSource }) {
-  const cfg = BADGE_CONFIG[source];
+function FormatBadge() {
   return (
     <span style={{
       display: "inline-flex", alignItems: "center", gap: "5px",
       padding: "3px 10px", borderRadius: "20px", fontSize: "11px", fontWeight: "700",
-      background: cfg.bg, color: cfg.color, border: `1px solid ${cfg.border}`,
+      background: "rgba(0,229,122,0.12)", color: "#00e57a", border: "1px solid rgba(0,229,122,0.3)",
     }}>
       <Database size={10} />
-      {cfg.label}
+      MetaTrader Export
     </span>
   );
 }
 
-function detectAndParse(text: string): { trades: Trade[]; source: BrokerSource } {
-  if (isJournedgeCSV(text))    return { trades: parseJournedgeCSV(text),    source: "Journedge"     };
-  if (isSchwabCSV(text))       return { trades: parseSchwabCSV(text),       source: "schwab"        };
-  if (isTastytradeCSV(text))   return { trades: parseTastytradeCSV(text),   source: "tastytrade"   };
-  if (isTDAmeritradeCSV(text)) return { trades: parseTDAmeritradeCSV(text), source: "tdameritrade" };
-  if (isIBKRCSV(text))         return { trades: parseIBKRCSV(text),         source: "ibkr"         };
-  return { trades: parseFidelityCSV(text), source: "fidelity" };
+// Explains what was wrong using the file's own contents. The old generic
+// "check it's a valid broker CSV" message made a mis-detected export
+// impossible to diagnose.
+function describeFile(text: string): string {
+  if (!text.trim()) return "The file is empty (0 bytes).";
+
+  const head = firstLine(text);
+  if (!head) return "The file has no readable content.";
+
+  const shown = head.length > 180 ? head.slice(0, 180) + "…" : head;
+  return `This isn't a MetaTrader export. The first line reads: “${shown}”`;
 }
 
-const BROKER_CARDS = [
-  {
-    label: "Journedge Export",
-    desc:  "Re-import a CSV you previously exported from Journedge. All journal notes, tags, and trade data are preserved.",
-    color: "#00e57a", bg: "rgba(0,229,122,0.06)", border: "rgba(0,229,122,0.2)",
-  },
-  {
-    label: "Fidelity",
-    desc:  "Upload your Fidelity trade history export. Trades are automatically parsed and P&L calculated.",
-    color: "#4d9fff", bg: "rgba(77,159,255,0.06)", border: "rgba(77,159,255,0.2)",
-  },
-  {
-    label: "Charles Schwab",
-    desc:  "Upload a Schwab Realized Gain/Loss Lot Details CSV. Export from the Gain/Loss tab in your Schwab account. Wash-sale adjustments are preserved.",
-    color: "#4d9fff", bg: "rgba(77,159,255,0.06)", border: "rgba(77,159,255,0.2)",
-  },
-  {
-    label: "TD Ameritrade",
-    desc:  "Upload a TD Ameritrade Transaction History CSV. Works with post-Schwab merger exports.",
-    color: "#fb923c", bg: "rgba(251,146,60,0.06)", border: "rgba(251,146,60,0.2)",
-  },
-  {
-    label: "Tastytrade",
-    desc:  "Upload a Tastytrade transaction history CSV. Options, stocks, and futures are all supported.",
-    color: "#a78bfa", bg: "rgba(167,139,250,0.06)", border: "rgba(167,139,250,0.2)",
-  },
-  {
-    label: "Interactive Brokers",
-    desc:  "Upload an IBKR Activity Statement CSV. Export from Flex Query or the standard Activity Statement.",
-    color: "#f472b6", bg: "rgba(244,114,182,0.06)", border: "rgba(244,114,182,0.2)",
-  },
-];
+const FORMAT_CARD = {
+  label: "MetaTrader",
+  desc:  "Run JournedgeExport.mq5 on any chart in MetaTrader 5, then drop the CSV it writes to MQL5\\Files. " +
+         "Every closed trade is reconstructed from its deals — options, forex, futures and stocks — " +
+         "with entry/exit times, commission, swap and net P&L already calculated.",
+  color: "#00e57a", bg: "rgba(0,229,122,0.06)", border: "rgba(0,229,122,0.2)",
+};
 
 export default function ImportPage() {
   const { activeAccount, reloadTrades, setActivePage } = useApp();
@@ -114,23 +76,22 @@ export default function ImportPage() {
     setFileName(file.name);
     const reader = new FileReader();
     reader.onload = (e) => {
+      const text = e.target?.result as string;
+      // Check the header before parsing so a wrong file gets the diagnostic
+      // message rather than a "no trade rows" complaint.
+      if (!isMetaTraderCSV(text)) {
+        setStatus("error");
+        setMessage(describeFile(text));
+        return;
+      }
       try {
-        const text = e.target?.result as string;
-        const { trades, source } = detectAndParse(text);
-        if (trades.length === 0) {
-          setStatus("error");
-          setMessage(
-            "No trades found. Make sure this is a supported broker export or a Journedge CSV. " +
-            "Supported: Fidelity, Charles Schwab, TD Ameritrade, Tastytrade, Interactive Brokers, Journedge."
-          );
-          return;
-        }
-        setResult({ trades, source, count: trades.length });
+        const trades = parseMetaTraderCSV(text);
+        setResult({ trades, count: trades.length });
         setStatus("success");
         setMessage(`Found ${trades.length} trade${trades.length !== 1 ? "s" : ""} — ready to import.`);
-      } catch {
+      } catch (err) {
         setStatus("error");
-        setMessage("Could not parse this file. Check it's a valid broker or Journedge CSV.");
+        setMessage(err instanceof Error ? err.message : "Could not parse this file.");
       }
     };
     reader.readAsText(file);
@@ -170,29 +131,26 @@ export default function ImportPage() {
         </h2>
         <p style={{ color: "#8888aa", fontSize: "14px", marginTop: "4px" }}>
           {activeAccount
-            ? `Importing into: ${activeAccount.name} (${activeAccount.broker})`
+            ? `Importing into: ${activeAccount.name} (${activeAccount.platform})`
             : "No account selected — trades will be unlinked"}
         </p>
       </div>
 
       {/* Broker cards */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginBottom: "24px" }}>
-        {BROKER_CARDS.map((card) => (
-          <div
-            key={card.label}
-            style={{
-              background: card.bg, border: `1px solid ${card.border}`,
-              borderRadius: "12px", padding: "16px",
-            }}
-          >
-            <div style={{ fontSize: "12px", fontWeight: "700", color: card.color, marginBottom: "6px" }}>
-              {card.label}
-            </div>
-            <div style={{ fontSize: "12px", color: "#8888aa", lineHeight: "1.5" }}>
-              {card.desc}
-            </div>
+      <div style={{ marginBottom: "24px" }}>
+        <div
+          style={{
+            background: FORMAT_CARD.bg, border: `1px solid ${FORMAT_CARD.border}`,
+            borderRadius: "12px", padding: "16px",
+          }}
+        >
+          <div style={{ fontSize: "12px", fontWeight: "700", color: FORMAT_CARD.color, marginBottom: "6px" }}>
+            {FORMAT_CARD.label}
           </div>
-        ))}
+          <div style={{ fontSize: "12px", color: "#8888aa", lineHeight: "1.5" }}>
+            {FORMAT_CARD.desc}
+          </div>
+        </div>
       </div>
 
       {/* Drop zone */}
@@ -229,7 +187,7 @@ export default function ImportPage() {
               Drop your CSV here
             </div>
             <div style={{ fontSize: "14px", color: "#8888aa" }}>
-              Format is auto-detected — no configuration needed
+              JournedgeExport.mq5 output — format is verified automatically
             </div>
           </>
         )}
@@ -244,7 +202,7 @@ export default function ImportPage() {
               <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}>
                 <FileText size={12} color="#8888aa" />
                 <span style={{ fontSize: "12px", color: "#8888aa" }}>{fileName}</span>
-                <FormatBadge source={result.source} />
+                <FormatBadge />
               </div>
             </div>
           </div>

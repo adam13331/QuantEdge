@@ -1,0 +1,6 @@
+-- AlterTable
+ALTER TABLE "Trade" ADD COLUMN "exitReason" TEXT;
+ALTER TABLE "Trade" ADD COLUMN "magic" INTEGER;
+ALTER TABLE "Trade" ADD COLUMN "legs" INTEGER;
+ALTER TABLE "Trade" ADD COLUMN "averagedDown" BOOLEAN;
+ALTER TABLE "Trade" ADD COLUMN "balanceAfter" REAL;

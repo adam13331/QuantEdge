@@ -1,7 +1,7 @@
 "use client";
 import { useState, useMemo } from "react";
 import {
-  TrendingUp, TrendingDown, Target, Zap, Upload, Search, X,
+  Target, Timer, Percent, Ratio, Upload, Search, X,
   ChevronDown, ShieldCheck, ShieldAlert, Trash2,
 } from "lucide-react";
 import { useApp } from "../context/AppContext";
@@ -136,10 +136,78 @@ function DailyRiskStrip({ trades }: { trades: Trade[] }) {
   );
 }
 
+// Time helpers
+// Entry/exit times are stored as a time of day ("9:32 AM", "14:05"), matching the
+// formats extractHour() in app/api/trades/route.ts accepts on import.
+function toDecimalHours(raw?: string): number | null {
+  if (!raw) return null;
+  const t = raw.trim();
+
+  const ampm = t.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+  if (ampm) {
+    let h = parseInt(ampm[1], 10);
+    const period = ampm[3].toUpperCase();
+    if (period === "AM" && h === 12) h = 0;
+    if (period === "PM" && h !== 12) h += 12;
+    return h + parseInt(ampm[2], 10) / 60;
+  }
+
+  const h24 = t.match(/^(\d{1,2}):(\d{2})$/);
+  if (h24) {
+    const h = parseInt(h24[1], 10);
+    if (h <= 23) return h + parseInt(h24[2], 10) / 60;
+  }
+
+  return null;
+}
+
+// Hours a trade was held. MetaTrader exports the exact hold time, so prefer it;
+// fall back to the time-of-day pair for older files, where a trade closing after
+// midnight is treated as crossing over (22:10 -> 01:05 = 2.92h).
+function tradeHours(trade: Trade): number | null {
+  if (trade.durationMin != null && trade.durationMin > 0) return trade.durationMin / 60;
+
+  const entry = toDecimalHours(trade.entryTime);
+  const exit  = toDecimalHours(trade.exitTime);
+  if (entry === null || exit === null) return null;
+  const hours = exit - entry < 0 ? exit - entry + 24 : exit - entry;
+  return hours > 0 ? hours : null;
+}
+
+// R:R is stored as free text (the trade panel hints "1:2.5"), and the MetaTrader
+// exporter writes a plain multiple. Returns the reward multiple, or null when
+// the trade has no readable ratio.
+function parseRR(raw?: string): number | null {
+  if (!raw) return null;
+  const cleaned = raw.trim().replace(/[rR]/g, "");
+  if (!cleaned) return null;
+
+  const parts = cleaned.split(":");
+  if (parts.length === 2) {
+    const reward = parseFloat(parts[1]);
+    const risk   = parseFloat(parts[0]);
+    if (isNaN(reward) || isNaN(risk) || risk === 0) return null;
+    return Math.abs(reward / risk);
+  }
+
+  const n = parseFloat(cleaned);
+  return isNaN(n) ? null : n;
+}
+
+function formatHours(hours: number): string {
+  const h = Math.floor(hours);
+  const m = Math.round((hours - h) * 60);
+  if (h === 0) return `${m}m`;
+  return m === 0 ? `${h}h` : `${h}h ${m}m`;
+}
+
 // Stat Cards 
 function StatCard({ label, value, sub, positive, icon: Icon }: {
-  label: string; value: string; sub: string; positive: boolean; icon: any;
+  label: string; value: string; sub: string; positive: boolean | null; icon: any;
 }) {
+  // null = no data yet, render neutral instead of picking a side
+  const color = positive === null ? "var(--text-muted)" : positive ? "#00e57a" : "#ff4d6a";
+
   return (
     <div style={{
       background: "var(--bg-card)", border: "1px solid var(--border)",
@@ -147,11 +215,11 @@ function StatCard({ label, value, sub, positive, icon: Icon }: {
     }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "12px" }}>
         <span style={{ fontSize: "12px", color: "var(--text-muted)", fontWeight: "500" }}>{label}</span>
-        <Icon size={16} color={positive ? "#00e57a" : "#ff4d6a"} />
+        <Icon size={16} color={color} />
       </div>
       <div style={{
         fontSize: "24px", fontWeight: "700", fontFamily: "'Syne', sans-serif",
-        color: positive ? "#00e57a" : "#ff4d6a", marginBottom: "4px",
+        color, marginBottom: "4px",
       }}>
         {value}
       </div>
@@ -179,10 +247,8 @@ function SelectWrap({ children }: { children: React.ReactNode }) {
   );
 }
 
-interface Props { onAddTrade: () => void; }
-
-export default function Dashboard({ onAddTrade }: Props) {
-  const { trades, setActivePage, setSelectedTrade, deleteTrade } = useApp();
+export default function Dashboard() {
+  const { trades, setActivePage, setSelectedTrade, deleteTrade, activeAccount } = useApp();
 
   const [search, setSearch]             = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
@@ -235,20 +301,53 @@ export default function Dashboard({ onAddTrade }: Props) {
   const wins         = filtered.filter((t) => t.status === "win");
   const losses       = filtered.filter((t) => t.status === "loss");
   const winRate      = filtered.length > 0 ? Math.round((wins.length / filtered.length) * 100) : 0;
-  const avgWin       = wins.length   > 0 ? wins.reduce((s, t)   => s + t.pnl, 0) / wins.length   : 0;
-  const avgLoss      = losses.length > 0 ? Math.abs(losses.reduce((s, t) => s + t.pnl, 0) / losses.length) : 0;
-  const profitFactor = avgLoss > 0 ? (avgWin / avgLoss).toFixed(2) : "—";
+
+  // Return % — net result measured against the account's starting balance
+  const baseBalance = activeAccount?.initialBalance ?? 0;
+  const returnPct   = baseBalance > 0 ? (totalPnl / baseBalance) * 100 : null;
+
+  // Hourly pay rate — net P&L divided by total time spent in trade
+  const totalHours = filtered.reduce((sum, t) => sum + (tradeHours(t) ?? 0), 0);
+  const hourlyRate = totalHours > 0 ? totalPnl / totalHours : null;
+
+  // Average R:R across the trades that carry a ratio
+  const rrValues = filtered
+    .map((t) => parseRR(t.rr))
+    .filter((v): v is number => v !== null);
+  const avgRR = rrValues.length > 0 ? rrValues.reduce((s, v) => s + v, 0) / rrValues.length : null;
+
+  const tradeCountLabel =
+    `${filtered.length} trade${filtered.length !== 1 ? "s" : ""}${activeFilterCount > 0 ? " (filtered)" : ""}`;
 
   const stats = [
     {
-      label: activeFilterCount > 0 ? "Filtered P&L" : "Net P&L",
-      value: `${totalPnl >= 0 ? "+" : ""}$${totalPnl.toFixed(2)}`,
-      sub: `${filtered.length} trade${filtered.length !== 1 ? "s" : ""}${activeFilterCount > 0 ? " (filtered)" : ""}`,
-      positive: totalPnl >= 0, icon: TrendingUp,
+      label: activeFilterCount > 0 ? "Filtered Return" : "Return %",
+      value: returnPct === null ? "—" : `${returnPct >= 0 ? "+" : ""}${returnPct.toFixed(2)}%`,
+      sub:   returnPct === null
+        ? "Set an initial balance to track returns"
+        : `${totalPnl >= 0 ? "+" : ""}$${totalPnl.toFixed(2)} · ${tradeCountLabel}`,
+      positive: returnPct === null ? null : returnPct >= 0,
+      icon: Percent,
     },
-    { label: "Win Rate",      value: `${winRate}%`,        sub: `${wins.length}W / ${losses.length}L`,  positive: winRate >= 50, icon: Target },
-    { label: "Profit Factor", value: String(profitFactor), sub: "Avg win / avg loss",                   positive: Number(profitFactor) >= 1, icon: Zap },
-    { label: "Avg Loss",      value: `$${avgLoss.toFixed(2)}`, sub: "Per losing trade",                 positive: false, icon: TrendingDown },
+    {
+      label: "$/Hour",
+      value: hourlyRate === null ? "—" : `${hourlyRate >= 0 ? "+" : ""}$${hourlyRate.toFixed(2)}`,
+      sub:   hourlyRate === null
+        ? "Needs entry and exit times"
+        : `per hour over ${formatHours(totalHours)}`,
+      positive: hourlyRate === null ? null : hourlyRate >= 0,
+      icon: Timer,
+    },
+    {
+      label: "Avg R:R",
+      value: avgRR === null ? "—" : `${avgRR >= 0 ? "+" : ""}${avgRR.toFixed(2)}R`,
+      sub:   avgRR === null
+        ? "Add R:R to a trade to include it"
+        : `${rrValues.length} of ${filtered.length} trade${filtered.length !== 1 ? "s" : ""} rated`,
+      positive: avgRR === null ? null : avgRR >= 1,
+      icon: Ratio,
+    },
+    { label: "Win Rate",      value: `${winRate}%`,  sub: `${wins.length}W / ${losses.length}L`, positive: winRate >= 50, icon: Target },
   ];
 
   const handleDelete = async (id: string) => {
@@ -294,7 +393,7 @@ export default function Dashboard({ onAddTrade }: Props) {
             No trades yet
           </h3>
           <p style={{ color: "var(--text-muted)", fontSize: "14px", marginBottom: "24px" }}>
-            Import your broker CSV or add a trade manually to get started.
+            Run the Journedge exporter on your MetaTrader terminal, then import the CSV to get started.
           </p>
           <div style={{ display: "flex", gap: "12px", justifyContent: "center" }}>
             <button
@@ -306,17 +405,6 @@ export default function Dashboard({ onAddTrade }: Props) {
               }}
             >
               Import CSV
-            </button>
-            <button
-              onClick={onAddTrade}
-              style={{
-                padding: "10px 20px", borderRadius: "8px",
-                border: "1px solid var(--border)", background: "transparent",
-                color: "var(--text-primary)", fontSize: "13px",
-                fontFamily: "'DM Sans', sans-serif", cursor: "pointer",
-              }}
-            >
-              Add Manually
             </button>
           </div>
         </div>

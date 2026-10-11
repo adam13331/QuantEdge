@@ -2,7 +2,7 @@
 import {
   LayoutDashboard, BookOpen, BarChart2, Calendar,
   Upload, PlusCircle, Settings, Wallet, ChevronDown,
-  FileDown, ClipboardList, Library, SlidersHorizontal,
+  FileDown, ClipboardList, Library,
 } from "lucide-react";
 import Image from "next/image";
 import { useApp } from "../context/AppContext";
@@ -16,17 +16,12 @@ const NAV_ITEMS: { icon: any; label: string; id: PageId }[] = [
   { icon: Calendar,          label: "Calendar",      id: "calendar"       },
   { icon: ClipboardList,     label: "Trade Plans",   id: "plans"          },
   { icon: Library,           label: "Playbook",      id: "playbook"       },
-  { icon: SlidersHorizontal, label: "Position Sizer",id: "position-sizer" },
   { icon: Wallet,            label: "Accounts",      id: "accounts"       },
   { icon: Upload,            label: "Import Trades", id: "import"         },
   { icon: FileDown,          label: "Export",        id: "export"         },
 ];
 
-interface SidebarProps {
-  onAddTrade: () => void;
-}
-
-export default function Sidebar({ onAddTrade }: SidebarProps) {
+export default function Sidebar() {
   const { activePage, setActivePage, accounts, activeAccount, setActiveAccount } = useApp();
   const [showAccountMenu, setShowAccountMenu] = useState(false);
 
@@ -77,7 +72,7 @@ export default function Sidebar({ onAddTrade }: SidebarProps) {
                 }}>
                   {activeAccount?.name || "Select Account"}
                 </div>
-                <div style={{ fontSize: "10px", color: "#8888aa" }}>{activeAccount?.broker || ""}</div>
+                <div style={{ fontSize: "10px", color: "#8888aa" }}>{activeAccount?.platform || ""}</div>
               </div>
             </div>
             <ChevronDown
@@ -110,7 +105,7 @@ export default function Sidebar({ onAddTrade }: SidebarProps) {
                   <div>
                     <div style={{ fontSize: "12px", fontWeight: "600", color: "#f0f0ff" }}>{account.name}</div>
                     <div style={{ fontSize: "10px", color: "#8888aa" }}>
-                      {account.broker} · {account.currency} {account.initialBalance.toLocaleString()}
+                      {account.platform} · {account.currency} {account.initialBalance.toLocaleString()}
                     </div>
                   </div>
                   {activeAccount?.id === account.id && (
@@ -194,26 +189,8 @@ export default function Sidebar({ onAddTrade }: SidebarProps) {
         })}
       </nav>
 
-      {/* Add Trade */}
-      <div style={{ padding: "0 12px 16px" }}>
-        <button
-          onClick={onAddTrade}
-          style={{
-            width: "100%", display: "flex", alignItems: "center",
-            justifyContent: "center", gap: "8px", padding: "10px",
-            borderRadius: "8px", border: "1px solid var(--accent-green)",
-            background: "var(--accent-green-dim)", color: "var(--accent-green)",
-            fontSize: "13px", fontFamily: "'DM Sans', sans-serif",
-            fontWeight: "600", cursor: "pointer",
-          }}
-        >
-          <PlusCircle size={15} />
-          Add Trade
-        </button>
-      </div>
-
       {/* Settings */}
-      <div style={{ padding: "16px 12px 0", borderTop: "1px solid var(--border)" }}>
+      <div style={{ padding: "0 12px", borderTop: "1px solid var(--border)" }}>
         <button
           onClick={() => setActivePage("settings")}
           style={{

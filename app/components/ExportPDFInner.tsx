@@ -13,7 +13,14 @@ interface Props {
     includeCover?: boolean;
     includeStats?: boolean;
     includeDailyBreakdown?: boolean;
+    includeRisk?: boolean;
+    includeRMultiples?: boolean;
+    includeExecution?: boolean;
+    includeTiming?: boolean;
+    includeInstruments?: boolean;
     includeTradeHistory?: boolean;
+    includeJournal?: boolean;
+    journalLayout?: "1" | "2" | "4";
   };
   filename: string;
 }

@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
       data: {
         id: body.id,
         name: body.name,
-        broker: body.broker,
+        platform: body.platform || "MetaTrader",
         initialBalance: body.initialBalance,
         currency: body.currency || "USD",
       },

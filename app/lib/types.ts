@@ -18,8 +18,15 @@ export interface Trade {
   entryTime?: string;
   exitTime?: string;
   rr?: string;
+  plannedRisk?: number;
+  durationMin?: number;
   mae?: number;
   mfe?: number;
+  exitReason?: string;
+  magic?: number;
+  legs?: number;
+  averagedDown?: boolean;
+  balanceAfter?: number;
   hourOfDay?: number;
   playbookId?: string;
   planId?: string;
@@ -68,7 +75,7 @@ export interface Playbook {
 export interface Account {
   id: string;
   name: string;
-  broker: string;
+  platform: string;
   initialBalance: number;
   currency: string;
   createdAt: string;
@@ -98,6 +105,5 @@ export type PageId =
   | "settings"
   | "export"
   | "plans"
-  | "playbook"
-  | "position-sizer";
+  | "playbook";
   

@@ -1,13 +1,12 @@
 "use client";
 import { useState } from "react";
-import { useApp } from "../context/AppContext";
+import { useApp, PORTFOLIO_ID, isPortfolio } from "../context/AppContext";
 import { Account } from "../lib/types";
-import { Wallet, Plus, Check, Trash2, ChevronDown } from "lucide-react";
+import { Wallet, Plus, Check, Trash2, ChevronDown, Layers } from "lucide-react";
 
-const BROKERS = [
-  "Fidelity", "TD Ameritrade", "Charles Schwab", "Interactive Brokers",
-  "Webull", "Robinhood", "E*TRADE", "Tastytrade", "TradeStation", "Other",
-];
+// Supported trading platforms. Add more here as needed —
+// the list drives the create-account dropdown and nothing else.
+const PLATFORMS = ["MetaTrader"];
 
 const inputStyle: React.CSSProperties = {
   width: "100%", padding: "10px 12px", borderRadius: "8px",
@@ -35,14 +34,32 @@ function SelectWrapper({ children }: { children: React.ReactNode }) {
 }
 
 export default function AccountsPage() {
-  const { accounts, activeAccount, setActiveAccount, addAccount } = useApp();
+  const { accounts, activeAccount, setActiveAccount, addAccount, updateAccount, allTrades } = useApp();
   const [showForm, setShowForm]           = useState(accounts.length === 0);
   const [name, setName]                   = useState("");
-  const [broker, setBroker]               = useState(BROKERS[0]);
+  const [platform, setPlatform]           = useState(PLATFORMS[0]);
   const [initialBalance, setInitialBalance] = useState("");
   const [currency, setCurrency]           = useState("USD");
   const [saving, setSaving]               = useState(false);
   const [error, setError]                 = useState("");
+  const [editingBalance, setEditingBalance] = useState<string | null>(null);
+  const [balanceDraft, setBalanceDraft]   = useState("");
+
+  const tradeCountFor = (id: string) =>
+    id === PORTFOLIO_ID ? allTrades.length : allTrades.filter((t) => t.accountId === id).length;
+
+  const handleSaveBalance = async (account: Account) => {
+    const value = parseFloat(balanceDraft);
+    if (isNaN(value) || value < 0) return;
+    const updated: Account = { ...account, initialBalance: value };
+    setEditingBalance(null);
+    await fetch("/api/accounts", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: account.id, initialBalance: value }),
+    });
+    updateAccount(updated);
+  };
 
   const handleCreate = async () => {
     if (!name.trim()) return setError("Account name is required");
@@ -54,7 +71,7 @@ export default function AccountsPage() {
     const account: Account = {
       id: `acc-${Date.now()}`,
       name: name.trim(),
-      broker,
+      platform,
       initialBalance: parseFloat(initialBalance),
       currency,
       createdAt: new Date().toISOString(),
@@ -79,6 +96,7 @@ export default function AccountsPage() {
   };
 
   const handleDelete = async (id: string) => {
+    if (id === PORTFOLIO_ID) return;
     if (!confirm("Delete this account? This won't delete your trades.")) return;
     await fetch("/api/accounts", {
       method: "DELETE",
@@ -151,11 +169,11 @@ export default function AccountsPage() {
 
             <div>
               <label style={{ fontSize: "12px", color: "#8888aa", fontWeight: "600", display: "block", marginBottom: "6px" }}>
-                Broker
+                Platform
               </label>
               <SelectWrapper>
-                <select value={broker} onChange={(e) => setBroker(e.target.value)} style={selectStyle}>
-                  {BROKERS.map((b) => <option key={b} value={b}>{b}</option>)}
+                <select value={platform} onChange={(e) => setPlatform(e.target.value)} style={selectStyle}>
+                  {PLATFORMS.map((p) => <option key={p} value={p}>{p}</option>)}
                 </select>
               </SelectWrapper>
             </div>
@@ -248,33 +266,84 @@ export default function AccountsPage() {
                   display: "flex", alignItems: "center", justifyContent: "center",
                   marginBottom: "12px",
                 }}>
-                  <Wallet size={18} color={isActive ? "var(--accent-green)" : "#8888aa"} />
+                  {isPortfolio(account)
+                    ? <Layers size={18} color={isActive ? "var(--accent-green)" : "#8888aa"} />
+                    : <Wallet size={18} color={isActive ? "var(--accent-green)" : "#8888aa"} />}
                 </div>
 
                 <div style={{ fontSize: "16px", fontWeight: "700", color: "#f0f0ff", marginBottom: "4px" }}>
                   {account.name}
                 </div>
                 <div style={{ fontSize: "12px", color: "#8888aa", marginBottom: "16px" }}>
-                  {account.broker}
+                  {isPortfolio(account)
+                    ? `All accounts · ${tradeCountFor(account.id)} trades`
+                    : `${account.platform} · ${tradeCountFor(account.id)} trade${tradeCountFor(account.id) === 1 ? "" : "s"}`}
                 </div>
 
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
-                  <div>
-                    <div style={{ fontSize: "11px", color: "#8888aa", marginBottom: "2px" }}>Initial Balance</div>
-                    <div style={{ fontSize: "18px", fontWeight: "700", color: "var(--accent-green)" }}>
-                      {account.currency} {account.initialBalance.toLocaleString()}
+                  <div onClick={(e) => e.stopPropagation()}>
+                    <div style={{ fontSize: "11px", color: "#8888aa", marginBottom: "2px" }}>
+                      {isPortfolio(account) ? "Portfolio Balance" : "Initial Balance"}
                     </div>
+                    {editingBalance === account.id ? (
+                      <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
+                        <input
+                          value={balanceDraft}
+                          onChange={(e) => setBalanceDraft(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") handleSaveBalance(account);
+                            if (e.key === "Escape") setEditingBalance(null);
+                          }}
+                          type="number"
+                          autoFocus
+                          style={{
+                            width: "110px", padding: "5px 8px", borderRadius: "6px",
+                            border: "1px solid var(--accent-green)", background: "var(--bg-secondary)",
+                            color: "#f0f0ff", fontSize: "15px", fontWeight: "700",
+                            fontFamily: "'DM Sans', sans-serif", boxSizing: "border-box", outline: "none",
+                          }}
+                        />
+                        <button
+                          onClick={() => handleSaveBalance(account)}
+                          style={{
+                            background: "var(--accent-green-dim)", border: "none", borderRadius: "6px",
+                            padding: "6px 8px", cursor: "pointer", display: "flex", alignItems: "center",
+                          }}
+                        >
+                          <Check size={13} color="var(--accent-green)" />
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => {
+                          setEditingBalance(account.id);
+                          setBalanceDraft(String(account.initialBalance));
+                        }}
+                        title="Edit balance"
+                        style={{
+                          background: "none", border: "none", cursor: "pointer", padding: 0,
+                          display: "flex", alignItems: "center", gap: "6px",
+                        }}
+                      >
+                        <span style={{ fontSize: "18px", fontWeight: "700", color: "var(--accent-green)" }}>
+                          {account.currency} {account.initialBalance.toLocaleString()}
+                        </span>
+                        <span style={{ fontSize: "10px", color: "#8888aa" }}>edit</span>
+                      </button>
+                    )}
                   </div>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); handleDelete(account.id); }}
-                    style={{
-                      background: "rgba(255,77,106,0.1)", border: "none",
-                      borderRadius: "6px", padding: "6px", cursor: "pointer",
-                      display: "flex", alignItems: "center", justifyContent: "center",
-                    }}
-                  >
-                    <Trash2 size={13} color="#ff4d6a" />
-                  </button>
+                  {!isPortfolio(account) && (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); handleDelete(account.id); }}
+                      style={{
+                        background: "rgba(255,77,106,0.1)", border: "none",
+                        borderRadius: "6px", padding: "6px", cursor: "pointer",
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                      }}
+                    >
+                      <Trash2 size={13} color="#ff4d6a" />
+                    </button>
+                  )}
                 </div>
               </div>
             );

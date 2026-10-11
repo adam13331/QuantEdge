@@ -70,11 +70,6 @@ Strategy library with setup rules, entry triggers, and live per-setup performanc
 
 ![Playbook](docs/screenshots/playbook.png)
 
-### Position Sizing Calculator
-Risk-based position sizing for stocks, options, and futures with full R:R output.
-
-![Position Sizer](docs/screenshots/position-sizer.png)
-
 ### Analytics — Overview
 Equity curve from actual account balance, P&L by symbol, P&L by tag, win/loss breakdown, and streak analysis.
 
@@ -106,7 +101,7 @@ Monthly P&L calendar — always hardcoded red/green. Snaps to your most recent t
 ![Calendar](docs/screenshots/calendar.png)
 
 ### Import
-Broker auto-detection including Fidelity, Charles Schwab, TD Ameritrade, Tastytrade, and Interactive Brokers.
+MetaTrader 5 history export via the bundled `JournedgeExport.mq5` script, which rebuilds each closed trade from its deals.
 
 ![Import](docs/screenshots/import.png)
 
@@ -280,29 +275,33 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 ## Importing Trades
 
-| Broker | Notes | Status |
-|--------|-------|--------|
-| Fidelity | Export from Activity and Orders | ✅ Supported |
-| Charles Schwab | Export the Realized Gain/Loss Lot Details CSV from the Gain/Loss tab | ✅ Supported |
-| TD Ameritrade | Works with post-Schwab merger exports | ✅ Supported |
-| Tastytrade | Options, stocks, and futures all supported | ✅ Supported |
-| Interactive Brokers | Export from Flex Query or Activity Statement | ✅ Supported |
-| Journedge Export | Re-import your own exports — all journal data preserved | ✅ Supported |
+Trades enter Journedge from **MetaTrader 5** only, using the bundled exporter.
 
-### Fidelity
-**Accounts and Trade → Activity and Orders**, select date range, click **Download**, choose CSV.
+| Platform | Notes | Status |
+|----------|-------|--------|
+| MetaTrader 5 | Run `scripts/JournedgeExport.mq5` on any chart, import the CSV it writes to `MQL5\Files` | ✅ Supported |
 
-### Charles Schwab
-Go to your **Gain/Loss** tab, select **Realized Gain/Loss**, choose **Lot Details**, export as CSV.
+### MetaTrader 5
 
-### Tastytrade
-**History**, set date range, click **Export** in the top right.
+1. In MetaEditor, open `scripts/JournedgeExport.mq5` and press **F7** to compile.
+2. Back in the terminal, open any chart. **Navigator → Expert Advisors → Scripts**, then double-click **JournedgeExport** to attach it.
+3. The script writes `MQL5\Files\journedge-<login>-<date>.csv` and pops an alert with the trade count. Find the folder via **File → Open Data Folder**; the full log is in the **Experts** tab.
+4. In Journedge: **Import Trades**, drop the CSV in.
 
-### TD Ameritrade
-**My Account → History and Statements**, select **Transactions** and date range, export as CSV.
+The exporter walks the account history, groups deals by position id and rebuilds each closed trade: volume-weighted entry and exit prices, net P&L (profit + commission + swap + fee), instrument classification (options, forex, futures, stocks) and entry/exit times.
 
-### Interactive Brokers
-**Reports → Flex Queries** or open an **Activity Statement**, set format to CSV, ensure the **Trades** section is included.
+Beyond the basic trade record it also captures:
+
+| Column | Source | Powers |
+|--------|--------|--------|
+| `Ticket` | `DEAL_POSITION_ID` | Stable identity — re-importing the same file **updates** trades instead of duplicating them |
+| `Planned Risk` | `DEAL_SL` converted via tick size/value | Risk per trade, risk consistency, and **true R-multiples** instead of an average-loss estimate |
+| `Duration (min)` | `DEAL_TIME` deltas | Exact hold time for \$/hour and duration analysis |
+| `MAE` / `MFE` | M1 bar scan across the hold | The Execution tab — entry and exit efficiency |
+
+Set a stop loss on your positions for risk and R-multiple data to appear. MAE/MFE are derived from minute bars, so they are accurate to within one bar at each end of the hold; tick `InpExcursions = false` to skip that scan.
+
+> **Re-importing duplicates trades once.** Journedge does not de-duplicate on import, so import a file once. To start over, use **Settings → Clear Trades** and re-import the newest export.
 
 ---
 
@@ -310,7 +309,7 @@ Go to your **Gain/Loss** tab, select **Realized Gain/Loss**, choose **Lot Detail
 
 **Database.** SQLite via Prisma. All data is local. The database file lives at `prisma/journedge.db` and is gitignored.
 
-**CSV parsers.** Each broker has an isolated parser in `app/lib/`. Format detection runs in priority order — Journedge export first, then Charles Schwab, Tastytrade, TD Ameritrade, IBKR, with Fidelity as the fallback. The Schwab parser is distinct from the others because Schwab's export reports closed lots directly rather than individual buy/sell transaction rows.
+**CSV parser.** MetaTrader is the only supported import format. `app/lib/parseMetaTraderCSV.ts` validates the header against the constant `JOURNEDGE_HEADER`, which must stay byte-for-byte identical to the `#define` of the same name in `scripts/JournedgeExport.mq5`. Detection compares headers column-by-column so a BOM, stray whitespace, casing or CRLF endings can't break it.
 
 **Journal editor.** Built on TipTap with ProseMirror. Documents stored as TipTap JSON in the `journalEntry` TEXT column. Legacy plain-text entries render as plain paragraphs. Autosave debounces 1.5 seconds and patches the in-memory trade immediately so navigation never shows stale content.
 
@@ -364,12 +363,7 @@ journedge/
 │   │   ├── types.ts             # Shared TypeScript interfaces
 │   │   ├── db.ts                # Prisma client singleton
 │   │   ├── svgToPng.ts          # SVG rasteriser for PDF logo
-│   │   ├── parseFidelityCSV.ts
-│   │   ├── parseSchwabCSV.ts     # Charles Schwab realized gain/loss lot parser
-│   │   ├── parseTDAmeritradeCSV.ts
-│   │   ├── parseTastytradeCSV.ts
-│   │   ├── parseIBKRCSV.ts
-│   │   └── parseJournedgeCSV.ts  # Journedge export re-import parser
+│   │   └── parseMetaTraderCSV.ts # MetaTrader 5 export parser (only supported format)
 │   └── pages/
 │       ├── Dashboard.tsx         # Overview, stat cards, trade history table with delete
 │       ├── JournalPage.tsx       # Day-grouped trade cards with delete on each card
@@ -378,8 +372,7 @@ journedge/
 │       ├── CalendarPage.tsx      # Monthly P&L calendar
 │       ├── PlansPage.tsx         # Pre-trade planning
 │       ├── PlaybookPage.tsx      # Strategy library with trade performance
-│       ├── PositionSizerPage.tsx # Risk-based position size calculator
-│       ├── ImportPage.tsx        # CSV import with auto-detection
+│       ├── ImportPage.tsx        # MetaTrader CSV import
 │       ├── AccountsPage.tsx      # Account management
 │       ├── ExportPage.tsx        # PDF report builder
 │       └── SettingsPage.tsx      # Preferences, theme, update, export

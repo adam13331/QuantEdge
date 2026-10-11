@@ -10,7 +10,7 @@ datasource db {
 model Account {
   id             String      @id
   name           String
-  broker         String
+  platform       String
   initialBalance Float
   currency       String      @default("USD")
   createdAt      DateTime    @default(now())
@@ -38,8 +38,15 @@ model Trade {
   entryTime    String?
   exitTime     String?
   rr           String?
+  plannedRisk  Float?    // dollars at risk when the position was opened (from DEAL_SL)
+  durationMin  Float?    // exact hold time from MetaTrader, minutes
   mae          Float?
   mfe          Float?
+  exitReason   String?   // stop-loss | take-profit | manual | expert | ... (from DEAL_REASON)
+  magic        Int?      // EA magic number; 0 means placed by hand
+  legs         Int?      // number of entry deals (1 = a single entry)
+  averagedDown Boolean?  // a later entry was at a worse price than the first
+  balanceAfter Float?    // account balance once this position closed
   hourOfDay    Int?
   playbookId   String?
   planId       String?

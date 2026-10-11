@@ -40,6 +40,8 @@ yarn-error.log*
 next-env.d.ts
 
 # prisma_db files 
+# DATABASE_URL is "file:./prisma/journedge.db", resolved relative to prisma/
+prisma/prisma/
 prisma/journedge.db
 prisma/journedge.db-journal
 

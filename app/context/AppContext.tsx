@@ -25,6 +25,7 @@ interface AppContextType {
   activeAccount: Account | null;
   setActiveAccount: (account: Account) => void;
   addAccount: (account: Account) => void;
+  updateAccount: (account: Account) => void;
   tags: Tag[];
   reloadTags: () => Promise<void>;
   addTag: (name: string) => Promise<Tag | null>;
@@ -32,6 +33,24 @@ interface AppContextType {
   reloadPlans: () => Promise<void>;
   playbook: Playbook[];
   reloadPlaybook: () => Promise<void>;
+}
+
+// Sentinel id for the built-in aggregate account. It is never deleted and
+// its balance is the base used for return calculations when it is selected.
+export const PORTFOLIO_ID = "portfolio";
+
+function isPortfolio(account: Account | null): boolean {
+  return account?.id === PORTFOLIO_ID;
+}
+export { isPortfolio };
+
+// Portfolio always sorts first so it is also the default selection.
+function sortAccounts(list: Account[]): Account[] {
+  return [...list].sort((a, b) => {
+    if (isPortfolio(a)) return -1;
+    if (isPortfolio(b)) return 1;
+    return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+  });
 }
 
 const AppContext = createContext<AppContextType | null>(null);
@@ -65,8 +84,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [plans, setPlans]                     = useState<TradePlan[]>([]);
   const [playbook, setPlaybook]               = useState<Playbook[]>([]);
 
+  // Portfolio aggregates every account; anything else is scoped to itself.
   const trades = activeAccount
-    ? allTrades.filter((t) => t.accountId === activeAccount.id)
+    ? isPortfolio(activeAccount)
+      ? allTrades
+      : allTrades.filter((t) => t.accountId === activeAccount.id)
     : allTrades;
 
   const reloadTrades = async () => {
@@ -189,10 +211,30 @@ export function AppProvider({ children }: { children: ReactNode }) {
       try {
         const res = await fetch("/api/accounts");
         const data = await res.json();
-        if (Array.isArray(data) && data.length > 0) {
-          setAccounts(data);
-          setActiveAccountState(data[0]);
+        if (!Array.isArray(data)) return;
+
+        // The Portfolio account is created on first load. Its balance defaults
+        // to the sum of the trading accounts' starting balances, which can then
+        // be overridden by editing it on the Accounts page.
+        if (!data.some((a: Account) => a.id === PORTFOLIO_ID)) {
+          const total = data.reduce((sum: number, a: Account) => sum + a.initialBalance, 0);
+          const created = await fetch("/api/accounts", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              id: PORTFOLIO_ID,
+              name: "Portfolio",
+              platform: "MetaTrader",
+              initialBalance: total,
+              currency: data[0]?.currency || "USD",
+            }),
+          });
+          if (created.ok) data.push(await created.json());
         }
+
+        const sorted = sortAccounts(data as Account[]);
+        setAccounts(sorted);
+        if (sorted.length > 0) setActiveAccountState(sorted[0]);
       } catch (err) {
         console.error("Failed to load accounts:", err);
       }
@@ -203,8 +245,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const setTrades        = (newTrades: Trade[]) => setAllTrades(newTrades);
   const setActiveAccount = (account: Account)  => setActiveAccountState(account);
   const addAccount = (account: Account) => {
-    setAccounts((prev) => [...prev, account]);
+    setAccounts((prev) => sortAccounts([...prev, account]));
     if (!activeAccount) setActiveAccountState(account);
+  };
+  const updateAccount = (account: Account) => {
+    setAccounts((prev) => sortAccounts(prev.map((a) => (a.id === account.id ? account : a))));
+    setActiveAccountState((prev) => (prev?.id === account.id ? account : prev));
   };
 
   return (
@@ -214,7 +260,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       trades, allTrades, setTrades, reloadTrades, updateTradeInMemory, deleteTrade,
       selectedTrade, setSelectedTrade,
       loading,
-      accounts, activeAccount, setActiveAccount, addAccount,
+      accounts, activeAccount, setActiveAccount, addAccount, updateAccount,
       tags, reloadTags, addTag,
       plans, reloadPlans,
       playbook, reloadPlaybook,
