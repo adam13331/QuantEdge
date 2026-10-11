@@ -4,11 +4,13 @@ import { PDFDownloadLink } from "@react-pdf/renderer";
 import TradingReportPDF from "./TradingReportPDF";
 import { FileDown } from "lucide-react";
 import { Trade, Account } from "../lib/types";
+import { ChallengeConfig } from "../lib/analytics";
 import { svgToPngDataUrl } from "../lib/svgToPng";
 
 interface Props {
   trades: Trade[];
   account: Account | null;
+  challenge?: ChallengeConfig | null;
   options: {
     includeCover?: boolean;
     includeStats?: boolean;
@@ -16,6 +18,8 @@ interface Props {
     includeRisk?: boolean;
     includeRMultiples?: boolean;
     includeExecution?: boolean;
+    includeProcess?: boolean;
+    includePropFirm?: boolean;
     includeTiming?: boolean;
     includeInstruments?: boolean;
     includeTradeHistory?: boolean;
@@ -25,7 +29,7 @@ interface Props {
   filename: string;
 }
 
-export default function ExportPDFInner({ trades, account, options, filename }: Props) {
+export default function ExportPDFInner({ trades, account, challenge, options, filename }: Props) {
   const [logoUrl, setLogoUrl] = useState<string | undefined>(undefined);
 
   useEffect(() => {
@@ -56,6 +60,7 @@ export default function ExportPDFInner({ trades, account, options, filename }: P
         <TradingReportPDF
           trades={trades}
           account={account}
+          challenge={challenge}
           options={options}
           logoUrl={logoUrl}
         />

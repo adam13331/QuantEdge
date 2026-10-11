@@ -1,8 +1,15 @@
 "use client";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import dynamic from "next/dynamic";
 import { useApp } from "../context/AppContext";
-import { buildReportStats, ReportStats } from "../lib/analytics";
+import {
+  buildReportStats, ReportStats,
+  DEFAULT_CHALLENGE, ChallengeConfig,
+  durationMinutes, byDuration, byDirection, costProfile,
+  recoveryFactor, rRiskProfile, stopQuality,
+  byExitReason, byMagic, legStats, externalCashFlow,
+  challengeStatus, simulateChallenge, challengeROI,
+} from "../lib/analytics";
 import { FileDown, Filter, Layout, Eye, ChevronDown } from "lucide-react";
 
 // Single dynamic import wrapping both PDFDownloadLink and TradingReportPDF
@@ -39,6 +46,8 @@ interface ReportOptions {
   includeRisk: boolean;
   includeRMultiples: boolean;
   includeExecution: boolean;
+  includeProcess: boolean;
+  includePropFirm: boolean;
   includeTiming: boolean;
   includeInstruments: boolean;
   includeTradeHistory: boolean;
@@ -221,7 +230,7 @@ function MultiSelect({
 // A scaled-down visual mock of what the PDF pages will look like.
 // We can't actually render react-pdf to canvas here without a worker,
 // so we build a CSS replica that mirrors the real document layout.
-function LivePreview({ stats, options }: { stats: ReportStats; options: ReportOptions }) {
+function LivePreview({ stats, options, challenge }: { stats: ReportStats; options: ReportOptions; challenge?: ChallengeConfig | null }) {
   const pageStyle: React.CSSProperties = {
     background: "white", borderRadius: "4px",
     boxShadow: "0 4px 24px rgba(0,0,0,0.3)",
@@ -231,6 +240,26 @@ function LivePreview({ stats, options }: { stats: ReportStats; options: ReportOp
   const money = (n: number) => `${n >= 0 ? "+" : "-"}$${Math.abs(n).toFixed(0)}`;
   const green = "#00b85e";
   const red = "#cc3355";
+
+  // Same Tier A/B functions the Analytics Process tab and the PDF call.
+  const proc = {
+    duration: byDuration(stats.trades),
+    direction: byDirection(stats.trades),
+    cost: costProfile(stats.trades),
+    recovery: recoveryFactor(stats.totalPnl, stats.maxDd),
+    risk: rRiskProfile(stats.rMs),
+    stop: stopQuality(stats.trades),
+    reasons: byExitReason(stats.trades),
+    magic: byMagic(stats.trades),
+    legs: legStats(stats.trades),
+    cash: externalCashFlow(stats.trades),
+    durationCoverage: stats.trades.filter((t) => durationMinutes(t) !== null).length,
+    execCoverage: stats.trades.filter((t) => t.exitReason || t.magic != null || t.legs != null || t.balanceAfter != null).length,
+  };
+  const propSim = challenge ? simulateChallenge(stats.trades, challenge, 500) : null;
+  const prop = challenge && propSim
+    ? { status: challengeStatus(stats.trades, challenge), sim: propSim, roi: challengeROI(challenge, propSim.passRate) }
+    : null;
 
   const head = (title: string) => (
     <div style={{ marginTop: 10, marginBottom: 6 }}>
@@ -278,7 +307,8 @@ function LivePreview({ stats, options }: { stats: ReportStats; options: ReportOp
   const peakHour = Math.max(...stats.hourData.map((x) => Math.abs(x.totalPnl)), 1);
   const total = Math.max(stats.trades.length, 1);
   const anySelected = options.includeCover || options.includeStats || options.includeRisk ||
-    options.includeRMultiples || options.includeExecution || options.includeTiming ||
+    options.includeRMultiples || options.includeExecution || options.includeProcess ||
+    options.includePropFirm || options.includeTiming ||
     options.includeInstruments || options.includeDailyBreakdown || options.includeTradeHistory;
 
   return (
@@ -434,6 +464,42 @@ function LivePreview({ stats, options }: { stats: ReportStats; options: ReportOp
         </div>
       )}
 
+      {options.includeProcess && (
+        <div>
+          {head("Process & Execution")}
+          {grid([
+            { label: "Recovery", value: proc.recovery.toFixed(2), color: proc.recovery >= 1 ? green : red },
+            { label: "R St Dev", value: proc.risk.sigma > 0 ? proc.risk.sigma.toFixed(2) : "—" },
+            { label: "Ruin", value: proc.risk.sigma > 0 ? `${(proc.risk.ruinApprox * 100).toFixed(1)}%` : "—" },
+            { label: "Cost %", value: `${proc.cost.costPctOfGross.toFixed(1)}%`, color: proc.cost.costPctOfGross <= 10 ? green : red },
+            { label: "Stop R", value: proc.stop.coverage > 0 ? proc.stop.avgRatio.toFixed(2) : "—" },
+          ])}
+          {proc.durationCoverage > 0 && proc.duration.map((b) => kv(`Hold: ${b.bucket}`, `${b.trades} · ${money(b.pnl)}`, b.pnl >= 0 ? green : red))}
+          {proc.execCoverage > 0 && proc.reasons.slice(0, 4).map((b) => kv(b.bucket, `${b.trades} · ${money(b.pnl)}`, b.pnl >= 0 ? green : red))}
+          {note("Hold-time buckets and exit reasons. Execution detail needs the recompiled exporter.")}
+        </div>
+      )}
+
+      {options.includePropFirm && (
+        <div>
+          {head("Prop Firm Evaluation")}
+          {challenge && prop ? (
+            <>
+              {grid([
+                { label: "Pass", value: `${(prop.sim.passRate * 100).toFixed(1)}%`, color: prop.sim.passRate >= 0.5 ? green : red },
+                { label: "Fail DD", value: `${(prop.sim.failDrawdown * 100).toFixed(1)}%`, color: red },
+                { label: "ROI", value: `${prop.roi.roiPct >= 0 ? "+" : ""}${prop.roi.roiPct.toFixed(1)}%`, color: prop.roi.roiPct >= 0 ? green : red },
+              ])}
+              {kv("Profit target", `${challenge.targetPct}% · ${prop.status.profitProgress.toFixed(1)}% there`)}
+              {kv("Drawdown", `${challenge.maxDdPct}% ${challenge.ddMode}`, red)}
+              {kv("Daily limit", challenge.dailyLimitPct > 0 ? `${challenge.dailyLimitPct}%` : "none")}
+            </>
+          ) : (
+            note("No prop-firm rules saved. Configure the Prop Firm tab in Analytics.")
+          )}
+        </div>
+      )}
+
       {!anySelected && (
         <div style={{ textAlign: "center", padding: "32px", color: "#aaa", fontSize: "11px" }}>
           No sections selected
@@ -457,12 +523,26 @@ export default function ExportPage() {
     includeRisk: true,
     includeRMultiples: true,
     includeExecution: true,
+    includeProcess: true,
+    includePropFirm: true,
     includeTiming: true,
     includeInstruments: true,
     includeTradeHistory: true,
     includeJournal: false,
     journalLayout: "2",
   });
+
+  // Prop-firm rules are stored per account by the Analytics Prop Firm tab.
+  // Read them on the client only; localStorage is not available during SSR.
+  const [challenge, setChallenge] = useState<ChallengeConfig | null>(null);
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(`journedge_prop_${activeAccount?.id ?? "default"}`);
+      setChallenge(raw ? { ...DEFAULT_CHALLENGE, ...JSON.parse(raw) } : null);
+    } catch {
+      setChallenge(null);
+    }
+  }, [activeAccount?.id]);
 
   // Derive available filter options from actual trade data
   const availableTickers = useMemo(() =>
@@ -624,6 +704,18 @@ export default function ExportPage() {
           checked={options.includeExecution} onChange={(v) => set("includeExecution", v)}
         />
         <Toggle
+          label="Process Metrics"
+          sub="Recovery factor, R dispersion, cost ratio, hold time and execution detail"
+          checked={options.includeProcess}
+          onChange={(v) => set("includeProcess", v)}
+        />
+        <Toggle
+          label="Prop Firm Evaluation"
+          sub="Challenge rules, standing and simulated pass probability"
+          checked={options.includePropFirm}
+          onChange={(v) => set("includePropFirm", v)}
+        />
+        <Toggle
           label="Instrument Breakdown"
           sub="Per-symbol trades, win rate, net P&L and average R"
           checked={options.includeInstruments} onChange={(v) => set("includeInstruments", v)}
@@ -669,6 +761,7 @@ export default function ExportPage() {
         <ExportPDFInner
           trades={filteredTrades}
           account={activeAccount}
+          challenge={challenge}
           options={options}
           filename={filename}
         />
@@ -693,6 +786,7 @@ export default function ExportPage() {
         <LivePreview
           stats={reportStats}
           options={options}
+          challenge={challenge}
         />
 
         <p style={{

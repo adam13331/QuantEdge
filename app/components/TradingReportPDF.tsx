@@ -3,7 +3,14 @@ import {
   Document, Page, Text, View, StyleSheet, Image,
 } from "@react-pdf/renderer";
 import { Trade, Account } from "../lib/types";
-import { buildReportStats } from "../lib/analytics";
+import {
+  buildReportStats,
+  durationMinutes, byDuration, byReEntryGap, byDirection, costProfile,
+  recoveryFactor, rRiskProfile, stopQuality,
+  byExitReason, byMagic, legStats, externalCashFlow,
+  challengeStatus, simulateChallenge, challengePlan, challengeROI,
+  ChallengeConfig,
+} from "../lib/analytics";
 
 const styles = StyleSheet.create({
   page: {
@@ -283,6 +290,7 @@ interface Props {
   account: Account | null;
   dateRange?: { from: string; to: string };
   logoUrl?: string;
+  challenge?: ChallengeConfig | null;
   options?: {
     includeCover?: boolean;
     includeStats?: boolean;
@@ -290,6 +298,8 @@ interface Props {
     includeRisk?: boolean;
     includeRMultiples?: boolean;
     includeExecution?: boolean;
+    includeProcess?: boolean;
+    includePropFirm?: boolean;
     includeTiming?: boolean;
     includeInstruments?: boolean;
     includeTradeHistory?: boolean;
@@ -297,7 +307,7 @@ interface Props {
   };
 }
 
-export default function TradingReportPDF({ trades, account, dateRange, logoUrl, options = {} }: Props) {
+export default function TradingReportPDF({ trades, account, dateRange, logoUrl, challenge, options = {} }: Props) {
   const {
     includeCover = true,
     includeStats = true,
@@ -305,6 +315,8 @@ export default function TradingReportPDF({ trades, account, dateRange, logoUrl, 
     includeRisk = true,
     includeRMultiples = true,
     includeExecution = true,
+    includeProcess = true,
+    includePropFirm = true,
     includeTiming = true,
     includeInstruments = true,
     includeTradeHistory = true,
@@ -313,6 +325,34 @@ export default function TradingReportPDF({ trades, account, dateRange, logoUrl, 
 
   // Same maths the Analytics tab uses, so the report can never disagree with it.
   const s = buildReportStats(trades, account?.initialBalance ?? 0);
+
+  // Tier A + Tier B, the same functions the Analytics Process tab calls.
+  const proc = {
+    duration: byDuration(trades),
+    gap: byReEntryGap(trades),
+    direction: byDirection(trades),
+    cost: costProfile(trades),
+    recovery: recoveryFactor(s.totalPnl, s.maxDd),
+    risk: rRiskProfile(s.rMs),
+    stop: stopQuality(trades),
+    reasons: byExitReason(trades),
+    magic: byMagic(trades),
+    legs: legStats(trades),
+    cash: externalCashFlow(trades),
+    durationCoverage: trades.filter((t) => durationMinutes(t) !== null).length,
+    gapCoverage: trades.filter((t) => t.entryTime && t.exitTime).length,
+    execCoverage: trades.filter((t) => t.exitReason || t.magic != null || t.legs != null || t.balanceAfter != null).length,
+  };
+
+  const propSim = challenge ? simulateChallenge(trades, challenge, 1000) : null;
+  const prop = challenge && propSim
+    ? {
+        status: challengeStatus(trades, challenge),
+        sim: propSim,
+        plan: challengePlan(trades, challenge),
+        roi: challengeROI(challenge, propSim.passRate),
+      }
+    : null;
 
   const byDay: Record<string, Trade[]> = {};
   for (const t of trades) {
@@ -612,6 +652,257 @@ export default function TradingReportPDF({ trades, account, dateRange, logoUrl, 
               </MissingData>
             )}
           </>
+        )}
+
+        {includeProcess && (
+          <>
+            <Text style={styles.sectionTitle}>Process Metrics</Text>
+            <View style={styles.statRow}>
+              <View style={styles.statCard}>
+                <Text style={styles.statLabel}>Recovery Factor</Text>
+                <Text style={proc.recovery >= 1 ? styles.statValueGreen : styles.statValueRed}>{proc.recovery.toFixed(2)}</Text>
+                <Text style={styles.statSub}>Net profit / max drawdown</Text>
+              </View>
+              <View style={styles.statCard}>
+                <Text style={styles.statLabel}>R Std Dev</Text>
+                <Text style={styles.statValueGreen}>{proc.risk.sigma > 0 ? proc.risk.sigma.toFixed(2) : "—"}</Text>
+                <Text style={styles.statSub}>Spread of R outcomes</Text>
+              </View>
+              <View style={styles.statCard}>
+                <Text style={styles.statLabel}>Ruin (approx)</Text>
+                <Text style={proc.risk.sigma > 0 && proc.risk.ruinApprox * 100 <= 10 ? styles.statValueGreen : styles.statValueRed}>
+                  {proc.risk.sigma > 0 ? `${(proc.risk.ruinApprox * 100).toFixed(1)}%` : "—"}
+                </Text>
+                <Text style={styles.statSub}>Fixed-sizing approximation</Text>
+              </View>
+              <View style={styles.statCard}>
+                <Text style={styles.statLabel}>Cost Ratio</Text>
+                <Text style={proc.cost.costPctOfGross <= 10 ? styles.statValueGreen : styles.statValueRed}>{proc.cost.costPctOfGross.toFixed(2)}%</Text>
+                <Text style={styles.statSub}>{fmt(-proc.cost.costs)} in costs</Text>
+              </View>
+              <View style={styles.statCard}>
+                <Text style={styles.statLabel}>Stop Discipline</Text>
+                <Text style={proc.stop.coverage > 0 && proc.stop.avgRatio < 1 ? styles.statValueGreen : styles.statValueRed}>
+                  {proc.stop.coverage > 0 ? `${proc.stop.avgRatio.toFixed(2)} R` : "—"}
+                </Text>
+                <Text style={styles.statSub}>Avg MAE / planned risk</Text>
+              </View>
+            </View>
+
+            {proc.durationCoverage > 0 && (
+              <>
+                <View style={styles.dataHeader}>
+                  <Text style={[styles.dh, COLS.label]}>Hold time</Text>
+                  <Text style={[styles.dh, COLS.num]}>Trades</Text>
+                  <Text style={[styles.dh, COLS.pct]}>Win %</Text>
+                  <Text style={[styles.dh, COLS.numWide]}>Avg P&L</Text>
+                  <Text style={[styles.dh, COLS.numWide]}>Net P&L</Text>
+                </View>
+                {proc.duration.map((b, i) => (
+                  <View key={b.bucket} style={i % 2 === 0 ? styles.dataRow : styles.dataRowAlt}>
+                    <Text style={[styles.dcBold, COLS.label]}>{b.bucket}</Text>
+                    <Text style={[styles.dcRight, COLS.num]}>{b.trades}</Text>
+                    <Text style={[styles.dcRight, COLS.pct]}>{b.winRate}%</Text>
+                    <Text style={[styles.dcRight, COLS.numWide]}>{fmt(b.avgPnl)}</Text>
+                    <Text style={[styles.dcRightBold, COLS.numWide, { color: b.pnl >= 0 ? "#00b85e" : "#cc3355" }]}>{fmt(b.pnl)}</Text>
+                  </View>
+                ))}
+              </>
+            )}
+
+            {proc.direction.some((d) => d.trades > 0) && (
+              <>
+                <View style={[styles.dataHeader, { marginTop: 14 }]}>
+                  <Text style={[styles.dh, COLS.label]}>Direction</Text>
+                  <Text style={[styles.dh, COLS.num]}>Trades</Text>
+                  <Text style={[styles.dh, COLS.pct]}>Win %</Text>
+                  <Text style={[styles.dh, COLS.numWide]}>Avg P&L</Text>
+                  <Text style={[styles.dh, COLS.numWide]}>Net P&L</Text>
+                </View>
+                {proc.direction.map((b, i) => (
+                  <View key={b.bucket} style={i % 2 === 0 ? styles.dataRow : styles.dataRowAlt}>
+                    <Text style={[styles.dcBold, COLS.label]}>{b.bucket}</Text>
+                    <Text style={[styles.dcRight, COLS.num]}>{b.trades}</Text>
+                    <Text style={[styles.dcRight, COLS.pct]}>{b.winRate}%</Text>
+                    <Text style={[styles.dcRight, COLS.numWide]}>{fmt(b.avgPnl)}</Text>
+                    <Text style={[styles.dcRightBold, COLS.numWide, { color: b.pnl >= 0 ? "#00b85e" : "#cc3355" }]}>{fmt(b.pnl)}</Text>
+                  </View>
+                ))}
+              </>
+            )}
+
+            {proc.gapCoverage > 1 && (
+              <>
+                <View style={[styles.dataHeader, { marginTop: 14 }]}>
+                  <Text style={[styles.dh, COLS.label]}>Re-entry gap</Text>
+                  <Text style={[styles.dh, COLS.num]}>After W</Text>
+                  <Text style={[styles.dh, COLS.num]}>After L</Text>
+                  <Text style={[styles.dh, COLS.numWide]}>W P&L</Text>
+                  <Text style={[styles.dh, COLS.numWide]}>L P&L</Text>
+                </View>
+                {proc.gap.map((g, i) => (
+                  <View key={g.bucket} style={i % 2 === 0 ? styles.dataRow : styles.dataRowAlt}>
+                    <Text style={[styles.dcBold, COLS.label]}>{g.bucket}</Text>
+                    <Text style={[styles.dcRight, COLS.num]}>{g.afterWin.trades}</Text>
+                    <Text style={[styles.dcRight, COLS.num]}>{g.afterLoss.trades}</Text>
+                    <Text style={[styles.dcRight, COLS.numWide, { color: g.afterWin.pnl >= 0 ? "#00b85e" : "#cc3355" }]}>{fmt(g.afterWin.pnl)}</Text>
+                    <Text style={[styles.dcRight, COLS.numWide, { color: g.afterLoss.pnl >= 0 ? "#00b85e" : "#cc3355" }]}>{fmt(g.afterLoss.pnl)}</Text>
+                  </View>
+                ))}
+              </>
+            )}
+
+            <Text style={[styles.sectionTitle, { marginTop: 20 }]}>Execution Detail</Text>
+            {proc.execCoverage === 0 ? (
+              <MissingData>
+                No execution data in this period. Re-run JournedgeExport.mq5 and re-import to populate exit reason, magic number, entry legs and balance.
+              </MissingData>
+            ) : (
+              <>
+                {proc.reasons.length > 0 && (
+                  <>
+                    <View style={styles.dataHeader}>
+                      <Text style={[styles.dh, COLS.label]}>How it ended</Text>
+                      <Text style={[styles.dh, COLS.num]}>Trades</Text>
+                      <Text style={[styles.dh, COLS.pct]}>Win %</Text>
+                      <Text style={[styles.dh, COLS.numWide]}>Net P&L</Text>
+                    </View>
+                    {proc.reasons.map((b, i) => (
+                      <View key={b.bucket} style={i % 2 === 0 ? styles.dataRow : styles.dataRowAlt}>
+                        <Text style={[styles.dcBold, COLS.label]}>{b.bucket}</Text>
+                        <Text style={[styles.dcRight, COLS.num]}>{b.trades}</Text>
+                        <Text style={[styles.dcRight, COLS.pct]}>{b.winRate}%</Text>
+                        <Text style={[styles.dcRightBold, COLS.numWide, { color: b.pnl >= 0 ? "#00b85e" : "#cc3355" }]}>{fmt(b.pnl)}</Text>
+                      </View>
+                    ))}
+                  </>
+                )}
+
+                {proc.magic.length > 0 && (
+                  <>
+                    <View style={[styles.dataHeader, { marginTop: 14 }]}>
+                      <Text style={[styles.dh, COLS.label]}>Manual / EA</Text>
+                      <Text style={[styles.dh, COLS.num]}>Trades</Text>
+                      <Text style={[styles.dh, COLS.pct]}>Win %</Text>
+                      <Text style={[styles.dh, COLS.numWide]}>Net P&L</Text>
+                    </View>
+                    {proc.magic.map((b, i) => (
+                      <View key={b.bucket} style={i % 2 === 0 ? styles.dataRow : styles.dataRowAlt}>
+                        <Text style={[styles.dcBold, COLS.label]}>{b.bucket}</Text>
+                        <Text style={[styles.dcRight, COLS.num]}>{b.trades}</Text>
+                        <Text style={[styles.dcRight, COLS.pct]}>{b.winRate}%</Text>
+                        <Text style={[styles.dcRightBold, COLS.numWide, { color: b.pnl >= 0 ? "#00b85e" : "#cc3355" }]}>{fmt(b.pnl)}</Text>
+                      </View>
+                    ))}
+                  </>
+                )}
+
+                {proc.legs.coverage > 0 && (
+                  <>
+                    <View style={[styles.dataHeader, { marginTop: 14 }]}>
+                      <Text style={[styles.dh, COLS.label]}>Position building</Text>
+                      <Text style={[styles.dh, COLS.num]}>Trades</Text>
+                      <Text style={[styles.dh, COLS.pct]}>Win %</Text>
+                      <Text style={[styles.dh, COLS.numWide]}>Net P&L</Text>
+                    </View>
+                    {[proc.legs.singleLeg, proc.legs.multiLeg, proc.legs.averagedDown].map((b, i) => (
+                      <View key={b.bucket} style={i % 2 === 0 ? styles.dataRow : styles.dataRowAlt}>
+                        <Text style={[styles.dcBold, COLS.label]}>{b.bucket}</Text>
+                        <Text style={[styles.dcRight, COLS.num]}>{b.trades}</Text>
+                        <Text style={[styles.dcRight, COLS.pct]}>{b.winRate}%</Text>
+                        <Text style={[styles.dcRightBold, COLS.numWide, { color: b.pnl >= 0 ? "#00b85e" : "#cc3355" }]}>{fmt(b.pnl)}</Text>
+                      </View>
+                    ))}
+                  </>
+                )}
+
+                {proc.cash.coverage > 0 && (
+                  <>
+                    <View style={[styles.dataHeader, { marginTop: 14 }]}>
+                      <Text style={[styles.dh, COLS.label]}>Account reconciliation</Text>
+                      <Text style={styles.dh}>Value</Text>
+                    </View>
+                    {[
+                      ["Net external flow", fmt(proc.cash.netFlow), proc.cash.netFlow === 0 ? "#1a1a2e" : proc.cash.netFlow > 0 ? "#00b85e" : "#cc3355"],
+                      ["Deposits", `$${proc.cash.deposits.toFixed(2)}`, "#1a1a2e"],
+                      ["Withdrawals", `$${proc.cash.withdrawals.toFixed(2)}`, "#1a1a2e"],
+                    ].map(([label, value, color], i) => (
+                      <View key={label} style={i % 2 === 0 ? styles.dataRow : styles.dataRowAlt}>
+                        <Text style={[styles.dcBold, COLS.label]}>{label}</Text>
+                        <Text style={[styles.dcRight, { flex: 1, color }]}>{value}</Text>
+                      </View>
+                    ))}
+                  </>
+                )}
+
+                <SectionNote>
+                  Exit reason and magic number are recorded by MetaTrader, not inferred. Reconciliation compares the balance the exporter recorded against each trade&apos;s own P&L, so a non-zero flow means cash moved outside trading.
+                </SectionNote>
+              </>
+            )}
+          </>
+        )}
+
+        {includePropFirm && prop && challenge && (
+          <>
+            <Text style={styles.sectionTitle}>Prop Firm Evaluation</Text>
+            <View style={styles.dataHeader}>
+              <Text style={[styles.dh, { width: 110 }]}>Rule</Text>
+              <Text style={[styles.dh, { width: 150 }]}>Setting</Text>
+              <Text style={styles.dh}>Standing</Text>
+            </View>
+            {[
+              ["Profit target", `${challenge.targetPct}% · $${prop.status.targetAmount.toFixed(2)}`, `${prop.status.profitProgress.toFixed(1)}% reached`],
+              ["Max drawdown", `${challenge.maxDdPct}% ${challenge.ddMode}`, `$${prop.status.ddUsed.toFixed(2)} of $${prop.status.ddAllowed.toFixed(2)}`],
+              ["Daily limit", challenge.dailyLimitPct > 0 ? `${challenge.dailyLimitPct}%` : "none", challenge.dailyLimitPct > 0 ? `worst ${fmt(prop.status.worstDayPnl)}` : "—"],
+              ["Min trading days", challenge.minDays > 0 ? `${challenge.minDays} days` : "none", `${prop.status.tradingDays} days`],
+              ["Time limit", challenge.maxDays ? `${challenge.maxDays} days` : "none", prop.plan.remainingDays != null ? `${prop.plan.remainingDays} left` : "—"],
+              ["Consistency", challenge.consistencyPct != null ? `${challenge.consistencyPct}% of profit` : "not a rule", challenge.consistencyPct != null ? `${prop.status.consistencyShare.toFixed(1)}%` : "—"],
+            ].map(([a, b, c], i) => (
+              <View key={a} style={i % 2 === 0 ? styles.dataRow : styles.dataRowAlt}>
+                <Text style={[styles.dcBold, { width: 110 }]}>{a}</Text>
+                <Text style={[styles.dc, { width: 150 }]}>{b}</Text>
+                <Text style={[styles.dc, { flex: 1 }]}>{c}</Text>
+              </View>
+            ))}
+
+            <View style={[styles.statRow, { marginTop: 16 }]}>
+              <View style={styles.statCard}>
+                <Text style={styles.statLabel}>Pass Probability</Text>
+                <Text style={prop.sim.passRate >= 0.5 ? styles.statValueGreen : styles.statValueRed}>{(prop.sim.passRate * 100).toFixed(1)}%</Text>
+                <Text style={styles.statSub}>{prop.sim.runs} simulated attempts</Text>
+              </View>
+              <View style={styles.statCard}>
+                <Text style={styles.statLabel}>Fail: Drawdown</Text>
+                <Text style={styles.statValueRed}>{(prop.sim.failDrawdown * 100).toFixed(1)}%</Text>
+                <Text style={styles.statSub}>Daily limit {(prop.sim.failDaily * 100).toFixed(1)}%</Text>
+              </View>
+              <View style={styles.statCard}>
+                <Text style={styles.statLabel}>Median Days</Text>
+                <Text style={styles.statValueGreen}>{prop.sim.medianDaysToPass != null ? `${prop.sim.medianDaysToPass}` : "—"}</Text>
+                <Text style={styles.statSub}>Trading days to pass</Text>
+              </View>
+              <View style={styles.statCard}>
+                <Text style={styles.statLabel}>ROI on Fee</Text>
+                <Text style={prop.roi.roiPct >= 0 ? styles.statValueGreen : styles.statValueRed}>
+                  {prop.roi.roiPct >= 0 ? "+" : ""}{prop.roi.roiPct.toFixed(1)}%
+                </Text>
+                <Text style={styles.statSub}>${prop.roi.expectedPayout.toFixed(2)} expected payout</Text>
+              </View>
+            </View>
+
+            <SectionNote>
+              {prop.sim.tooFew
+                ? `Only ${prop.sim.sampleTrades} trades sampled across ${prop.sim.sampleDays} days — treat the pass rate as a direction, not a number.`
+                : `Bootstrap over ${prop.sim.sampleTrades} trades across ${prop.sim.sampleDays} days, walked through every rule. Intraday drawdown is approximated from closed trades.`}
+            </SectionNote>
+          </>
+        )}
+
+        {includePropFirm && !(prop && challenge) && (
+          <MissingData>
+            No prop-firm rules saved. Configure the Prop Firm tab in Analytics, then export again.
+          </MissingData>
         )}
 
         {includeInstruments && s.instruments.length > 0 && (
