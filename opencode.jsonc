@@ -1,0 +1,67 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+
+  // Keep the watcher quiet inside dependency, build and upload directories.
+  "watcher": {
+    "ignore": [
+      "**/node_modules/**",
+      "**/.next/**",
+      "**/.git/**",
+      "**/public/uploads/**",
+      "**/backups/**",
+      "**/prisma/*.db",
+      "**/*.tsbuildinfo",
+      "**/docs/screenshots/**"
+    ]
+  },
+
+  // Hard-block reads and searches of generated, vendored and binary data.
+  // Object form: key = tool action, value = glob pattern -> ask | allow | deny.
+  "permission": {
+    "read": {
+      "**/node_modules/**": "deny",
+      "**/.next/**": "deny",
+      "**/.git/**": "deny",
+      "**/public/uploads/**": "deny",
+      "**/prisma/*.db": "deny",
+      "**/package-lock.json": "deny",
+      "**/*.tsbuildinfo": "deny",
+      "**/docs/screenshots/**": "deny",
+      "**/.env": "deny"
+    },
+    "glob": {
+      "**/node_modules/**": "deny",
+      "**/.next/**": "deny",
+      "**/public/uploads/**": "deny",
+      "**/prisma/*.db": "deny",
+      "**/docs/screenshots/**": "deny"
+    },
+    "grep": {
+      "**/node_modules/**": "deny",
+      "**/.next/**": "deny",
+      "**/prisma/*.db": "deny"
+    },
+    // Migrations are the one edit that cannot be undone from git.
+    "edit": {
+      "**/prisma/migrations/**": "ask"
+    },
+    "external_directory": "ask"
+  },
+
+  // Cap how much tool output reaches the model. AnalyticsPage.tsx, insights.ts,
+  // analytics.ts and TradingReportPDF.tsx are all >1000 lines: read ranges,
+  // never whole files.
+  "tool_output": {
+    "max_lines": 400,
+    "max_bytes": 20000
+  },
+
+  // prune drops stale tool output instead of carrying it through compaction.
+  "compaction": {
+    "auto": true,
+    "prune": true,
+    "tail_turns": 4,
+    "preserve_recent_tokens": 12000,
+    "reserved": 16000
+  }
+}
