@@ -387,7 +387,7 @@ QuantEdge/
 ├── public/
 │   ├── quantedge-logo-dark.svg
 │   ├── quantedge-logo-light.svg
-│   └── icon.svg
+│   └── quantedge-icon.svg
 ├── scripts/
 │   ├── QuantEdgeExport.mq5       # MetaTrader 5 exporter
 │   └── changelog.js              # Automated changelog entry generator

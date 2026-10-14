@@ -3,11 +3,11 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "QuantEdge",
-  description: "The open source trading journal built for serious traders.",
+  description: "QuantEdge — the open source trading journal built for serious traders.",
   icons: {
-    icon: "/icon.svg",
-    shortcut: "/icon.svg",
-    apple: "/icon.svg",
+    icon: "/quantedge-icon.svg",
+    shortcut: "/quantedge-icon.svg",
+    apple: "/quantedge-icon.svg",
   },
 };
 
