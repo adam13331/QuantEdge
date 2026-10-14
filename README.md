@@ -1,6 +1,6 @@
 # QuantEdge
 
-> **This is a permanent fork of [Journedge](https://github.com/TheQuantum-Dev/journedge).**
+> **This is a permanent fork of [Journedge](https://github.com/TheQuantum-Dev/journedge).**>
 > QuantEdge began as Journedge v4.0.0 by Quantum Dev, MIT licensed, and is now developed independently
 > under the name QuantEdge. No affiliation with or endorsement by the original author.
 > Journedge and its logo remain the property of Quantum Dev — see [`LICENSE`](./LICENSE).
@@ -37,7 +37,7 @@ Most trading journals are either too simple to be useful or locked behind expens
 
 **Your data stays yours.** Everything runs locally on your machine using SQLite. No cloud sync, no user accounts, no telemetry, no third-party data transfers of any kind. Your trade history, journal entries, screenshots, and performance data never leave your machine.
 
-**Built for serious traders.** Multi-account support, real equity curve tracking from your actual starting balance, institutional-grade risk metrics, execution quality analysis, behavioral pattern detection, pre-trade planning, a strategy playbook with live performance stats, position sizing, hour-of-day heatmaps, and a full rich text journal with templates.
+**Built for serious traders.** Multi-account support, real equity curve tracking from your actual starting balance, institutional-grade risk metrics, execution quality analysis, behavioral pattern detection, a prop-firm evaluation tracker with pass-rate simulation, a recommendations engine that names the figure behind every finding, pre-trade planning, a strategy playbook with live performance stats, position sizing, hour-of-day heatmaps, and a full rich text journal with templates.
 
 **Open source and auditable.** The entire codebase is open, readable, and open to contribution. You can verify exactly what the application does with your data — because you can read every line of it.
 
@@ -45,78 +45,109 @@ Most trading journals are either too simple to be useful or locked behind expens
 
 ## Screenshots
 
+All screenshots below are real captures of this build, running against an
+included example dataset — `node scripts/seed-example.js` loads 295 synthetic
+trades across nine months so every panel has something to show.
+
 ### Dashboard
 Stat cards, daily risk meters, full trade history with multi-filter support and inline trade deletion.
+*Generated from example data (295 synthetic trades across nine months).*
 
 ![Dashboard](docs/screenshots/dashboard.png)
 
 ### Journal
 Day-grouped trade cards with journal previews, tags, and quick delete.
+*Generated from example data (295 synthetic trades across nine months).*
 
 ![Journal](docs/screenshots/journal.png)
 
-### Journal Editor
-Full-page rich text editor with formatting toolbar, trade stats header, and playbook linking.
-
-![Journal Editor](docs/screenshots/journal-editor.png)
-
-### Trade Panel (Quick View)
-Slide-out panel with entry/exit times, R:R, MAE/MFE, tags, screenshots, and delete.
-
-![Trade Panel](docs/screenshots/trade-panel.png)
-
-### Pre-Trade Planning
-Plan your thesis, entry zone, stop, and target before the trade. Compare plan vs execution after.
-
-![Trade Plans](docs/screenshots/plans.png)
-
-### Playbook
-Strategy library with setup rules, entry triggers, and live per-setup performance from linked trades.
-
-![Playbook](docs/screenshots/playbook.png)
-
 ### Analytics — Overview
-Equity curve from actual account balance, P&L by symbol, P&L by tag, win/loss breakdown, and streak analysis.
+Equity curve from actual account balance, P&L by symbol, P&L by tag, win/loss breakdown, and streak analysis. Recommendations rank worst-first and each one names the figure it fired on.
+*Generated from example data (295 synthetic trades across nine months).*
 
 ![Analytics Overview](docs/screenshots/analytics-overview.png)
 
+### Analytics — Process
+Where planned risk and execution diverge: R dispersion and ruin probability, stop adherence, discretionary vs target exits, and holding-time edge. Nine insights on the example data.
+*Generated from example data (295 synthetic trades across nine months).*
+
+![Analytics Process](docs/screenshots/analytics-process.png)
+
 ### Analytics — Risk Metrics
 Sharpe, Sortino, and Calmar ratios. Drawdown curve over time. Rolling 20-trade win rate.
+*Generated from example data (295 synthetic trades across nine months).*
 
 ![Analytics Risk](docs/screenshots/analytics-risk.png)
 
+### Analytics — Time
+P&L and win rate by day of week, with a daily distribution chart.
+*Generated from example data (295 synthetic trades across nine months).*
+
+![Analytics Time](docs/screenshots/analytics-time.png)
+
 ### Analytics — Hour-of-Day Heatmap
 Performance breakdown by hour of the trading day — P&L, win rate, and trade count per hour slot.
+*Generated from example data (295 synthetic trades across nine months).*
 
 ![Analytics Heatmap](docs/screenshots/analytics-heatmap.png)
 
+### Analytics — R-Multiples
+R-multiple histogram, expectancy in R units, and per-symbol breakdown.
+*Generated from example data (295 synthetic trades across nine months).*
+
+![Analytics R-Multiples](docs/screenshots/analytics-rmultiples.png)
+
 ### Analytics — Execution Quality
 MAE/MFE per-trade chart, entry efficiency, and exit efficiency analysis.
+*Generated from example data (295 synthetic trades across nine months).*
 
 ![Analytics Execution](docs/screenshots/analytics-execution.png)
 
 ### Analytics — Behavioral Analysis
 Overtrading detection, revenge trade sequences, discipline score, and interactive risk of ruin calculator.
+*Generated from example data (295 synthetic trades across nine months).*
 
 ![Analytics Behavior](docs/screenshots/analytics-behavior.png)
 
+### Prop Firm
+Set the challenge rules once, then see where your imported trades actually stand against them — profit target, daily and total drawdown, minimum trading days. Includes a bootstrap simulation of your own trades resampled into 1,500 alternate paths to estimate a pass rate, plus time-and-pace, risk-budget and fee-return calculations.
+*Generated from example data (295 synthetic trades across nine months).*
+
+![Prop Firm](docs/screenshots/prop-firm.png)
+
 ### Calendar
 Monthly P&L calendar — always hardcoded red/green. Snaps to your most recent trading month automatically.
+*Generated from example data (295 synthetic trades across nine months).*
 
 ![Calendar](docs/screenshots/calendar.png)
 
+### Pre-Trade Planning
+Plan your thesis, entry zone, stop, and target before the trade. Compare plan vs execution after.
+*Generated from example data (295 synthetic trades across nine months).*
+
+![Trade Plans](docs/screenshots/plans.png)
+
+### Playbook
+Strategy library with setup rules, entry triggers, and live per-setup performance from linked trades.
+*Generated from example data (295 synthetic trades across nine months).*
+
+![Playbook](docs/screenshots/playbook.png)
+
 ### Import
 MetaTrader 5 history export via the bundled `QuantEdgeExport.mq5` script, which rebuilds each closed trade from its deals.
+*Generated from example data (295 synthetic trades across nine months).*
 
 ![Import](docs/screenshots/import.png)
 
 ### Export
 Report builder with filters, section toggles, and live PDF preview. Renders entirely client-side.
+*Generated from example data (295 synthetic trades across nine months).*
 
 ![Export](docs/screenshots/export.png)
 
 ### Settings
 Accent color, light/dark mode, risk controls, trading preferences, and in-app auto-update.
+*Generated from example data (295 synthetic trades across nine months).*
 
 ![Settings](docs/screenshots/settings.png)
 
@@ -126,11 +157,11 @@ Accent color, light/dark mode, risk controls, trading preferences, and in-app au
 
 ### Trade Management
 
-- Import from five brokers — format auto-detected on file drop, no configuration required
+- Import from **MetaTrader 5** — the only supported format. The header is validated column-by-column on drop, and a file that isn't an MT5 export tells you what its first line actually said
 - Manual trade entry with live P&L preview, auto symbol detection, and OCC option symbol parsing
-- Multi-account support — create accounts per broker, switch from the sidebar, all data account-scoped
-- Every trade supports: entry/exit times, R:R ratio, MAE/MFE, tags, chart link, screenshots, and a rich text journal
-- Idempotent imports — re-importing the same file never creates duplicates
+- Multi-account support — create accounts per broker, switch from the sidebar, all data account-scoped, plus an auto-created Portfolio view that aggregates every account
+- Every trade supports: entry/exit times, R:R ratio, planned risk, MAE/MFE, exit reason, magic number, entry legs, balance after, tags, chart link, screenshots, and a rich text journal
+- **Re-importing duplicates trades once** — there is no de-duplication on import. Import a file once; to start over use **Settings → Clear Trades** and re-import
 - Delete any trade from the Dashboard table, the Journal page, or the trade quick-view panel — each requires a two-step confirmation so nothing is removed by accident
 
 ### Journal Editor
@@ -167,7 +198,7 @@ The full trade history table supports simultaneous filtering by symbol, status, 
 
 ### Analytics Engine
 
-Seven tabs of analysis covering every dimension of trading performance.
+Eight tabs of analysis covering every dimension of trading performance.
 
 **Overview** — equity curve from initial account balance, P&L by symbol, P&L by tag, win/loss breakdown, and streak analysis.
 
@@ -182,6 +213,32 @@ Seven tabs of analysis covering every dimension of trading performance.
 **Execution** — MAE/MFE analysis including entry efficiency (MFE / (MFE + MAE)), exit efficiency (PnL / MFE on wins), and a paired bar chart showing MAE vs MFE for the last 20 trades with data.
 
 **Behavior** — overtrading detection using a statistical threshold of mean + 1.5 standard deviations of your daily trade count. Revenge trade sequence detection. Discipline score. Interactive risk of ruin calculator with Kelly Criterion and half-Kelly recommendation.
+
+**Process** — the gap between what you planned and what you executed. R-multiple dispersion and the ruin probability it implies, how often you reach your actual stop versus closing losers by hand, planned risk versus realised loss, discretionary exits against target exits, holding-time edge, and a paired cost-vs-gross-profit figure. This is the tab that tells you whether your process is sound and your sizing is wrong, or the reverse.
+
+### Recommendations Engine
+
+Every analytics tab carries a **Recommendations** panel ranked worst-first, generated by `app/lib/insights.ts`. Three rules govern it:
+
+- **Pure functions, no I/O.** Input is a set of computed facts, output is a ranked list. Nothing in the engine reads the database or the DOM.
+- **Every finding names its figure.** Each insight carries the number it fired on — `78.9%`, `-$1641`, `1.00 legs` — so you can check it against the chart above it. A rule that only restates a metric is not a recommendation.
+- **Thresholds live in one place.** Every cut-off is a named field in the single `T` block, so tuning a rule never means hunting through the codebase.
+
+Panels cap at 6 findings (8 on Process) and state how many are hidden rather than silently dropping them. Under 30 trades every section is prefixed with a provisional caveat — small samples lead.
+
+### Prop Firm Evaluation
+
+A dedicated page, not an analytics tab — the challenge rules are a different question from "how did I trade", and the panel needs full height to stay readable.
+
+Enter the rules once (preset or manual: profit target, max daily loss, max total drawdown and whether it is static or trailing, minimum trading days, time limit, consistency rule, fee, profit split, months funded). Everything below recalculates from those fields:
+
+- **Challenge Standing** — where your imported trades sit against each rule, right now, with progress bars per rule
+- **Passing Probability** — a bootstrap simulation that resamples your own trades into 1,500 alternate paths and walks each one through the rules
+- **Time & Pace** — what the target still requires at your historical average rate
+- **Risk Budget** — how much one trade can risk without a normal losing run ending the evaluation
+- **Return on the Fee** — expected value per attempt: payout, net expected value, ROI on fee, and how many attempts it takes to pass
+
+Presets are approximate starting points, not promises — firms change rule sets, so edit every field to match the account you are actually trading.
 
 ### Position Sizing Calculator
 
@@ -218,11 +275,11 @@ Report builder with date range, ticker, tag, and status filters. Toggle individu
 | `J` | Journal |
 | `A` | Analytics |
 | `C` | Calendar |
+| `F` | Prop Firm |
 | `P` | Trade Plans |
 | `B` | Playbook |
 | `I` | Import Trades |
 | `E` | Export |
-| `N` | New Trade |
 | `/` | Show all shortcuts |
 | `Esc` | Close any open modal |
 
@@ -267,14 +324,30 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 > **Existing users updating manually:** `git pull origin main && npm install && npx prisma migrate dev`
 
+### Try It Without Your Own Data
+
+The repository ships a synthetic dataset so you can see the app populated before
+you trust it with a real journal. It is **not** a seed script — nothing runs it
+automatically.
+
+```bash
+node scripts/seed-example.js
+```
+
+That clears existing trades and loads 295 synthetic trades across nine months —
+five instruments, five playbook setups, four pre-trade plans in mixed states, and
+a Prop Firm account. It is deterministic, so screenshots reproduce identically.
+To go back to a clean slate, use **Settings → Clear Trades**.
+
 ### First Steps
 
 1. Go to **Accounts** and create your first account — name it, select your broker, and enter your starting balance.
-2. Go to **Import Trades** and drop your broker CSV. The format is detected automatically.
+2. Compile `scripts/QuantEdgeExport.mq5` in MetaEditor (F7), attach it to any chart, then go to **Import Trades** and drop the CSV it writes.
 3. Your trades appear immediately across Dashboard, Journal, Analytics, Calendar, and Export.
 4. Open **Playbook** and document the setups you actually trade.
 5. Use **Trade Plans** to write out your thesis before your next trade.
-6. Open the **Journal**, click **Open Journal** on any trade, and start writing.
+6. If you're trading a prop challenge, open **Prop Firm** and enter the rules you were given.
+7. Open the **Journal**, click **Open Journal** on any trade, and start writing.
 
 ---
 
@@ -291,7 +364,6 @@ Trades enter QuantEdge from **MetaTrader 5** only, using the bundled exporter.
 1. In MetaEditor, open `scripts/QuantEdgeExport.mq5` and press **F7** to compile.
 2. Back in the terminal, open any chart. **Navigator → Expert Advisors → Scripts**, then double-click **QuantEdgeExport** to attach it.
 3. The script writes `MQL5\Files\quantedge-<login>-<date>.csv` and pops an alert with the trade count. Find the folder via **File → Open Data Folder**; the full log is in the **Experts** tab.
-4. In QuantEdge: **Import Trades**, drop the CSV in.
 
 The exporter walks the account history, groups deals by position id and rebuilds each closed trade: volume-weighted entry and exit prices, net P&L (profit + commission + swap + fee), instrument classification (options, forex, futures, stocks) and entry/exit times.
 
@@ -299,7 +371,7 @@ Beyond the basic trade record it also captures:
 
 | Column | Source | Powers |
 |--------|--------|--------|
-| `Ticket` | `DEAL_POSITION_ID` | Stable identity — re-importing the same file **updates** trades instead of duplicating them |
+| `Ticket` | `DEAL_POSITION_ID` | Stable identity for a position, so partial fills of the same position collapse into one trade |
 | `Planned Risk` | `DEAL_SL` converted via tick size/value | Risk per trade, risk consistency, and **true R-multiples** instead of an average-loss estimate |
 | `Duration (min)` | `DEAL_TIME` deltas | Exact hold time for \$/hour and duration analysis |
 | `MAE` / `MFE` | M1 bar scan across the hold | The Execution tab — entry and exit efficiency |
@@ -312,9 +384,13 @@ Set a stop loss on your positions for risk and R-multiple data to appear. MAE/MF
 
 ## Architecture Notes
 
-**Database.** SQLite via Prisma. All data is local. The database file lives at `prisma/quantedge.db` and is gitignored.
+**Database.** SQLite via Prisma. All data is local. `DATABASE_URL` in `.env` resolves relative to `prisma/`, so the file it names (`file:./prisma/quantedge.db`) is created at `prisma/prisma/quantedge.db` — both paths are gitignored.
 
 **CSV parser.** MetaTrader is the only supported import format. `app/lib/parseMetaTraderCSV.ts` validates the header against the constant `QUANTEDGE_HEADER`, which must stay byte-for-byte identical to the `#define` of the same name in `scripts/QuantEdgeExport.mq5`. Detection compares headers column-by-column so a BOM, stray whitespace, casing or CRLF endings can't break it.
+
+**Single source of trading math.** Every ratio, drawdown and R-multiple lives in `app/lib/analytics.ts`. The Analytics page and the PDF report both read it, so the two can never disagree. Pages render; they do not analyse.
+
+**Recommendations engine.** `app/lib/insights.ts` is pure — it takes computed facts and returns ranked findings, with no database or DOM access. All thresholds sit in one `T` block. Each `Insight` carries the `metric` it fired on, which is what stops a rule from being a restatement of the number already on screen. Findings are ranked worst-first, panels cap at 6 (8 on Process) and say how many are hidden.
 
 **Journal editor.** Built on TipTap with ProseMirror. Documents stored as TipTap JSON in the `journalEntry` TEXT column. Legacy plain-text entries render as plain paragraphs. Autosave debounces 1.5 seconds and patches the in-memory trade immediately so navigation never shows stale content.
 
