@@ -315,7 +315,7 @@ function LivePreview({ stats, options, challenge }: { stats: ReportStats; option
     <div style={pageStyle}>
       {options.includeCover && (
         <div style={{ borderBottom: "2px solid #00c464", paddingBottom: "12px", marginBottom: "12px" }}>
-          <div style={{ fontSize: "11px", fontWeight: "800", color: "#0a0a1a", letterSpacing: "-0.3px" }}>quantedge</div>
+          <div style={{ fontSize: "11px", fontWeight: "800", color: "#0a0a1a", letterSpacing: "-0.3px" }}>QuantEdge</div>
           <div style={{ fontSize: "8px", color: "#888" }}>Trading Performance Report</div>
         </div>
       )}

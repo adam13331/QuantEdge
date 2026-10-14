@@ -379,7 +379,7 @@ export default function TradingReportPDF({ trades, account, dateRange, logoUrl, 
             <View style={styles.coverBrand}>
               {logoUrl
                 ? <Image src={logoUrl} style={{ width: 210, height: 44 }} />
-                : <Text style={styles.brandWordmark}>quantedge</Text>
+                : <Text style={styles.brandWordmark}>QuantEdge</Text>
               }
               <Text style={styles.brandSub}>Trading Performance Report</Text>
             </View>
