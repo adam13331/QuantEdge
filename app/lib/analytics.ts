@@ -442,6 +442,43 @@ export function recoveryFactor(totalPnl: number, maxDd: number): number {
   return parseFloat((totalPnl / Math.abs(maxDd)).toFixed(2));
 }
 
+export interface RevengeStats {
+  count: number;      // trades opened after a same-day loss
+  revengePnl: number; // net result of those trades
+  otherPnl: number;   // net result of every other trade
+}
+
+// A trade taken after a loss on the same day is a distinct habit from trading
+// often, so it gets its own P&L rather than just a count — the count alone
+// cannot say whether the habit costs anything.
+export function revengeSequences(trades: Trade[]): RevengeStats {
+  const dayMap = new Map<string, Trade[]>();
+  for (const t of trades) {
+    const d = normalizeDate(t.date);
+    const list = dayMap.get(d) ?? [];
+    list.push(t);
+    dayMap.set(d, list);
+  }
+
+  let count = 0, revengePnl = 0, otherPnl = 0;
+  for (const day of dayMap.values()) {
+    if (day.length < 2) continue;
+    const ordered = [...day].sort((a, b) => (a.entryTime || "").localeCompare(b.entryTime || ""));
+    let hadLoss = false;
+    for (const t of ordered) {
+      if (hadLoss) { count += 1; revengePnl += t.pnl; }
+      else { otherPnl += t.pnl; }
+      hadLoss = t.status === "loss";
+    }
+  }
+
+  return {
+    count,
+    revengePnl: parseFloat(revengePnl.toFixed(2)),
+    otherPnl: parseFloat(otherPnl.toFixed(2)),
+  };
+}
+
 export interface RRiskProfile {
   sigma: number;
   meanR: number;

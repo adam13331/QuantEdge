@@ -107,7 +107,7 @@ export default function PropFirmPanel({ trades, activeAccount }: { trades: Trade
     { label: "Pass",              value: sim.passRate,        color: "#00e57a" },
     { label: "Fail — daily",      value: sim.failDaily,       color: "#ff4d6a" },
     { label: "Fail — drawdown",   value: sim.failDrawdown,    color: "#ff4d6a" },
-    { label: "Timeout",           value: sim.timeout,         color: "#8888aa" },
+    { label: "Timeout",           value: sim.timeout,         color: "#a8a8c8" },
     { label: "Consistency breach", value: sim.consistencyFail, color: "#fbbf24" },
   ].filter((o) => o.value > 0.0005);
 

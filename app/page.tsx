@@ -7,6 +7,7 @@ import TradePanel from "./components/TradePanel";
 import Dashboard from "./pages/Dashboard";
 import ImportPage from "./pages/ImportPage";
 import CalendarPage from "./pages/CalendarPage";
+import PropFirmPage from "./pages/PropFirmPage";
 import AnalyticsPage from "./pages/AnalyticsPage";
 import JournalPage from "./pages/JournalPage";
 import JournalEditorPage from "./pages/JournalEditorPage";
@@ -22,6 +23,7 @@ const SHORTCUTS = [
   { key: "J", description: "Journal"         },
   { key: "A", description: "Analytics"       },
   { key: "C", description: "Calendar"        },
+  { key: "F", description: "Prop Firm"       },
   { key: "P", description: "Trade Plans"     },
   { key: "B", description: "Playbook"        },
   { key: "I", description: "Import Trades"   },
@@ -120,6 +122,7 @@ function AppShell() {
         case "j": case "J": setActivePage("journal");         break;
         case "a": case "A": setActivePage("analytics");       break;
         case "c": case "C": setActivePage("calendar");        break;
+        case "f": case "F": setActivePage("propfirm");         break;
         case "p": case "P": setActivePage("plans");           break;
         case "b": case "B": setActivePage("playbook");        break;
         case "i": case "I": setActivePage("import");          break;
@@ -153,6 +156,7 @@ function AppShell() {
         {activePage === "journal-editor" && <JournalEditorPage />}
         {activePage === "analytics"      && <AnalyticsPage />}
         {activePage === "calendar"       && <CalendarPage />}
+        {activePage === "propfirm"        && <PropFirmPage />}
         {activePage === "plans"          && <PlansPage />}
         {activePage === "playbook"       && <PlaybookPage />}
         {activePage === "import"         && <ImportPage />}

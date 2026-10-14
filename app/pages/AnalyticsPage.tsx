@@ -10,16 +10,19 @@ import {
   TrendingUp, TrendingDown, Target, Zap, Award, Clock,
   BarChart2, Activity, AlertTriangle, Calendar, Shield, Brain, X, SlidersHorizontal,
 } from "lucide-react";
-import { Trade } from "../lib/types";
+
 import {
   stdDev, normalizeDate, getDailyPnl, sharpeRatio, sortinoRatio, expectancy,
   calmarRatio, drawdownStats, rMultiples, rHistogram, rollingWinRate,
   byDayOfWeek, byHourOfDay, streaks,
   byDuration, byReEntryGap, byDirection, costProfile, recoveryFactor,
   rRiskProfile, stopQuality, byExitReason, byMagic, legStats, externalCashFlow,
+  revengeSequences,
 } from "../lib/analytics";
-import { SectionCard, MetricCard } from "../components/AnalyticsCards";
-import PropFirmPanel from "../components/PropFirmPanel";
+import { buildInsights, type SectionId } from "../lib/insights";
+import { SectionCard, MetricCard, InsightPanel } from "../components/AnalyticsCards";
+import { useSettings } from "../hooks/useSettings";
+
 
 function tooltipStyleUnused() {}
 
@@ -28,7 +31,7 @@ const tooltipStyle = {
   background: "#16161f", border: "1px solid #2a2a3a",
   borderRadius: "8px", color: "#f0f0ff", fontSize: "12px",
 };
-const axisStyle = { fontSize: 10, fill: "#8888aa" };
+const axisStyle = { fontSize: 12, fill: "#a8a8c8" };
 
 function Tab({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
   return (
@@ -47,7 +50,7 @@ function Tab({ label, active, onClick }: { label: string; active: boolean; onCli
   );
 }
 
-type TabId = "overview" | "risk" | "time" | "heatmap" | "rmultiples" | "execution" | "behavior" | "process" | "propfirm";
+type TabId = "overview" | "risk" | "time" | "heatmap" | "rmultiples" | "execution" | "behavior" | "process";
 
 // From/to date filter, matching the Dashboard trade history controls.
 function DateRangeFilter({
@@ -79,7 +82,7 @@ function DateRangeFilter({
       <span style={{ fontSize: "12px", fontWeight: "600", color: "var(--text-muted)" }}>Period</span>
 
       <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} style={inputStyle} />
-      <span style={{ fontSize: "12px", color: "#8888aa" }}>to</span>
+      <span style={{ fontSize: "12px", color: "#a8a8c8" }}>to</span>
       <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} style={inputStyle} />
 
       {hasRange && (
@@ -101,6 +104,7 @@ function DateRangeFilter({
 
 export default function AnalyticsPage() {
   const { trades: allTrades, activeAccount } = useApp();
+  const { settings } = useSettings();
   const [activeTab, setActiveTab] = useState<TabId>("overview");
   const [riskPct, setRiskPct]     = useState(2);
   const [heatmapMetric, setHeatmapMetric] = useState<"pnl" | "winrate" | "count">("pnl");
@@ -293,28 +297,11 @@ export default function AnalyticsPage() {
       .sort(([, a], [, b]) => b - a)
       .map(([date, count]) => ({ date, count }));
 
-    const dayTradesMap: Record<string, Trade[]> = {};
-    for (const t of trades) {
-      const d = normalizeDate(t.date);
-      if (!dayTradesMap[d]) dayTradesMap[d] = [];
-      dayTradesMap[d].push(t);
-    }
-    let revengeCount = 0;
-    for (const dayTrades of Object.values(dayTradesMap)) {
-      if (dayTrades.length < 2) continue;
-      const sorted2 = [...dayTrades].sort((a, b) =>
-        (a.entryTime || "").localeCompare(b.entryTime || "")
-      );
-      let hadLoss = false;
-      for (const t of sorted2) {
-        if (hadLoss) revengeCount++;
-        hadLoss = t.status === "loss";
-      }
-    }
+    const revenge = revengeSequences(trades);
 
     let disciplineScore = 100;
     disciplineScore -= Math.min(40, overtradingDays.length * 8);
-    disciplineScore -= Math.min(25, revengeCount * 5);
+    disciplineScore -= Math.min(25, revenge.count * 5);
     if (streak.maxLossStreak > 5) disciplineScore -= 10;
     if (currentDdDays > 14)       disciplineScore -= 10;
     disciplineScore = Math.max(0, Math.round(disciplineScore));
@@ -345,7 +332,7 @@ export default function AnalyticsPage() {
       avgRisk, minRisk, maxRisk, riskConsistency, riskPctAvg, riskPctVals, stopBreaches, riskMissing, rUnit,
       bestTrade, worstTrade, symbolData, tagData, tradingDays,
       hasMaeMfe, avgMae, avgMfe, entryEff, exitEff, tradeEff, maeMfeChart, maeFdCount: maeFdTrades.length,
-      overtradingDays, revengeCount, disciplineScore, meanDailyTrades, maxDayTrades, sdDailyTrades,
+      overtradingDays, revengeCount: revenge.count, revengePnl: revenge.revengePnl, revengeOtherPnl: revenge.otherPnl, disciplineScore, meanDailyTrades, maxDayTrades, sdDailyTrades,
       durationData, gapData, directionData, costs, recFactor, rRisk, stop,
       exitReasons, magicData, legData, cashFlow,
     };
@@ -366,6 +353,83 @@ export default function AnalyticsPage() {
     const maxSafeRisk = kelly * 0.5;
     return { kelly: parseFloat(kelly.toFixed(1)), ror: parseFloat(ror.toFixed(2)), maxSafeRisk: parseFloat(maxSafeRisk.toFixed(1)), edgeN };
   })();
+
+  // Recommendations for every tab. Explicit mapping rather than a spread, so
+  // the facts the rules read are named here and a rename upstream is a type
+  // error instead of a silently empty panel.
+  const insights = useMemo(() => {
+    if (!stats) return null;
+    return buildInsights({
+      trades,
+      totalPnl: stats.totalPnl,
+      winRate: stats.winRate,
+      avgWin: stats.avgWin,
+      avgLoss: stats.avgLoss,
+      profitFactor: stats.profitFactor,
+      expectancy: stats.exp,
+      tradingDays: stats.tradingDays,
+
+      sharpe: stats.sharpe,
+      sortino: stats.sortino,
+      calmar: stats.calmar,
+      maxDd: stats.maxDd,
+      maxDdPct: stats.maxDdPct,
+      longestDdDays: stats.longestDdDays,
+      currentDdDays: stats.currentDdDays,
+
+      rolling: stats.rolling,
+
+      riskCoverage: stats.riskCoverage,
+      riskMissing: stats.riskMissing,
+      avgRisk: stats.avgRisk,
+      riskPctAvg: stats.riskPctAvg,
+      riskConsistency: stats.riskConsistency,
+      stopBreaches: stats.stopBreaches,
+
+      daily: stats.daily,
+      dowData: stats.dowData,
+      hourData: stats.hourData,
+      symbolData: stats.symbolData,
+      tagData: stats.tagData,
+
+      avgR: stats.avgR,
+      rUnit: stats.rUnit,
+      rHistogram: stats.rHistogram,
+
+      hasMaeMfe: stats.hasMaeMfe,
+      maeFdCount: stats.maeFdCount,
+      avgMae: stats.avgMae,
+      avgMfe: stats.avgMfe,
+      entryEff: stats.entryEff,
+      exitEff: stats.exitEff,
+
+      overtradingDays: stats.overtradingDays,
+      revengeCount: stats.revengeCount,
+      revengePnl: stats.revengePnl,
+      otherPnl: stats.revengeOtherPnl,
+      disciplineScore: stats.disciplineScore,
+      maxDayTrades: stats.maxDayTrades,
+
+      ror: rorData ? { kelly: rorData.kelly, ror: rorData.ror, maxSafeRisk: rorData.maxSafeRisk } : null,
+      riskPct,
+
+      recFactor: stats.recFactor,
+      rRisk: stats.rRisk,
+      costs: stats.costs,
+      stop: stats.stop,
+      durationData: stats.durationData,
+      gapData: stats.gapData,
+      directionData: stats.directionData,
+      exitReasons: stats.exitReasons,
+      magicData: stats.magicData,
+      legData: stats.legData,
+      cashFlow: stats.cashFlow,
+    });
+  }, [stats, trades, rorData, riskPct]);
+
+  // One lookup per tab, so a section can ask for its own recommendations.
+  const insightFor = (section: SectionId) =>
+    settings.showRecommendations ? insights?.[section] ?? [] : [];
 
   if (trades.length === 0) {
     return (
@@ -413,7 +477,7 @@ export default function AnalyticsPage() {
 
   const rorColor = rorData
     ? rorData.ror < 5 ? "#00e57a" : rorData.ror < 20 ? "#fbbf24" : "#ff4d6a"
-    : "#8888aa";
+    : "#a8a8c8";
 
   return (
     <div>
@@ -439,12 +503,12 @@ export default function AnalyticsPage() {
         <Tab label="Execution"   active={activeTab === "execution"}   onClick={() => setActiveTab("execution")} />
         <Tab label="Behavior"    active={activeTab === "behavior"}    onClick={() => setActiveTab("behavior")} />
         <Tab label="Process"     active={activeTab === "process"}     onClick={() => setActiveTab("process")} />
-        <Tab label="Prop Firm"   active={activeTab === "propfirm"}   onClick={() => setActiveTab("propfirm")} />
       </div>
 
       {/* Overview */}
       {activeTab === "overview" && (
         <>
+          <InsightPanel insights={insightFor("overview")} />
           <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "12px", marginBottom: "20px" }}>
             <MetricCard label="Total P&L"     value={`${stats.totalPnl >= 0 ? "+" : ""}$${stats.totalPnl.toFixed(2)}`} positive={stats.totalPnl >= 0} icon={TrendingUp} />
             <MetricCard label="Win Rate"      value={`${stats.winRate.toFixed(1)}%`} positive={stats.winRate >= 50} icon={Target} sub={`${stats.wins.length}W · ${stats.losses.length}L`} />
@@ -479,10 +543,10 @@ export default function AnalyticsPage() {
                 />
                 <ReferenceLine
                   y={stats.initBal}
-                  stroke="#8888aa"
+                  stroke="#a8a8c8"
                   strokeDasharray="4 4"
                   strokeWidth={1}
-                  label={{ value: "Start", position: "insideTopLeft", fill: "#8888aa", fontSize: 10 }}
+                  label={{ value: "Start", position: "insideTopLeft", fill: "#a8a8c8", fontSize: 12 }}
                 />
                 <Tooltip contentStyle={tooltipStyle} formatter={((v: any) => [`$${v.toFixed(2)}`, "Equity"]) as any} />
                 <Area type="monotone" dataKey="equity" stroke="#00e57a" strokeWidth={2} fill="url(#equityGrad)" dot={false} activeDot={{ r: 4, fill: "#00e57a" }} />
@@ -534,14 +598,14 @@ export default function AnalyticsPage() {
                   </ResponsiveContainer>
                   <div style={{ flex: 1 }}>
                     <div style={{ marginBottom: "16px" }}>
-                      <div style={{ fontSize: "11px", color: "#8888aa", marginBottom: "4px" }}>Wins</div>
+                      <div style={{ fontSize: "11px", color: "#a8a8c8", marginBottom: "4px" }}>Wins</div>
                       <div style={{ fontSize: "26px", fontWeight: "800", color: "#00e57a" }}>{stats.wins.length}</div>
-                      <div style={{ fontSize: "11px", color: "#8888aa" }}>Avg +${stats.avgWin.toFixed(2)}</div>
+                      <div style={{ fontSize: "11px", color: "#a8a8c8" }}>Avg +${stats.avgWin.toFixed(2)}</div>
                     </div>
                     <div>
-                      <div style={{ fontSize: "11px", color: "#8888aa", marginBottom: "4px" }}>Losses</div>
+                      <div style={{ fontSize: "11px", color: "#a8a8c8", marginBottom: "4px" }}>Losses</div>
                       <div style={{ fontSize: "26px", fontWeight: "800", color: "#ff4d6a" }}>{stats.losses.length}</div>
-                      <div style={{ fontSize: "11px", color: "#8888aa" }}>Avg -${stats.avgLoss.toFixed(2)}</div>
+                      <div style={{ fontSize: "11px", color: "#a8a8c8" }}>Avg -${stats.avgLoss.toFixed(2)}</div>
                     </div>
                   </div>
                 </div>
@@ -568,6 +632,7 @@ export default function AnalyticsPage() {
       {/* Risk */}
       {activeTab === "risk" && (
         <>
+          <InsightPanel insights={insightFor("risk")} />
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "12px", marginBottom: "20px" }}>
             <MetricCard label="Sharpe Ratio"  value={stats.sharpe.toFixed(2)}  positive={stats.sharpe > 1}  neutral={stats.sharpe === 0}  icon={Activity}
               sub={stats.sharpe > 2 ? "Excellent" : stats.sharpe > 1 ? "Good" : stats.sharpe > 0 ? "Below avg" : "N/A (<5 days)"} />
@@ -617,7 +682,7 @@ export default function AnalyticsPage() {
           ) : (
             <SectionCard title="Planned Risk">
               <div style={{ textAlign: "center", padding: "24px 16px" }}>
-                <Shield size={22} color="#8888aa" style={{ marginBottom: "10px" }} />
+                <Shield size={22} color="#a8a8c8" style={{ marginBottom: "10px" }} />
                 <p style={{ fontSize: "13px", color: "var(--text-muted)", maxWidth: "440px", margin: "0 auto" }}>
                   None of these trades have a stop loss recorded. Set a stop on your MetaTrader
                   positions and re-run JournedgeExport.mq5 to unlock risk sizing, risk
@@ -654,7 +719,7 @@ export default function AnalyticsPage() {
                   <XAxis dataKey="trade" tick={axisStyle} axisLine={false} tickLine={false} />
                   <YAxis domain={[0, 100]} tick={axisStyle} axisLine={false} tickLine={false} unit="%" />
                   <Tooltip contentStyle={tooltipStyle} formatter={((v: any) => [`${v}%`, "Win Rate"]) as any} />
-                  <ReferenceLine y={50} stroke="#8888aa" strokeDasharray="4 4" strokeWidth={1} />
+                  <ReferenceLine y={50} stroke="#a8a8c8" strokeDasharray="4 4" strokeWidth={1} />
                   <Line type="monotone" dataKey="wr" stroke="#4d9fff" strokeWidth={2} dot={false} activeDot={{ r: 4 }} />
                 </LineChart>
               </ResponsiveContainer>
@@ -683,6 +748,7 @@ export default function AnalyticsPage() {
       {/* Time */}
       {activeTab === "time" && (
         <>
+          <InsightPanel insights={insightFor("time")} />
           <SectionCard title="P&L by Day of Week" subtitle="Which days are most profitable.">
             <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: "12px", marginBottom: "24px" }}>
               {stats.dowData.map(({ day, pnl, count, wr }) => (
@@ -701,7 +767,7 @@ export default function AnalyticsPage() {
                 <XAxis dataKey="day" tick={axisStyle} axisLine={false} tickLine={false} />
                 <YAxis tick={axisStyle} axisLine={false} tickLine={false} />
                 <Tooltip contentStyle={tooltipStyle} formatter={((v: any) => [`$${v.toFixed(2)}`, "Total P&L"]) as any} />
-                <ReferenceLine y={0} stroke="#8888aa" strokeWidth={1} />
+                <ReferenceLine y={0} stroke="#a8a8c8" strokeWidth={1} />
                 <Bar dataKey="pnl" radius={[4, 4, 0, 0]}>
                   {stats.dowData.map((e) => <Cell key={e.day} fill={e.pnl >= 0 ? "#00e57a" : "#ff4d6a"} />)}
                 </Bar>
@@ -716,7 +782,7 @@ export default function AnalyticsPage() {
                 <XAxis dataKey="date" tick={axisStyle} axisLine={false} tickLine={false} />
                 <YAxis tick={axisStyle} axisLine={false} tickLine={false} />
                 <Tooltip contentStyle={tooltipStyle} formatter={((v: any) => [`$${v.toFixed(2)}`, "Daily P&L"]) as any} />
-                <ReferenceLine y={0} stroke="#8888aa" strokeWidth={1} />
+                <ReferenceLine y={0} stroke="#a8a8c8" strokeWidth={1} />
                 <Bar dataKey="pnl" radius={[3, 3, 0, 0]}>
                   {stats.daily.map((e, i) => <Cell key={i} fill={e.pnl >= 0 ? "#00e57a" : "#ff4d6a"} />)}
                 </Bar>
@@ -749,6 +815,7 @@ export default function AnalyticsPage() {
       {/* Heatmap */}
       {activeTab === "heatmap" && (
         <>
+          <InsightPanel insights={insightFor("heatmap")} />
           {stats.hourData.length === 0 ? (
             <div style={{
               background: "var(--bg-card)", border: "1px solid var(--border)",
@@ -841,7 +908,7 @@ export default function AnalyticsPage() {
                         return [v, `$${h.totalPnl.toFixed(0)} · ${h.winRate}% WR`];
                       }) as any}
                     />
-                    {heatmapMetric === "pnl" && <ReferenceLine y={0} stroke="#8888aa" strokeWidth={1} />}
+                    {heatmapMetric === "pnl" && <ReferenceLine y={0} stroke="#a8a8c8" strokeWidth={1} />}
                     <Bar
                       dataKey={heatmapMetric === "pnl" ? "totalPnl" : heatmapMetric === "winrate" ? "winRate" : "count"}
                       radius={[4, 4, 0, 0]}
@@ -902,6 +969,7 @@ export default function AnalyticsPage() {
       {/* R-Multiples */}
       {activeTab === "rmultiples" && (
         <>
+          <InsightPanel insights={insightFor("rmultiples")} />
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "12px", marginBottom: "20px" }}>
             <MetricCard label="Avg R-Multiple" value={stats.avgR >= 0 ? `+${stats.avgR.toFixed(2)}R` : `${stats.avgR.toFixed(2)}R`} positive={stats.avgR > 0} icon={Activity} sub="Mean outcome in R-units" />
             <MetricCard
@@ -929,7 +997,7 @@ export default function AnalyticsPage() {
                   <XAxis dataKey="bucket" tick={axisStyle} axisLine={false} tickLine={false} />
                   <YAxis tick={axisStyle} axisLine={false} tickLine={false} />
                   <Tooltip contentStyle={tooltipStyle} formatter={((v: any) => [v, "Trades"]) as any} />
-                  <ReferenceLine x="+0R" stroke="#8888aa" strokeDasharray="4 4" />
+                  <ReferenceLine x="+0R" stroke="#a8a8c8" strokeDasharray="4 4" />
                   <Bar dataKey="count" radius={[4, 4, 0, 0]}>
                     {stats.rHistogram.map((e) => <Cell key={e.bucket} fill={e.positive ? "#00e57a" : "#ff4d6a"} />)}
                   </Bar>
@@ -967,6 +1035,7 @@ export default function AnalyticsPage() {
       {/* Execution */}
       {activeTab === "execution" && (
         <>
+          <InsightPanel insights={insightFor("execution")} />
           {!stats.hasMaeMfe ? (
             <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: "16px", padding: "48px", textAlign: "center" }}>
               <div style={{ width: "56px", height: "56px", borderRadius: "14px", background: "var(--accent-green-dim)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
@@ -1029,6 +1098,7 @@ export default function AnalyticsPage() {
       {/* Behavior */}
       {activeTab === "behavior" && (
         <>
+          <InsightPanel insights={insightFor("behavior")} />
           <div style={{ marginBottom: "8px" }}>
             <h3 style={{ fontSize: "16px", fontWeight: "700", color: "var(--text-primary)", marginBottom: "4px" }}>Overtrading Detection</h3>
             <p style={{ fontSize: "12px", color: "var(--text-muted)" }}>
@@ -1188,6 +1258,7 @@ export default function AnalyticsPage() {
       {/* Process */}
       {activeTab === "process" && (
         <>
+          <InsightPanel insights={insightFor("process")} />
           <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "12px", marginBottom: "20px" }}>
             <MetricCard label="Recovery Factor" value={stats.recFactor === 0 ? "—" : stats.recFactor.toFixed(2)}
               positive={stats.recFactor >= 3} neutral={stats.recFactor === 0} icon={Activity}
@@ -1211,7 +1282,7 @@ export default function AnalyticsPage() {
                 <Tooltip contentStyle={tooltipStyle}
                   formatter={((v: any, _n: any, p: any) =>
                     [`$${v} · ${p.payload.trades} trades · ${p.payload.winRate}% win`, "Net"]) as any} />
-                <ReferenceLine y={0} stroke="#8888aa" strokeWidth={1} />
+                <ReferenceLine y={0} stroke="#a8a8c8" strokeWidth={1} />
                 <Bar dataKey="pnl" radius={[4, 4, 0, 0]}>
                   {stats.durationData.map((d, i) => (
                     <Cell key={i} fill={d.pnl >= 0 ? "#00e57a" : "#ff4d6a"} />
@@ -1331,7 +1402,7 @@ export default function AnalyticsPage() {
                   <Tooltip contentStyle={tooltipStyle}
                     formatter={((v: any, _n: any, p: any) =>
                       [`$${v} · ${p.payload.trades} trades · ${p.payload.winRate}% win`, "Net"]) as any} />
-                  <ReferenceLine y={0} stroke="#8888aa" strokeWidth={1} />
+                  <ReferenceLine y={0} stroke="#a8a8c8" strokeWidth={1} />
                   <Bar dataKey="pnl" radius={[4, 4, 0, 0]}>
                     {stats.exitReasons.map((d, i) => (
                       <Cell key={i} fill={d.pnl >= 0 ? "#00e57a" : "#ff4d6a"} />
@@ -1460,9 +1531,6 @@ export default function AnalyticsPage() {
         </>
       )}
 
-      {activeTab === "propfirm" && (
-        <PropFirmPanel trades={trades} activeAccount={activeAccount} />
-      )}
-    </div>
+      </div>
   );
 }

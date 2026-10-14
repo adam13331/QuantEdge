@@ -35,7 +35,7 @@ function SelectWrap({ children }: { children: React.ReactNode }) {
 const STATUS_CONFIG = {
   pending:   { label: "Pending",   color: "#fbbf24", bg: "rgba(251,191,36,0.1)",  icon: Clock        },
   executed:  { label: "Executed",  color: "#00e57a", bg: "rgba(0,229,122,0.1)",   icon: CheckCircle  },
-  cancelled: { label: "Cancelled", color: "#8888aa", bg: "rgba(136,136,170,0.1)", icon: XCircle      },
+  cancelled: { label: "Cancelled", color: "#a8a8c8", bg: "rgba(136,136,170,0.1)", icon: XCircle      },
   missed:    { label: "Missed",    color: "#ff4d6a", bg: "rgba(255,77,106,0.1)",  icon: AlertCircle  },
 };
 
@@ -591,7 +591,7 @@ export default function PlansPage() {
             { label: "Pending",   value: pending,   color: "#fbbf24", icon: Clock        },
             { label: "Executed",  value: executed,  color: "#00e57a", icon: CheckCircle  },
             { label: "Missed",    value: missed,    color: "#ff4d6a", icon: AlertCircle  },
-            { label: "Cancelled", value: cancelled, color: "#8888aa", icon: XCircle      },
+            { label: "Cancelled", value: cancelled, color: "#a8a8c8", icon: XCircle      },
           ].map(({ label, value, color, icon: Icon }) => (
             <div
               key={label}

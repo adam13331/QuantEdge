@@ -12,7 +12,7 @@ const PDFExportInner = dynamic(() => import("./PDFExportInner"), {
       style={{
         padding: "8px 16px", borderRadius: "8px",
         border: "1px solid var(--border)", background: "transparent",
-        color: "#8888aa", fontSize: "12px", fontWeight: "600",
+        color: "#a8a8c8", fontSize: "12px", fontWeight: "600",
         fontFamily: "'DM Sans', sans-serif", opacity: 0.5, cursor: "default",
       }}
     >

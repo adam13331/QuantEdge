@@ -44,7 +44,7 @@ const COLOR_PALETTE = [
   "#ff4d6a", "#f43f5e", "#e11d48", "#f472b6", "#ec4899",
   "#fb923c", "#f97316", "#ea580c", "#fbbf24", "#f59e0b",
   "#22d3ee", "#06b6d4", "#0891b2", "#0e7490", "#155e75",
-  "#8888aa", "#6b7280", "#4b5563", "#374151", "#1f2937",
+  "#a8a8c8", "#6b7280", "#4b5563", "#374151", "#1f2937",
   "#f0f0ff", "#e5e7eb", "#d1d5db", "#9ca3af", "#ffffff",
 ];
 
@@ -217,7 +217,7 @@ function ColorPickerDropdown({
             style={{
               width: "100%", padding: "6px 10px", borderRadius: 6,
               border: "1px solid var(--border)", background: "transparent",
-              color: "var(--text-muted)", fontSize: 11, fontWeight: 600,
+              color: "var(--text-muted)", fontSize: 13, fontWeight: 600,
               cursor: "pointer", fontFamily: "'DM Sans', sans-serif",
               marginBottom: 10, display: "flex", alignItems: "center", gap: 6,
             }}
@@ -227,7 +227,7 @@ function ColorPickerDropdown({
 
           {pinned.length > 0 && (
             <>
-              <div style={{ fontSize: 10, fontWeight: 700, color: "var(--text-muted)", letterSpacing: "0.5px", marginBottom: 6 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: "var(--text-muted)", letterSpacing: "0.5px", marginBottom: 6 }}>
                 PINNED
               </div>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginBottom: 10 }}>
@@ -261,7 +261,7 @@ function ColorPickerDropdown({
             </>
           )}
 
-          <div style={{ fontSize: 10, fontWeight: 700, color: "var(--text-muted)", letterSpacing: "0.5px", marginBottom: 6 }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: "var(--text-muted)", letterSpacing: "0.5px", marginBottom: 6 }}>
             PALETTE
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(10, 1fr)", gap: 3, marginBottom: 10 }}>
@@ -298,7 +298,7 @@ function ColorPickerDropdown({
             ))}
           </div>
 
-          <div style={{ fontSize: 10, fontWeight: 700, color: "var(--text-muted)", letterSpacing: "0.5px", marginBottom: 6 }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: "var(--text-muted)", letterSpacing: "0.5px", marginBottom: 6 }}>
             CUSTOM HEX
           </div>
           <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
@@ -340,7 +340,7 @@ function ColorPickerDropdown({
                 padding: "6px 10px", borderRadius: 6, border: "none",
                 background: isValidHex(hex) ? "var(--accent-green)" : "var(--border)",
                 color: isValidHex(hex) ? "#000" : "var(--text-muted)",
-                fontSize: 11, fontWeight: 700,
+                fontSize: 13, fontWeight: 700,
                 cursor: isValidHex(hex) ? "pointer" : "not-allowed",
                 fontFamily: "'DM Sans', sans-serif",
               }}

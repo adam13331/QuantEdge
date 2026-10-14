@@ -26,7 +26,7 @@ function SelectWrapper({ children }: { children: React.ReactNode }) {
     <div style={{ position: "relative" }}>
       {children}
       <ChevronDown
-        size={14} color="#8888aa"
+        size={14} color="#a8a8c8"
         style={{ position: "absolute", right: "12px", top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }}
       />
     </div>
@@ -114,7 +114,7 @@ export default function AccountsPage() {
           <h2 style={{ fontSize: "26px", fontWeight: "700", color: "var(--text-primary)", letterSpacing: "-0.5px" }}>
             Accounts
           </h2>
-          <p style={{ color: "#8888aa", fontSize: "14px", marginTop: "4px" }}>
+          <p style={{ color: "#a8a8c8", fontSize: "14px", marginTop: "4px" }}>
             Manage your trading accounts and track equity per account
           </p>
         </div>
@@ -156,7 +156,7 @@ export default function AccountsPage() {
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
             <div>
-              <label style={{ fontSize: "12px", color: "#8888aa", fontWeight: "600", display: "block", marginBottom: "6px" }}>
+              <label style={{ fontSize: "12px", color: "#a8a8c8", fontWeight: "600", display: "block", marginBottom: "6px" }}>
                 Account Name
               </label>
               <input
@@ -168,7 +168,7 @@ export default function AccountsPage() {
             </div>
 
             <div>
-              <label style={{ fontSize: "12px", color: "#8888aa", fontWeight: "600", display: "block", marginBottom: "6px" }}>
+              <label style={{ fontSize: "12px", color: "#a8a8c8", fontWeight: "600", display: "block", marginBottom: "6px" }}>
                 Platform
               </label>
               <SelectWrapper>
@@ -179,7 +179,7 @@ export default function AccountsPage() {
             </div>
 
             <div>
-              <label style={{ fontSize: "12px", color: "#8888aa", fontWeight: "600", display: "block", marginBottom: "6px" }}>
+              <label style={{ fontSize: "12px", color: "#a8a8c8", fontWeight: "600", display: "block", marginBottom: "6px" }}>
                 Initial Balance
               </label>
               <input
@@ -191,7 +191,7 @@ export default function AccountsPage() {
             </div>
 
             <div>
-              <label style={{ fontSize: "12px", color: "#8888aa", fontWeight: "600", display: "block", marginBottom: "6px" }}>
+              <label style={{ fontSize: "12px", color: "#a8a8c8", fontWeight: "600", display: "block", marginBottom: "6px" }}>
                 Currency
               </label>
               <SelectWrapper>
@@ -267,14 +267,14 @@ export default function AccountsPage() {
                   marginBottom: "12px",
                 }}>
                   {isPortfolio(account)
-                    ? <Layers size={18} color={isActive ? "var(--accent-green)" : "#8888aa"} />
-                    : <Wallet size={18} color={isActive ? "var(--accent-green)" : "#8888aa"} />}
+                    ? <Layers size={18} color={isActive ? "var(--accent-green)" : "#a8a8c8"} />
+                    : <Wallet size={18} color={isActive ? "var(--accent-green)" : "#a8a8c8"} />}
                 </div>
 
                 <div style={{ fontSize: "16px", fontWeight: "700", color: "#f0f0ff", marginBottom: "4px" }}>
                   {account.name}
                 </div>
-                <div style={{ fontSize: "12px", color: "#8888aa", marginBottom: "16px" }}>
+                <div style={{ fontSize: "12px", color: "#a8a8c8", marginBottom: "16px" }}>
                   {isPortfolio(account)
                     ? `All accounts · ${tradeCountFor(account.id)} trades`
                     : `${account.platform} · ${tradeCountFor(account.id)} trade${tradeCountFor(account.id) === 1 ? "" : "s"}`}
@@ -282,7 +282,7 @@ export default function AccountsPage() {
 
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
                   <div onClick={(e) => e.stopPropagation()}>
-                    <div style={{ fontSize: "11px", color: "#8888aa", marginBottom: "2px" }}>
+                    <div style={{ fontSize: "11px", color: "#a8a8c8", marginBottom: "2px" }}>
                       {isPortfolio(account) ? "Portfolio Balance" : "Initial Balance"}
                     </div>
                     {editingBalance === account.id ? (
@@ -328,7 +328,7 @@ export default function AccountsPage() {
                         <span style={{ fontSize: "18px", fontWeight: "700", color: "var(--accent-green)" }}>
                           {account.currency} {account.initialBalance.toLocaleString()}
                         </span>
-                        <span style={{ fontSize: "10px", color: "#8888aa" }}>edit</span>
+                        <span style={{ fontSize: "10px", color: "#a8a8c8" }}>edit</span>
                       </button>
                     )}
                   </div>

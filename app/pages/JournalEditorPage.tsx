@@ -65,7 +65,7 @@ function StatPill({ label, value, color }: { label: string; value: string; color
       padding: "10px 14px", borderRadius: 8,
       background: "var(--bg-secondary)", border: "1px solid var(--border)",
     }}>
-      <span style={{ fontSize: 10, fontWeight: 600, color: "var(--text-muted)", letterSpacing: "0.4px" }}>
+      <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", letterSpacing: "0.4px" }}>
         {label}
       </span>
       <span style={{ fontSize: 14, fontWeight: 700, color: color || "var(--text-primary)" }}>
@@ -106,7 +106,7 @@ function PlaybookSelector({ trade }: { trade: Trade }) {
 
   return (
     <div ref={ref} style={{ position: "relative" }}>
-      <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", letterSpacing: "0.5px", marginBottom: 6 }}>
+      <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-muted)", letterSpacing: "0.5px", marginBottom: 6 }}>
         PLAYBOOK SETUP
       </div>
       <button
@@ -171,7 +171,7 @@ function PlaybookSelector({ trade }: { trade: Trade }) {
                   <div style={{ flex: 1 }}>
                     <div style={{ fontWeight: isLinked ? 600 : 400 }}>{entry.name}</div>
                     {entry.timeframes && (
-                      <div style={{ fontSize: 10, color: "var(--text-muted)", marginTop: 1 }}>{entry.timeframes}</div>
+                      <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 1 }}>{entry.timeframes}</div>
                     )}
                   </div>
                   {isLinked && <Check size={12} />}
@@ -234,7 +234,7 @@ function TemplatePicker({
               }}>
                 <div>
                   <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)" }}>{t.name}</div>
-                  <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>
+                  <div style={{ fontSize: 13, color: "var(--text-muted)", marginTop: 2 }}>
                     {t.scope === "all" ? "All trade types" : t.scope.split(",").join(", ")}
                   </div>
                 </div>
@@ -358,7 +358,7 @@ function SaveTemplateModal({ onSave, onClose }: {
               );
             })}
           </div>
-          <p style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 8 }}>
+          <p style={{ fontSize: 13, color: "var(--text-muted)", marginTop: 8 }}>
             Auto-applied when opening a new journal for the selected trade types.
           </p>
         </div>
@@ -663,7 +663,7 @@ export default function JournalEditorPage() {
             </h2>
             {trade.optionType && (
               <span style={{
-                padding: "3px 10px", borderRadius: 6, fontSize: 11, fontWeight: 700,
+                padding: "3px 10px", borderRadius: 6, fontSize: 13, fontWeight: 700,
                 background: trade.optionType === "call" ? "rgba(77,159,255,0.12)" : "rgba(255,77,106,0.12)",
                 color: trade.optionType === "call" ? "#4d9fff" : "#ff4d6a",
               }}>
@@ -671,7 +671,7 @@ export default function JournalEditorPage() {
               </span>
             )}
             <span style={{
-              padding: "3px 10px", borderRadius: 6, fontSize: 11, fontWeight: 700,
+              padding: "3px 10px", borderRadius: 6, fontSize: 13, fontWeight: 700,
               background: isWin ? "var(--accent-green-dim)" : "rgba(255,77,106,0.12)",
               color: isWin ? "var(--accent-green)" : "#ff4d6a",
             }}>
@@ -699,7 +699,7 @@ export default function JournalEditorPage() {
         {/* Tags + Playbook — side by side */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 24, alignItems: "start" }}>
           <div>
-            <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", letterSpacing: "0.5px", marginBottom: 8 }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-muted)", letterSpacing: "0.5px", marginBottom: 8 }}>
               TAGS
             </div>
             <TagSelector selected={currentTags} onChange={saveTags} maxHeight={180} />

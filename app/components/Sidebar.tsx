@@ -2,7 +2,7 @@
 import {
   LayoutDashboard, BookOpen, BarChart2, Calendar,
   Upload, PlusCircle, Settings, Wallet, ChevronDown,
-  FileDown, ClipboardList, Library,
+  FileDown, ClipboardList, Library, Shield,
 } from "lucide-react";
 import Image from "next/image";
 import { useApp } from "../context/AppContext";
@@ -14,6 +14,7 @@ const NAV_ITEMS: { icon: any; label: string; id: PageId }[] = [
   { icon: BookOpen,          label: "Journal",       id: "journal"        },
   { icon: BarChart2,         label: "Analytics",     id: "analytics"      },
   { icon: Calendar,          label: "Calendar",      id: "calendar"       },
+  { icon: Shield,            label: "Prop Firm",     id: "propfirm"       },
   { icon: ClipboardList,     label: "Trade Plans",   id: "plans"          },
   { icon: Library,           label: "Playbook",      id: "playbook"       },
   { icon: Wallet,            label: "Accounts",      id: "accounts"       },
@@ -72,11 +73,11 @@ export default function Sidebar() {
                 }}>
                   {activeAccount?.name || "Select Account"}
                 </div>
-                <div style={{ fontSize: "10px", color: "#8888aa" }}>{activeAccount?.platform || ""}</div>
+                <div style={{ fontSize: "10px", color: "#a8a8c8" }}>{activeAccount?.platform || ""}</div>
               </div>
             </div>
             <ChevronDown
-              size={12} color="#8888aa"
+              size={12} color="#a8a8c8"
               style={{
                 transform: showAccountMenu ? "rotate(180deg)" : "rotate(0deg)",
                 transition: "transform 0.15s ease", flexShrink: 0,
@@ -104,7 +105,7 @@ export default function Sidebar() {
                 >
                   <div>
                     <div style={{ fontSize: "12px", fontWeight: "600", color: "#f0f0ff" }}>{account.name}</div>
-                    <div style={{ fontSize: "10px", color: "#8888aa" }}>
+                    <div style={{ fontSize: "10px", color: "#a8a8c8" }}>
                       {account.platform} · {account.currency} {account.initialBalance.toLocaleString()}
                     </div>
                   </div>
@@ -119,7 +120,7 @@ export default function Sidebar() {
                   style={{
                     width: "100%", padding: "10px 12px", border: "none",
                     background: "transparent", cursor: "pointer",
-                    textAlign: "left", fontSize: "12px", color: "#8888aa",
+                    textAlign: "left", fontSize: "12px", color: "#a8a8c8",
                     display: "flex", alignItems: "center", gap: "6px",
                   }}
                 >
@@ -141,7 +142,7 @@ export default function Sidebar() {
               width: "100%", padding: "10px 12px", borderRadius: "8px",
               border: "1px dashed var(--border)", background: "transparent",
               cursor: "pointer", textAlign: "left",
-              fontSize: "12px", color: "#8888aa",
+              fontSize: "12px", color: "#a8a8c8",
               display: "flex", alignItems: "center", gap: "8px",
             }}
           >

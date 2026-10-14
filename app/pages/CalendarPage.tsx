@@ -27,7 +27,7 @@ function normalizeDate(dateStr: string): string {
 }
 
 export default function CalendarPage() {
-  const { trades, setSelectedTrade } = useApp();
+  const { trades, setSelectedTrade, activeAccount } = useApp();
   const today = new Date();
 
   const [currentMonth, setCurrentMonth] = useState(today.getMonth());
@@ -69,6 +69,16 @@ export default function CalendarPage() {
   for (const date in tradesByDate) {
     pnlByDate[date] = tradesByDate[date].reduce((sum, t) => sum + t.pnl, 0);
   }
+
+  // Every figure on this page is a percentage of the account's original
+  // balance, not a currency amount — $2k and $20k traders then read alike.
+  const baseBalance = activeAccount?.initialBalance ?? 0;
+  const asPct       = (pnl: number): number | null =>
+    baseBalance > 0 ? (pnl / baseBalance) * 100 : null;
+  const fmtPct      = (pnl: number): string => {
+    const pct = asPct(pnl);
+    return pct === null ? "—" : `${pct >= 0 ? "+" : ""}${pct.toFixed(2)}%`;
+  };
 
   const firstDay    = new Date(currentYear, currentMonth, 1).getDay();
   const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
@@ -140,9 +150,9 @@ export default function CalendarPage() {
               background: "var(--bg-card)", border: "1px solid var(--border)",
               borderRadius: "10px", padding: "10px 16px", textAlign: "center",
             }}>
-              <div style={{ fontSize: "11px", color: "var(--text-muted)", marginBottom: "2px" }}>Month P&L</div>
+              <div style={{ fontSize: "11px", color: "var(--text-muted)", marginBottom: "2px" }}>Month Return</div>
               <div style={{ fontSize: "16px", fontWeight: "700", color: monthPnl >= 0 ? WIN_COLOR : LOSS_COLOR }}>
-                {monthPnl >= 0 ? "+" : ""}${monthPnl.toFixed(2)}
+                {fmtPct(monthPnl)}
               </div>
             </div>
             <div style={{
@@ -266,7 +276,7 @@ export default function CalendarPage() {
                 {hasTrades && (
                   <div>
                     <div style={{ fontSize: "13px", fontWeight: "700", color: isWin ? WIN_COLOR : LOSS_COLOR, marginBottom: "3px" }}>
-                      {isWin ? "+" : ""}${dayPnl.toFixed(2)}
+                      {fmtPct(dayPnl)}
                     </div>
                     <div style={{ fontSize: "10px", color: "var(--text-muted)" }}>
                       {dayTrades.length} trade{dayTrades.length !== 1 ? "s" : ""}
@@ -300,10 +310,10 @@ export default function CalendarPage() {
           }}>
             <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
               <BarChart2 size={14} color="var(--text-muted)" />
-              <span style={{ fontSize: "11px", fontWeight: "600", color: "var(--text-muted)", letterSpacing: "0.5px" }}>AVG DAILY P&L</span>
+              <span style={{ fontSize: "11px", fontWeight: "600", color: "var(--text-muted)", letterSpacing: "0.5px" }}>AVG DAILY RETURN</span>
             </div>
             <div style={{ fontSize: "28px", fontWeight: "800", letterSpacing: "-1px", color: avgDailyPnl >= 0 ? WIN_COLOR : LOSS_COLOR }}>
-              {avgDailyPnl >= 0 ? "+" : ""}${avgDailyPnl.toFixed(2)}
+              {fmtPct(avgDailyPnl)}
             </div>
             <div style={{ fontSize: "12px", color: "var(--text-muted)" }}>per trading day</div>
           </div>
@@ -317,7 +327,7 @@ export default function CalendarPage() {
               <span style={{ fontSize: "11px", fontWeight: "600", color: "var(--text-muted)", letterSpacing: "0.5px" }}>BEST DAY</span>
             </div>
             <div style={{ fontSize: "28px", fontWeight: "800", color: WIN_COLOR, letterSpacing: "-1px" }}>
-              {bestDay ? `+$${bestDay[1].toFixed(2)}` : "—"}
+              {bestDay ? fmtPct(bestDay[1]) : "—"}
             </div>
             <div style={{ fontSize: "12px", color: "var(--text-muted)" }}>
               {bestDay ? formatDisplayDate(bestDay[0]) : "No data"}
@@ -333,7 +343,7 @@ export default function CalendarPage() {
               <span style={{ fontSize: "11px", fontWeight: "600", color: "var(--text-muted)", letterSpacing: "0.5px" }}>WORST DAY</span>
             </div>
             <div style={{ fontSize: "28px", fontWeight: "800", color: LOSS_COLOR, letterSpacing: "-1px" }}>
-              {worstDay ? `$${worstDay[1].toFixed(2)}` : "—"}
+              {worstDay ? fmtPct(worstDay[1]) : "—"}
             </div>
             <div style={{ fontSize: "12px", color: "var(--text-muted)" }}>
               {worstDay ? formatDisplayDate(worstDay[0]) : "No data"}
@@ -381,8 +391,7 @@ export default function CalendarPage() {
                     fontSize: "13px", fontWeight: "700",
                     color: selectedTrades.reduce((s, t) => s + t.pnl, 0) >= 0 ? WIN_COLOR : LOSS_COLOR,
                   }}>
-                    {selectedTrades.reduce((s, t) => s + t.pnl, 0) >= 0 ? "+" : ""}
-                    ${selectedTrades.reduce((s, t) => s + t.pnl, 0).toFixed(2)} day P&L
+                    {fmtPct(selectedTrades.reduce((s, t) => s + t.pnl, 0))} day return
                   </span>
                 </div>
               </div>

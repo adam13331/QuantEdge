@@ -3,11 +3,11 @@ import { useState, useEffect } from "react";
 import { useSettings } from "../hooks/useSettings";
 import { useApp } from "../context/AppContext";
 import {
-  Palette, Sliders, Database, Info,
-  ExternalLink, Check, AlertTriangle, FileDown,
+  Palette, Database, Info,
+  ExternalLink, Check, FileDown,
   Download, RefreshCw, Terminal, Loader, X,
   CheckCircle2, Circle, AlertCircle, MinusCircle,
-  Sun, Moon, Shield,
+  Sun, Moon, Lightbulb,
 } from "lucide-react";
 
 const CURRENT_VERSION = "4.0.0";
@@ -49,19 +49,6 @@ const STEP_DEFS = [
   { id: "install",   label: "Dependencies"      },
   { id: "migrate",   label: "Database"          },
 ];
-
-const inputStyle: React.CSSProperties = {
-  width: "100%", padding: "10px 12px", borderRadius: "8px",
-  border: "1px solid var(--border)", background: "var(--bg-secondary)",
-  color: "var(--text-primary)", fontSize: "13px", fontFamily: "'DM Sans', sans-serif",
-  boxSizing: "border-box" as const, outline: "none",
-};
-
-const linkStyle: React.CSSProperties = {
-  display: "flex", alignItems: "center", gap: "6px",
-  color: "var(--text-muted)", fontSize: "12px", textDecoration: "none",
-  fontFamily: "'DM Sans', sans-serif",
-};
 
 function Section({ title, icon: Icon, children }: {
   title: string; icon: any; children: React.ReactNode;
@@ -116,7 +103,7 @@ function StepIcon({ status }: { status: StepStatus }) {
   if (status === "running")  return <Loader size={size} color="#4d9fff" style={{ animation: "spin 1s linear infinite" }} />;
   if (status === "complete") return <CheckCircle2 size={size} color="#00e57a" />;
   if (status === "error")    return <AlertCircle size={size} color="#ff4d6a" />;
-  if (status === "skipped")  return <MinusCircle size={size} color="#8888aa" />;
+  if (status === "skipped")  return <MinusCircle size={size} color="#a8a8c8" />;
   return <Circle size={size} color="#333355" />;
 }
 
@@ -230,7 +217,6 @@ export default function SettingsPage() {
     setShowRefreshPrompt(false);
   };
 
-  const isUpToDate      = latestVersion === CURRENT_VERSION;
   const updateAvailable = latestVersion && latestVersion !== CURRENT_VERSION;
   const isUpdateRunning = updatePhase === "running";
 
@@ -493,7 +479,7 @@ export default function SettingsPage() {
                   border: "1px solid #1e1e2e",
                   display: "flex", alignItems: "center", gap: "10px",
                 }}>
-                  <Terminal size={12} color="#8888aa" style={{ flexShrink: 0 }} />
+                  <Terminal size={12} color="#a8a8c8" style={{ flexShrink: 0 }} />
                   <span style={{ fontFamily: "monospace", fontSize: "13px", color: "#00e57a" }}>npm run dev</span>
                   <button
                     onClick={() => navigator.clipboard.writeText("npm run dev")}
@@ -545,20 +531,6 @@ export default function SettingsPage() {
               </div>
             </div>
           )}
-        </div>
-      )}
-
-      {/* Up to date banner */}
-      {isUpToDate && updatePhase === "idle" && (
-        <div style={{
-          background: "var(--accent-green-dim)", border: "1px solid var(--accent-green)",
-          borderRadius: "12px", padding: "12px 18px", marginBottom: "20px",
-          display: "flex", alignItems: "center", gap: "10px",
-        }}>
-          <Check size={14} color="var(--accent-green)" />
-          <span style={{ fontSize: "13px", color: "var(--accent-green)", fontWeight: "600" }}>
-            Journedge is up to date — v{CURRENT_VERSION}
-          </span>
         </div>
       )}
 
@@ -620,33 +592,35 @@ export default function SettingsPage() {
             </Row>
           </Section>
 
-          {/* Trading Preferences */}
-          <Section title="Trading Preferences" icon={Sliders}>
-            <Row label="Default Options Multiplier" description="Applied to P&L calculation for options">
-              <input
-                type="number"
-                value={settings.defaultMultiplier}
-                onChange={(e) => updateSettings({ defaultMultiplier: Number(e.target.value) })}
-                style={{ ...inputStyle, width: "80px", textAlign: "center" }}
-              />
+          {/* Analytics */}
+          <Section title="Analytics" icon={Lightbulb}>
+            <Row
+              label="Show Recommendations"
+              description="Adds a panel to the top of every Analytics tab with the actions your own numbers point to. Hides the readings, never the data."
+            >
+              <button
+                onClick={() => updateSettings({ showRecommendations: !settings.showRecommendations })}
+                role="switch"
+                aria-checked={settings.showRecommendations}
+                aria-label="Show recommendations in Analytics"
+                style={{
+                  display: "flex", alignItems: "center",
+                  width: "52px", height: "26px", padding: "2px",
+                  borderRadius: "20px", border: "1px solid",
+                  borderColor: settings.showRecommendations ? "var(--accent-green)" : "var(--border)",
+                  background: settings.showRecommendations ? "var(--accent-green-dim)" : "transparent",
+                  cursor: "pointer", transition: "all 0.15s ease",
+                  justifyContent: settings.showRecommendations ? "flex-end" : "flex-start",
+                }}
+              >
+                <span style={{
+                  width: "18px", height: "18px", borderRadius: "50%",
+                  background: settings.showRecommendations ? "var(--accent-green)" : "#55556f",
+                  transition: "all 0.15s ease",
+                }} />
+              </button>
             </Row>
-            <Row label="Default Commission" description="Pre-fills commission on manual trade entry">
-              <input
-                type="number" step="0.01"
-                value={settings.defaultCommission}
-                onChange={(e) => updateSettings({ defaultCommission: Number(e.target.value) })}
-                style={{ ...inputStyle, width: "80px", textAlign: "center" }}
-              />
-            </Row>
-            <Row label="Default Fees" description="Pre-fills fees on manual trade entry">
-              <input
-                type="number" step="0.01"
-                value={settings.defaultFees}
-                onChange={(e) => updateSettings({ defaultFees: Number(e.target.value) })}
-                style={{ ...inputStyle, width: "80px", textAlign: "center" }}
-              />
-            </Row>
-            <div style={{ display: "flex", justifyContent: "flex-end" }}>
+          <div style={{ display: "flex", justifyContent: "flex-end" }}>
               <button
                 onClick={resetSettings}
                 style={{
@@ -658,49 +632,6 @@ export default function SettingsPage() {
                 Reset to defaults
               </button>
             </div>
-          </Section>
-
-          {/* Daily Risk Controls */}
-          <Section title="Daily Risk Controls" icon={Shield}>
-            <Row
-              label="Daily Loss Limit"
-              description="Dashboard shows a warning at 75% and turns red at 100%. Set to 0 to disable."
-            >
-              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                <span style={{ fontSize: "13px", color: "var(--text-muted)" }}>$</span>
-                <input
-                  type="number" min={0} step={50}
-                  value={settings.dailyLossLimit}
-                  onChange={(e) => updateSettings({ dailyLossLimit: Number(e.target.value) })}
-                  style={{ ...inputStyle, width: "100px", textAlign: "center" }}
-                />
-              </div>
-            </Row>
-            <Row
-              label="Max Daily Trades"
-              description="Soft ceiling on trades per day. Dashboard turns red when reached. Set to 0 to disable."
-            >
-              <input
-                type="number" min={0} step={1}
-                value={settings.maxDailyTrades}
-                onChange={(e) => updateSettings({ maxDailyTrades: Number(e.target.value) })}
-                style={{ ...inputStyle, width: "80px", textAlign: "center" }}
-              />
-            </Row>
-            <Row
-              label="Default Risk %"
-              description="Pre-fills the risk percentage in the position sizing calculator."
-            >
-              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                <input
-                  type="number" min={0.1} max={100} step={0.1}
-                  value={settings.defaultRiskPct}
-                  onChange={(e) => updateSettings({ defaultRiskPct: Number(e.target.value) })}
-                  style={{ ...inputStyle, width: "80px", textAlign: "center" }}
-                />
-                <span style={{ fontSize: "13px", color: "var(--text-muted)" }}>%</span>
-              </div>
-            </Row>
           </Section>
         </div>
 
@@ -828,21 +759,6 @@ export default function SettingsPage() {
                   </span>
                 </button>
               </div>
-            </Row>
-            <Row label="Source Code" description="View the full codebase on GitHub">
-              <a href={`https://github.com/${GITHUB_REPO}`} target="_blank" rel="noreferrer" style={linkStyle}>
-                GitHub <ExternalLink size={11} />
-              </a>
-            </Row>
-            <Row label="Changelog" description="See what changed in each release">
-              <a href={`https://github.com/${GITHUB_REPO}/releases`} target="_blank" rel="noreferrer" style={linkStyle}>
-                Releases <ExternalLink size={11} />
-              </a>
-            </Row>
-            <Row label="Contributing" description="Help improve Journedge">
-              <a href={`https://github.com/${GITHUB_REPO}/blob/main/CONTRIBUTING.md`} target="_blank" rel="noreferrer" style={linkStyle}>
-                CONTRIBUTING.md <ExternalLink size={11} />
-              </a>
             </Row>
           </Section>
         </div>

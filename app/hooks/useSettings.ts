@@ -10,6 +10,7 @@ export interface Settings {
   dailyLossLimit: number;
   maxDailyTrades: number;
   defaultRiskPct: number;
+  showRecommendations: boolean;
 }
 
 const DEFAULTS: Settings = {
@@ -22,6 +23,7 @@ const DEFAULTS: Settings = {
   dailyLossLimit: 0,
   maxDailyTrades: 0,
   defaultRiskPct: 1,
+  showRecommendations: true,
 };
 
 const STORAGE_KEY = "journedge_settings";

@@ -132,7 +132,7 @@ function PlaybookSelector({ trade }: { trade: Trade }) {
                       {entry.name}
                     </div>
                     {entry.timeframes && (
-                      <div style={{ fontSize: 10, color: "var(--text-muted)", marginTop: 1 }}>{entry.timeframes}</div>
+                      <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 1 }}>{entry.timeframes}</div>
                     )}
                   </div>
                   {isLinked && <Check size={12} style={{ flexShrink: 0 }} />}

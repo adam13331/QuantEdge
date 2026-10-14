@@ -20,7 +20,7 @@ export default function PDFExportInner({ trades, account }: Props) {
         style={{
           padding: "8px 16px", borderRadius: "8px",
           border: "1px solid var(--border)", background: "transparent",
-          color: "#8888aa", fontSize: "12px", fontWeight: "600",
+          color: "#a8a8c8", fontSize: "12px", fontWeight: "600",
           fontFamily: "'DM Sans', sans-serif", opacity: 0.5, cursor: "not-allowed",
         }}
       >
@@ -41,7 +41,7 @@ export default function PDFExportInner({ trades, account }: Props) {
             padding: "8px 16px", borderRadius: "8px",
             border: "1px solid var(--border)",
             background: "transparent",
-            color: loading ? "#8888aa" : "#f0f0ff",
+            color: loading ? "#a8a8c8" : "#f0f0ff",
             fontSize: "12px", fontWeight: "600",
             cursor: loading ? "default" : "pointer",
             fontFamily: "'DM Sans', sans-serif",

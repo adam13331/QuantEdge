@@ -239,7 +239,7 @@ function SelectWrap({ children }: { children: React.ReactNode }) {
   return (
     <div style={{ position: "relative" }}>
       {children}
-      <ChevronDown size={12} color="#8888aa" style={{
+      <ChevronDown size={12} color="#a8a8c8" style={{
         position: "absolute", right: "10px", top: "50%",
         transform: "translateY(-50%)", pointerEvents: "none",
       }} />
@@ -431,7 +431,7 @@ export default function Dashboard() {
                   </span>
                 )}
                 {filtered.length !== trades.length && (
-                  <span style={{ fontSize: "12px", color: "#8888aa" }}>
+                  <span style={{ fontSize: "12px", color: "#a8a8c8" }}>
                     Showing {filtered.length} of {trades.length}
                   </span>
                 )}
@@ -453,7 +453,7 @@ export default function Dashboard() {
 
             <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", paddingBottom: "16px" }}>
               <div style={{ position: "relative", flex: "1", minWidth: "160px" }}>
-                <Search size={13} color="#8888aa" style={{
+                <Search size={13} color="#a8a8c8" style={{
                   position: "absolute", left: "10px", top: "50%", transform: "translateY(-50%)",
                 }} />
                 <input
@@ -507,7 +507,7 @@ export default function Dashboard() {
           </div>
 
           {filtered.length === 0 ? (
-            <div style={{ padding: "48px", textAlign: "center", color: "#8888aa", fontSize: "14px" }}>
+            <div style={{ padding: "48px", textAlign: "center", color: "#a8a8c8", fontSize: "14px" }}>
               No trades match your filters.{" "}
               <button onClick={clearFilters} style={{
                 background: "none", border: "none", color: "var(--accent-green)",
@@ -570,7 +570,7 @@ export default function Dashboard() {
                             : trade.status === "loss"
                             ? "rgba(255,77,106,0.12)"
                             : "rgba(136,136,170,0.12)",
-                          color: trade.status === "win" ? "#00e57a" : trade.status === "loss" ? "#ff4d6a" : "#8888aa",
+                          color: trade.status === "win" ? "#00e57a" : trade.status === "loss" ? "#ff4d6a" : "#a8a8c8",
                         }}>
                           {trade.status.toUpperCase()}
                         </span>
@@ -599,7 +599,7 @@ export default function Dashboard() {
                             }
                           }}
                         >
-                          <Trash2 size={13} color={confirmDeleteId === trade.id ? "#ff4d6a" : "#8888aa"} />
+                          <Trash2 size={13} color={confirmDeleteId === trade.id ? "#ff4d6a" : "#a8a8c8"} />
                         </button>
                       </td>
                     </tr>

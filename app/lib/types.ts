@@ -100,6 +100,7 @@ export type PageId =
   | "journal-editor"
   | "analytics"
   | "calendar"
+  | "propfirm"
   | "import"
   | "accounts"
   | "settings"

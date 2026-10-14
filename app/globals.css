@@ -11,8 +11,10 @@
   --bg-hover: #1e1e2a;
   --border: #2a2a3a;
   --text-primary: #f0f0ff;
-  --text-secondary: #8888aa;
-  --text-muted: #55556a;
+  /* muted/secondary carry the small numerics in tables and charts, so they
+     stay above ~4.5:1 on --bg-primary instead of the old 2.5:1 grey */
+  --text-secondary: #a8a8c8;
+  --text-muted: #8e8eae;
   --accent-green: #00e57a;
   --accent-green-dim: #00e57a18;
   --accent-red: #ff4d6a;
@@ -40,11 +42,20 @@
   padding: 0;
 }
 
+/* 17px root lifts every rem-based size in the app; small numerals in tables
+     were the worst offenders on the dark background */
+html {
+  font-size: 17px;
+}
+
 body {
   background-color: var(--bg-primary);
   color: var(--text-primary);
   font-family: 'DM Sans', sans-serif;
-  -webkit-font-smoothing: antialiased;
+  font-weight: 400;
+  /* antialiased thins DM Sans digits on dark; auto keeps the weight it was
+     designed with, which is what makes small characters legible */
+  -webkit-font-smoothing: auto;
 }
 
 h1, h2, h3, h4, h5, h6 {
