@@ -15,7 +15,7 @@ Only the most recent minor release series receives security fixes. If you are on
 
 ## Application Security Model
 
-Journedge is a **locally-run desktop application**. It has no hosted backend, no user authentication system, no cloud database, and no external API that receives your trade data. All data lives on your machine.
+QuantEdge is a \*\*locally-run desktop application**. It has no hosted backend, no user authentication system, no cloud database, and no external API that receives your trade data. All data lives on your machine.
 
 This significantly limits the attack surface compared to a typical web application. However, several components warrant attention.
 
@@ -34,9 +34,9 @@ This significantly limits the attack surface compared to a typical web applicati
 
 `/api/update` is the highest-risk surface in the application. It runs `git`, `npm`, and `prisma` commands directly on the host machine in response to an HTTP request. This is intentional — it is the in-app update mechanism — but it means:
 
-- **Never expose Journedge on a network interface.** It is designed to run on `localhost` only.
-- **Never run Journedge on a shared or public-facing server.** The update endpoint has no authentication.
-- If you deploy Journedge in any non-localhost context (Docker with exposed ports, a reverse proxy, etc.), disable or block the `/api/update` route at the network level.
+- **Never expose QuantEdge on a network interface.** It is designed to run on `localhost` only.
+- **Never run QuantEdge on a shared or public-facing server.** The update endpoint has no authentication.
+- If you deploy QuantEdge in any non-localhost context (Docker with exposed ports, a reverse proxy, etc.), disable or block the `/api/update` route at the network level.
 
 ---
 
@@ -46,7 +46,7 @@ This significantly limits the attack surface compared to a typical web applicati
 
 Report privately using GitHub's built-in vulnerability reporting:
 
-**[GitHub → TheQuantum-Dev/journedge → Security → Report a vulnerability](https://github.com/TheQuantum-Dev/journedge/security/advisories/new)**
+**[GitHub → adam13331/QuantEdge → Security → Report a vulnerability](https://github.com/adam13331/QuantEdge/security/advisories/new)**
 
 Include the following in your report:
 
@@ -71,7 +71,7 @@ Please report issues including but not limited to:
 - Server-side request forgery
 - SQL injection through Prisma query construction
 - Cross-site scripting in the journal editor that could exfiltrate local file data or execute system commands
-- Dependency vulnerabilities with a confirmed, working exploit path against Journedge specifically
+- Dependency vulnerabilities with a confirmed, working exploit path against QuantEdge specifically
 - Logic vulnerabilities that allow bypassing intended access restrictions
 
 ---
@@ -80,7 +80,7 @@ Please report issues including but not limited to:
 
 The following are out of scope and will not be treated as security vulnerabilities:
 
-- Issues that require physical access to the machine running Journedge
+- Issues that require physical access to the machine running QuantEdge
 - Self-XSS where the attacker and victim are the same local user
 - Rate limiting or brute force on localhost endpoints — there is no authentication system to bypass
 - Missing security headers (CSP, HSTS, etc.) — these are irrelevant for a localhost-only application
@@ -98,17 +98,17 @@ npm audit
 npm audit --audit-level=high
 ```
 
-If you find a high or critical severity issue in a **direct dependency** with a known, working exploit path against Journedge, please report it via the private disclosure process above rather than opening a public issue. For transitive dependencies without a clear exploit path, opening a standard GitHub issue is acceptable.
+If you find a high or critical severity issue in a **direct dependency** with a known, working exploit path against QuantEdge, please report it via the private disclosure process above rather than opening a public issue. For transitive dependencies without a clear exploit path, opening a standard GitHub issue is acceptable.
 
 ---
 
 ## Security Best Practices for Users
 
-Since Journedge runs locally, your security posture is largely determined by your operating system configuration. A few recommendations:
+Since QuantEdge runs locally, your security posture is largely determined by your operating system configuration. A few recommendations:
 
-**Keep Journedge on localhost.** The default `npm run dev` binds to `localhost` only. Do not bind to `0.0.0.0` or expose the port through a reverse proxy unless you have added your own authentication layer in front of it.
+**Keep QuantEdge on localhost.** The default `npm run dev` binds to `localhost` only. Do not bind to `0.0.0.0` or expose the port through a reverse proxy unless you have added your own authentication layer in front of it.
 
-**Protect your database file.** The SQLite file at `prisma/journedge.db` contains all your trade history and journal entries. Apply appropriate file system permissions. Back it up regularly — the Settings page has a CSV and JSON export for this purpose.
+**Protect your database file.** The SQLite file at `prisma/quantedge.db` contains all your trade history and journal entries. Apply appropriate file system permissions. Back it up regularly — the Settings page has a CSV and JSON export for this purpose.
 
 **Review uploads.** Screenshots are stored in `public/uploads/`. This directory is served statically by Next.js. Do not upload files you would not want accessible to any process with HTTP access to the server.
 

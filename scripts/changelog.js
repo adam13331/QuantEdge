@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * Journedge Changelog Generator
+ * QuantEdge Changelog Generator
  *
  * Usage:
  *   node scripts/changelog.js <version> [from_tag] [--dry-run] [--no-write]
@@ -54,7 +54,7 @@ const TYPE_CONFIG = {
   other:    { label: "Other Changes",  emoji: "📦", order: 10 },
 };
 
-const GITHUB_REPO = "TheQuantum-Dev/journedge";
+const GITHUB_REPO = "adam13331/QuantEdge";
 
 function run(cmd) {
   try {
@@ -190,7 +190,7 @@ function writeChangelog(entry) {
   if (fs.existsSync(changelogPath)) {
     existing = fs.readFileSync(changelogPath, "utf8");
   } else {
-    existing = "# Changelog\n\nAll notable changes to Journedge are documented here.\nThis project follows [Semantic Versioning](https://semver.org/).\n\n";
+    existing = "# Changelog\n\nAll notable changes to QuantEdge are documented here.\nThis project follows [Semantic Versioning](https://semver.org/).\n\n";
   }
 
   if (existing.includes(`## [${version}]`)) {
@@ -214,7 +214,7 @@ function main() {
   const detectedFrom = fromTag || getLastTag();
   const repoUrl      = getRepoUrl();
 
-  console.log(`\nJournedge Changelog Generator`);
+  console.log(`\nQuantEdge Changelog Generator`);
   console.log(`  Version : v${version}`);
   console.log(`  Range   : ${detectedFrom ? `${detectedFrom}..HEAD` : "entire history"}`);
   console.log(`  Repo    : ${repoUrl}`);

@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 
 const CURRENT_VERSION = "4.0.0";
-const GITHUB_REPO = "TheQuantum-Dev/journedge";
+const GITHUB_REPO = "adam13331/QuantEdge";
 
 const ACCENT_COLORS = [
   { label: "Green",  value: "#00e57a", dim: "rgba(0,229,122,0.12)"   },
@@ -114,6 +114,7 @@ export default function SettingsPage() {
   const [latestVersion, setLatestVersion]   = useState<string | null>(null);
   const [checkingUpdate, setCheckingUpdate] = useState(false);
   const [updateError, setUpdateError]       = useState(false);
+  const [noReleases, setNoReleases]         = useState(false);
 
   const [updatePhase, setUpdatePhase]       = useState<UpdatePhase>("idle");
   const [steps, setSteps]                   = useState<UpdateStep[]>(
@@ -139,11 +140,19 @@ export default function SettingsPage() {
   const checkForUpdates = async () => {
     setCheckingUpdate(true);
     setUpdateError(false);
+    setNoReleases(false);
     try {
       const res = await fetch(
         `https://api.github.com/repos/${GITHUB_REPO}/releases/latest`,
         { headers: { Accept: "application/vnd.github.v3+json" } }
       );
+      // A 404 means the repo exists but has published no release. That is the
+      // normal state of a fresh fork, so report it instead of claiming the
+      // user's connection is broken.
+      if (res.status === 404) {
+        setNoReleases(true);
+        return;
+      }
       if (!res.ok) throw new Error();
       const data = await res.json();
       const tag = data.tag_name?.replace(/^v/, "");
@@ -246,7 +255,7 @@ export default function SettingsPage() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `journedge-export-${new Date().toISOString().split("T")[0]}.csv`;
+    a.download = `quantedge-export-${new Date().toISOString().split("T")[0]}.csv`;
     a.click();
     URL.revokeObjectURL(url);
     setExportDone(true);
@@ -260,7 +269,7 @@ export default function SettingsPage() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `journedge-export-${new Date().toISOString().split("T")[0]}.json`;
+    a.download = `quantedge-export-${new Date().toISOString().split("T")[0]}.json`;
     a.click();
     URL.revokeObjectURL(url);
     setJsonExportDone(true);
@@ -319,7 +328,7 @@ export default function SettingsPage() {
               </div>
               <div>
                 <div style={{ fontSize: "14px", fontWeight: "700", color: "var(--text-primary)", marginBottom: "2px" }}>
-                  Journedge v{latestVersion} is available
+                  QuantEdge v{latestVersion} is available
                 </div>
                 <div style={{ fontSize: "12px", color: "var(--text-muted)" }}>
                   You are on v{CURRENT_VERSION} · Updates your code, dependencies, and database automatically
@@ -389,8 +398,8 @@ export default function SettingsPage() {
                 fontSize: "14px", fontWeight: "700",
                 color: updatePhase === "error" ? "#ff4d6a" : updatePhase === "restart_required" ? "#00e57a" : "#4d9fff",
               }}>
-                {updatePhase === "running"          && `Installing Journedge v${latestVersion}...`}
-                {updatePhase === "restart_required" && `Journedge v${latestVersion} installed`}
+                {updatePhase === "running"          && `Installing QuantEdge v${latestVersion}...`}
+                {updatePhase === "restart_required" && `QuantEdge v${latestVersion} installed`}
                 {updatePhase === "error"            && "Update failed"}
               </span>
             </div>
@@ -534,7 +543,20 @@ export default function SettingsPage() {
         </div>
       )}
 
-      {updateError && !checkingUpdate && updatePhase === "idle" && (
+      {noReleases && !checkingUpdate && updatePhase === "idle" && (
+        <div style={{
+          background: "rgba(136,136,170,0.08)", border: "1px solid var(--border)",
+          borderRadius: "12px", padding: "12px 18px", marginBottom: "20px",
+          fontSize: "12px", color: "var(--text-muted)",
+        }}>
+          No published releases found for this fork yet. Publish one on{" "}
+          <a href={`https://github.com/${GITHUB_REPO}/releases`} target="_blank" rel="noreferrer"
+             style={{ color: "var(--accent-green)" }}>GitHub</a>{" "}
+          to enable in-app updates, or update with <code>git pull</code>.
+        </div>
+      )}
+
+      {updateError && !noReleases && !checkingUpdate && updatePhase === "idle" && (
         <div style={{
           background: "rgba(136,136,170,0.08)", border: "1px solid var(--border)",
           borderRadius: "12px", padding: "12px 18px", marginBottom: "20px",

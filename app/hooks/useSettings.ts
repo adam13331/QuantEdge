@@ -26,7 +26,7 @@ const DEFAULTS: Settings = {
   showRecommendations: true,
 };
 
-const STORAGE_KEY = "journedge_settings";
+const STORAGE_KEY = "quantedge_settings";
 
 const COLOR_MAP: Record<string, { dim: string }> = {
   "#00e57a": { dim: "rgba(0,229,122,0.12)"   },

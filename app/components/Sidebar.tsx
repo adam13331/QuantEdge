@@ -37,8 +37,8 @@ export default function Sidebar() {
       {/* Logo */}
       <div style={{ paddingBottom: "28px" }}>
         <Image
-          src="/journedge-logo-dark.svg"
-          alt="Journedge"
+          src="/quantedge-logo-dark.svg"
+          alt="QuantEdge"
           width={190}
           height={46}
           priority

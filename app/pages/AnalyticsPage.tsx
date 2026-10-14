@@ -685,7 +685,7 @@ export default function AnalyticsPage() {
                 <Shield size={22} color="#a8a8c8" style={{ marginBottom: "10px" }} />
                 <p style={{ fontSize: "13px", color: "var(--text-muted)", maxWidth: "440px", margin: "0 auto" }}>
                   None of these trades have a stop loss recorded. Set a stop on your MetaTrader
-                  positions and re-run JournedgeExport.mq5 to unlock risk sizing, risk
+                  positions and re-run QuantEdgeExport.mq5 to unlock risk sizing, risk
                   consistency, and true R-multiples instead of an average-loss estimate.
                 </p>
               </div>

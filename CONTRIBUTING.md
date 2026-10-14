@@ -1,12 +1,12 @@
-# Contributing to Journedge
+# Contributing to QuantEdge
 
-Thanks for your interest in contributing. Journedge is built to be a serious tool for serious traders — contributions that add real value to that mission are welcome.
+Thanks for your interest in contributing. QuantEdge is built to be a serious tool for serious traders — contributions that add real value to that mission are welcome.
 
 ---
 
 ## Before You Start
 
-- Check the [open issues](https://github.com/TheQuantum-Dev/journedge/issues) to avoid duplicate work
+- Check the [open issues](https://github.com/adam13331/QuantEdge/issues) to avoid duplicate work
 - For large features, open an issue first to discuss the approach
 - Keep pull requests focused — one feature or fix per PR
 
@@ -15,8 +15,8 @@ Thanks for your interest in contributing. Journedge is built to be a serious too
 ## Development Setup
 
 ```bash
-git clone https://github.com/TheQuantum-Dev/journedge.git
-cd journedge
+git clone https://github.com/adam13331/QuantEdge.git
+cd QuantEdge
 npm install
 cp .env.example .env
 npx prisma migrate dev
@@ -38,7 +38,7 @@ npm run dev
 - Do not redefine types locally in components
 
 **Styling**
-- Journedge uses inline styles with CSS variables for theming
+- QuantEdge uses inline styles with CSS variables for theming
 - CSS variables are defined in `app/globals.css`
 - Do not introduce external CSS frameworks or Tailwind
 

@@ -9,7 +9,7 @@ export const maxDuration = 300;
 
 const execAsync = promisify(exec);
 const ROOT = process.cwd();
-const GITHUB_REPO = "TheQuantum-Dev/journedge";
+const GITHUB_REPO = "adam13331/QuantEdge";
 
 // Temp dirs that must be cleaned up even if the process crashes
 const SHADOW_DIR = path.join(ROOT, ".update-shadow");
@@ -57,7 +57,7 @@ function pruneBackups(backupDir: string, keep = 5): void {
   try {
     const files = fs
       .readdirSync(backupDir)
-      .filter((f) => f.startsWith("journedge-") && f.endsWith(".db"))
+      .filter((f) => f.startsWith("quantedge-") && f.endsWith(".db"))
       .map((f) => ({ name: f, mtime: fs.statSync(path.join(backupDir, f)).mtimeMs }))
       .sort((a, b) => b.mtime - a.mtime);
     for (const file of files.slice(keep)) {
@@ -67,7 +67,7 @@ function pruneBackups(backupDir: string, keep = 5): void {
 }
 
 async function backupDatabase(emit: (e: StepEvent) => void): Promise<boolean> {
-  const dbPath = path.join(ROOT, "prisma", "journedge.db");
+  const dbPath = path.join(ROOT, "prisma", "quantedge.db");
   if (!fs.existsSync(dbPath)) {
     emit({ step: "backup", status: "skipped", message: "No database found — skipping" });
     return true;
@@ -77,7 +77,7 @@ async function backupDatabase(emit: (e: StepEvent) => void): Promise<boolean> {
     if (!fs.existsSync(backupDir)) fs.mkdirSync(backupDir, { recursive: true });
 
     const ts   = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
-    const dest = path.join(backupDir, `journedge-${ts}.db`);
+    const dest = path.join(backupDir, `quantedge-${ts}.db`);
     fs.copyFileSync(dbPath, dest);
 
     // A zero-byte backup is worse than no backup — verify before continuing
@@ -94,7 +94,7 @@ async function backupDatabase(emit: (e: StepEvent) => void): Promise<boolean> {
     }
 
     pruneBackups(backupDir, 5);
-    emit({ step: "backup", status: "complete", message: `Database backed up (${(size / 1024).toFixed(1)} KB) — journedge-${ts}.db` });
+    emit({ step: "backup", status: "complete", message: `Database backed up (${(size / 1024).toFixed(1)} KB) — quantedge-${ts}.db` });
     return true;
   } catch (err) {
     emit({
@@ -208,11 +208,21 @@ async function updateViaZip(emit: (e: StepEvent) => void): Promise<void> {
     release = JSON.parse(apiOut);
     if (!release.tag_name || !release.tarball_url) throw new Error("Invalid response");
   } catch {
+    // A 404 from /releases/latest means the repo exists but has published no
+    // release yet — common on a fresh fork. Say so, rather than blaming the
+    // user's connection, which sends them debugging the wrong problem.
+    const noReleases = apiOut.includes('"Not Found"');
     emit({
       step: "pull",
       status: "error",
-      message: "Could not fetch release information",
-      detail: "Check your internet connection and try again.",
+      message: noReleases
+        ? "No published releases found for this fork"
+        : "Could not fetch release information",
+      detail: noReleases
+        ? "QuantEdge has no GitHub release to update from yet. Publish one on github.com/" +
+          GITHUB_REPO +
+          "/releases, or update manually with git pull."
+        : "Check your internet connection and try again.",
     });
     return;
   }
@@ -225,8 +235,8 @@ async function updateViaZip(emit: (e: StepEvent) => void): Promise<void> {
   await runCmd(`tar -xzf "${TMP_TAR}" -C "${TMP_DIR}" --strip-components=1`, { timeoutMs: 60_000 });
 
   const preserve = [
-    path.join("prisma", "journedge.db"),
-    path.join("prisma", "journedge.db-journal"),
+    path.join("prisma", "quantedge.db"),
+    path.join("prisma", "quantedge.db-journal"),
     ".env",
     path.join("public", "uploads"),
     "backups",
@@ -292,7 +302,7 @@ export async function GET(_request: NextRequest) {
             step: "preflight",
             status: "error",
             message: "Docker container detected",
-            detail: "Pull the latest image to update: docker pull thequantum-dev/journedge. Changes made inside a container are lost on restart.",
+            detail: "Pull the latest image to update: docker pull adam13331/quantedge. Changes made inside a container are lost on restart.",
           });
           return;
         }
@@ -351,7 +361,7 @@ export async function GET(_request: NextRequest) {
           const { stdout: statusOut } = await runCmd("git status --porcelain");
           if (statusOut.trim().length > 0) {
             emit({ step: "stash", status: "running", message: "Stashing local modifications..." });
-            await runCmd('git stash push -m "journedge-pre-update-stash"');
+            await runCmd('git stash push -m "quantedge-pre-update-stash"');
             emit({ step: "stash", status: "complete", message: "Local changes stashed safely" });
           } else {
             emit({ step: "stash", status: "skipped", message: "Working tree is clean" });

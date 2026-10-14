@@ -1,32 +1,32 @@
 //+------------------------------------------------------------------+
-//|                                                JournedgeExport.mq5 |
-//|  Exports MetaTrader 5 trade history to a Journedge CSV.           |
+//|                                                QuantEdgeExport.mq5 |
+//|  Exports MetaTrader 5 trade history to a QuantEdge CSV.           |
 //|                                                                  |
 //|  Usage:                                                           |
 //|    1. Open a chart in MetaTrader 5.                               |
 //|    2. Navigator -> Expert Advisors -> right-click -> Scripts.     |
-//|    3. Drop JournedgeExport.mq5 on the chart (or attach it).       |
+//|    3. Drop QuantEdgeExport.mq5 on the chart (or attach it).       |
 //|    4. MetaEditor: compile it once (F7). No errors allowed.        |
-//|    5. In Journedge: Accounts -> Import Trades -> drop the file.    |
+//|    5. In QuantEdge: Accounts -> Import Trades -> drop the file.    |
 //|                                                                  |
-//|  Output: <Terminal Data Folder>\MQL5\Files\journedge-<login>-<date>.csv
+//|  Output: <Terminal Data Folder>\MQL5\Files\quantedge-<login>-<date>.csv
 //|  (MetaTrader: File -> Open Data Folder to browse to MQL5\Files)  |
 //|                                                                  |
 //|  IMPORTANT                                                        |
-//|  Journedge keys every trade on its MetaTrader position ticket, so   |
+//|  QuantEdge keys every trade on its MetaTrader position ticket, so   |
 //|  re-importing a newer export updates the existing trades in place   |
 //|  instead of duplicating them. Export the full history each time.    |
 //+------------------------------------------------------------------+
-#property copyright "Journedge"
+#property copyright "QuantEdge"
 #property link      ""
 #property version   "1.00"
-#property description "Exports MetaTrader 5 closed trades to a Journedge CSV."
+#property description "Exports MetaTrader 5 closed trades to a QuantEdge CSV."
 #property strict
 
-// Must stay in sync with JOURNEDGE_COLUMNS in app/lib/parseMetaTraderCSV.ts.
+// Must stay in sync with QUANTEDGE_COLUMNS in app/lib/parseMetaTraderCSV.ts.
 // The parser reads by column name, so columns may be appended here without
 // breaking files exported by older builds of this script.
-#define JOURNEDGE_HEADER "Date,Symbol,Underlying,Type,Direction,Option Type,Strike,Expiry,Quantity,Entry Price,Exit Price,Commission,Fees,P&L,Status,Entry Time,Exit Time,R:R,Tags,Journal,Account ID,Ticket,Planned Risk,Duration (min),MAE,MFE,Exit Reason,Magic,Legs,Averaged Down,Balance After"
+#define QUANTEDGE_HEADER "Date,Symbol,Underlying,Type,Direction,Option Type,Strike,Expiry,Quantity,Entry Price,Exit Price,Commission,Fees,P&L,Status,Entry Time,Exit Time,R:R,Tags,Journal,Account ID,Ticket,Planned Risk,Duration (min),MAE,MFE,Exit Reason,Magic,Legs,Averaged Down,Balance After"
 
 input group                 "Range"
 input datetime InpFrom      = 0;  // From  (0 = entire history)
@@ -60,7 +60,7 @@ struct TradeRow
    double        pnl;
    string        comment;
    string        rr;           // reward-to-risk, empty when no stop loss was set
-   string        ticket;       // position id — the stable key journedge de-dupes on
+   string        ticket;       // position id — the stable key QuantEdge de-dupes on
    double        planned_risk; // account-currency loss if the stop had been hit
    double        duration_min; // exact hold time
    double        mae;          // worst excursion against, account currency
@@ -346,7 +346,7 @@ bool ParseFutureSymbol(const string base, string &underlying)
   }
 
 //+------------------------------------------------------------------+
-//| Classifies a raw MetaTrader symbol into Journedge's instrument    |
+//| Classifies a raw MetaTrader symbol into QuantEdge's instrument    |
 //| types and pulls out the underlying.                               |
 //+------------------------------------------------------------------+
 void ClassifySymbol(const string sym, string &type, string &underlying)
@@ -422,7 +422,7 @@ string DateCompact(const datetime t)
   }
 
 //+------------------------------------------------------------------+
-//| "14:05" - the format Journedge stores entry/exit times in.        |
+//| "14:05" - the format QuantEdge stores entry/exit times in.        |
 //+------------------------------------------------------------------+
 string TimeOfDay(const datetime t)
   {
@@ -435,7 +435,7 @@ string TimeOfDay(const datetime t)
 //| currency. Derived from M1 bars, so it is accurate to within a       |
 //| single bar at each end of the hold. Both values are positive        |
 //| magnitudes — MAE is how far it went against, MFE how far it went in  |
-//| favour — which is the convention journedge's Execution tab expects.  |
+//| favour — which is the convention QuantEdge's Execution tab expects.  |
 //+------------------------------------------------------------------+
 bool ComputeExcursion(const string sym, const bool is_long, const double entry_price,
                       const double volume, const datetime from, const datetime to,
@@ -494,7 +494,7 @@ string FormatPrice(const string sym, const double value)
   }
 
 //+------------------------------------------------------------------+
-//| Rolls one position's deals up into a single journedge row.       |
+//| Rolls one position's deals up into a single QuantEdge row.       |
 //| Returns false for positions with nothing tradable in them.        |
 //+------------------------------------------------------------------+
 bool BuildTrade(const int from, const int to, TradeRow &row)
@@ -531,7 +531,7 @@ bool BuildTrade(const int from, const int to, TradeRow &row)
       const DealRow d = g_deals[k];
 
       // MT5 reports gross profit, commission, swap and fee separately and all four
-      // move the balance, so net P&L is their signed sum. Journedge stores
+      // move the balance, so net P&L is their signed sum. QuantEdge stores
       // commission/fees as positive magnitudes alongside it.
       row.pnl             += d.profit + d.commission + d.swap + d.fee;
       commission_total    += d.commission;
@@ -599,7 +599,7 @@ bool BuildTrade(const int from, const int to, TradeRow &row)
    row.exit_reason   = (have_out && exit_reason >= 0 ? ReasonName(exit_reason) : "");
 
    // R:R from the stop loss recorded when the position was opened. Left empty
-   // when no stop was set or when the risk works out to zero — journedge shows
+   // when no stop was set or when the risk works out to zero — QuantEdge shows
    // "—" for trades without a ratio rather than inventing one.
    row.rr = "";
    if(entry_sl > 0.0 && have_out)
@@ -682,7 +682,7 @@ bool BuildTrade(const int from, const int to, TradeRow &row)
 //| The row is assembled and joined by hand rather than handed to       |
 //| FileWrite: the FILE_CSV flag on FileOpen is not honoured by every  |
 //| terminal build, and FileWrite silently falls back to TAB-separated  |
-//| output. Journedge would then read the header (written literally)    |
+//| output. QuantEdge would then read the header (written literally)    |
 //| but discard every data row.                                        |
 //+------------------------------------------------------------------+
 void WriteRow(const TradeRow &row)
@@ -713,7 +713,7 @@ void WriteRow(const TradeRow &row)
                   TimeOfDay(row.exit_time)                  + "," +
                   row.rr                                     + "," +
                   (InpCommentTag ? CleanCsv(row.comment) : "")       + "," +
-                  ""                                        + "," +   // Journal - written in journedge
+                  ""                                        + "," +   // Journal - written in QuantEdge
                   IntegerToString(AccountInfoInteger(ACCOUNT_LOGIN)) + "," +
                   row.ticket                                + "," +
                   DoubleToString(row.planned_risk, 2)       + "," +
@@ -742,7 +742,7 @@ void OnStart()
 
    if(!HistorySelect(from, to))
      {
-      const string e = "Journedge: HistorySelect failed (error " + IntegerToString(GetLastError()) + ")";
+      const string e = "QuantEdge: HistorySelect failed (error " + IntegerToString(GetLastError()) + ")";
       Print(e);
       Alert(e);
       return;
@@ -751,7 +751,7 @@ void OnStart()
    const int total = HistoryDealsTotal();
    if(total <= 0)
      {
-      const string e = "Journedge: no deals found in the selected range.";
+      const string e = "QuantEdge: no deals found in the selected range.";
       Print(e);
       Alert(e);
       return;
@@ -792,7 +792,7 @@ void OnStart()
 
    if(kept == 0)
      {
-      const string e = "Journedge: " + IntegerToString(total)
+      const string e = "QuantEdge: " + IntegerToString(total)
                        + " deals scanned, none belonged to a closed position.";
       Print(e);
       Alert(e);
@@ -806,21 +806,21 @@ void OnStart()
    SortOrder(0, kept - 1);
 
    const string login  = IntegerToString(AccountInfoInteger(ACCOUNT_LOGIN));
-   const string fname = "journedge-" + login + "-" + DateCompact(TimeCurrent()) + ".csv";
+   const string fname = "quantedge-" + login + "-" + DateCompact(TimeCurrent()) + ".csv";
 
    // FILE_CSV is deliberately omitted — rows are written by hand (see WriteRow),
    // so the delimiter must not depend on how this build interprets the flag.
    g_file = FileOpen(fname, FILE_WRITE | FILE_ANSI);
    if(g_file == INVALID_HANDLE)
      {
-      const string e = "Journedge: could not open " + fname
+      const string e = "QuantEdge: could not open " + fname
                        + " (error " + IntegerToString(GetLastError()) + ")";
       Print(e);
       Alert(e);
       return;
      }
 
-   FileWriteString(g_file, JOURNEDGE_HEADER + "\r\n");
+   FileWriteString(g_file, QUANTEDGE_HEADER + "\r\n");
 
    int    written = 0;
    double net = 0.0;
@@ -846,7 +846,7 @@ void OnStart()
    FileClose(g_file);
    g_file = INVALID_HANDLE;
 
-   const string msg = StringFormat("Journedge: exported %d trades (net %.2f %s) to MQL5\\Files\\%s",
+   const string msg = StringFormat("QuantEdge: exported %d trades (net %.2f %s) to MQL5\\Files\\%s",
                                    written, net, AccountInfoString(ACCOUNT_CURRENCY), fname);
    Print(msg);
    if(!InpQuiet) Alert(msg);

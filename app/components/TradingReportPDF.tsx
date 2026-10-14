@@ -379,7 +379,7 @@ export default function TradingReportPDF({ trades, account, dateRange, logoUrl, 
             <View style={styles.coverBrand}>
               {logoUrl
                 ? <Image src={logoUrl} style={{ width: 210, height: 44 }} />
-                : <Text style={styles.brandWordmark}>journedge</Text>
+                : <Text style={styles.brandWordmark}>quantedge</Text>
               }
               <Text style={styles.brandSub}>Trading Performance Report</Text>
             </View>
@@ -550,7 +550,7 @@ export default function TradingReportPDF({ trades, account, dateRange, logoUrl, 
               </>
             ) : (
               <MissingData>
-                No stop loss recorded on these trades — planned risk, risk consistency and stop breaches need JournedgeExport.mq5 to be re-run with a stop set.
+                No stop loss recorded on these trades — planned risk, risk consistency and stop breaches need QuantEdgeExport.mq5 to be re-run with a stop set.
               </MissingData>
             )}
           </>
@@ -648,7 +648,7 @@ export default function TradingReportPDF({ trades, account, dateRange, logoUrl, 
               </>
             ) : (
               <MissingData>
-                No MAE/MFE data for this period. Run JournedgeExport.mq5 with excursion scanning enabled to populate it.
+                No MAE/MFE data for this period. Run QuantEdgeExport.mq5 with excursion scanning enabled to populate it.
               </MissingData>
             )}
           </>
@@ -755,7 +755,7 @@ export default function TradingReportPDF({ trades, account, dateRange, logoUrl, 
             <Text style={[styles.sectionTitle, { marginTop: 20 }]}>Execution Detail</Text>
             {proc.execCoverage === 0 ? (
               <MissingData>
-                No execution data in this period. Re-run JournedgeExport.mq5 and re-import to populate exit reason, magic number, entry legs and balance.
+                No execution data in this period. Re-run QuantEdgeExport.mq5 and re-import to populate exit reason, magic number, entry legs and balance.
               </MissingData>
             ) : (
               <>
@@ -1005,7 +1005,7 @@ export default function TradingReportPDF({ trades, account, dateRange, logoUrl, 
         )}
 
         <View style={styles.footer} fixed>
-          <Text style={styles.footerText}>Journedge — Trading Performance Report</Text>
+          <Text style={styles.footerText}>QuantEdge — Trading Performance Report</Text>
           <Text style={styles.footerText}>{generatedDate}</Text>
         </View>
       </Page>
@@ -1053,7 +1053,7 @@ export default function TradingReportPDF({ trades, account, dateRange, logoUrl, 
           ))}
 
           <View style={styles.footer} fixed>
-            <Text style={styles.footerText}>Journedge — Trading Performance Report</Text>
+            <Text style={styles.footerText}>QuantEdge — Trading Performance Report</Text>
             <Text
               style={styles.footerText}
               render={({ pageNumber, totalPages }) => `Page ${pageNumber} of ${totalPages}`}
@@ -1109,7 +1109,7 @@ export default function TradingReportPDF({ trades, account, dateRange, logoUrl, 
             })}
 
             <View style={styles.footer} fixed>
-              <Text style={styles.footerText}>Journedge — Trading Performance Report</Text>
+              <Text style={styles.footerText}>QuantEdge — Trading Performance Report</Text>
               <Text
                 style={styles.footerText}
                 render={({ pageNumber, totalPages }) => `Page ${pageNumber} of ${totalPages}`}

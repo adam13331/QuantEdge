@@ -43,7 +43,7 @@ function describeFile(text: string): string {
 
 const FORMAT_CARD = {
   label: "MetaTrader",
-  desc:  "Run JournedgeExport.mq5 on any chart in MetaTrader 5, then drop the CSV it writes to MQL5\\Files. " +
+  desc:  "Run QuantEdgeExport.mq5 on any chart in MetaTrader 5, then drop the CSV it writes to MQL5\\Files. " +
          "Every closed trade is reconstructed from its deals — options, forex, futures and stocks — " +
          "with entry/exit times, commission, swap and net P&L already calculated.",
   color: "#00e57a", bg: "rgba(0,229,122,0.06)", border: "rgba(0,229,122,0.2)",
@@ -187,7 +187,7 @@ export default function ImportPage() {
               Drop your CSV here
             </div>
             <div style={{ fontSize: "14px", color: "#a8a8c8" }}>
-              JournedgeExport.mq5 output — format is verified automatically
+              QuantEdgeExport.mq5 output — format is verified automatically
             </div>
           </>
         )}

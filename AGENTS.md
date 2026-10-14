@@ -1,4 +1,4 @@
-# journedge conventions
+# QuantEdge conventions
 
 Trading journal. Next.js 16 App Router on a single route, Prisma + SQLite.
 Read `REPO_MAP.md` first for the file list; this file is the rules.
@@ -14,7 +14,7 @@ Read `REPO_MAP.md` first for the file list; this file is the rules.
 - **Every finding names the figure it fired on.** `Insight.metric` carries the
   number so a trader can check it against the chart. A rule that only restates a
   metric is not a recommendation.
-- **`JOURNEDGE_HEADER` in the exporter must match `JOURNEDGE_COLUMNS` in
+- **`QUANTEDGE_HEADER` in the exporter must match `QUANTEDGE_COLUMNS` in
   `parseMetaTraderCSV.ts`.** Changing one alone breaks import silently — the
   column count still parses and the rows shift.
 - **Findings are ranked worst-first** and panels cap at 6 (8 on Process), stating
@@ -47,7 +47,7 @@ Analytics panels — it hides the reading, never the numbers.
 
 - `npx prisma migrate dev` is manual. There is no seed script; do not assume one
   exists when a database looks empty.
-- `prisma/journedge.db` is a local SQLite file. Never read it.
+- `prisma/quantedge.db` is a local SQLite file. Never read it.
 - The in-app updater (`app/api/update/route.ts`) backs up the db before
   migrating and prunes to the 5 most recent. Keep that ordering intact.
 

@@ -315,7 +315,7 @@ function LivePreview({ stats, options, challenge }: { stats: ReportStats; option
     <div style={pageStyle}>
       {options.includeCover && (
         <div style={{ borderBottom: "2px solid #00c464", paddingBottom: "12px", marginBottom: "12px" }}>
-          <div style={{ fontSize: "11px", fontWeight: "800", color: "#0a0a1a", letterSpacing: "-0.3px" }}>journedge</div>
+          <div style={{ fontSize: "11px", fontWeight: "800", color: "#0a0a1a", letterSpacing: "-0.3px" }}>quantedge</div>
           <div style={{ fontSize: "8px", color: "#888" }}>Trading Performance Report</div>
         </div>
       )}
@@ -537,7 +537,7 @@ export default function ExportPage() {
   const [challenge, setChallenge] = useState<ChallengeConfig | null>(null);
   useEffect(() => {
     try {
-      const raw = localStorage.getItem(`journedge_prop_${activeAccount?.id ?? "default"}`);
+      const raw = localStorage.getItem(`quantedge_prop_${activeAccount?.id ?? "default"}`);
       setChallenge(raw ? { ...DEFAULT_CHALLENGE, ...JSON.parse(raw) } : null);
     } catch {
       setChallenge(null);
@@ -572,7 +572,7 @@ export default function ExportPage() {
   const set = <K extends keyof ReportOptions>(key: K, val: ReportOptions[K]) =>
     setOptions((prev) => ({ ...prev, [key]: val }));
 
-  const filename = `journedge-report-${
+  const filename = `quantedge-report-${
     activeAccount?.name?.toLowerCase().replace(/\s+/g, "-") || "account"
   }-${new Date().toISOString().split("T")[0]}.pdf`;
 

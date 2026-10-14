@@ -33,7 +33,7 @@ export default function ExportPDFInner({ trades, account, challenge, options, fi
   const [logoUrl, setLogoUrl] = useState<string | undefined>(undefined);
 
   useEffect(() => {
-    svgToPngDataUrl("/journedge-logo-light.svg", 210, 44)
+    svgToPngDataUrl("/quantedge-logo-light.svg", 210, 44)
 
       .then(setLogoUrl)
       .catch(() => setLogoUrl(undefined));

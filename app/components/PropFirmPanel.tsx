@@ -66,7 +66,7 @@ function Bar({ label, pct, detail, inverse }: { label: string; pct: number; deta
 }
 
 export default function PropFirmPanel({ trades, activeAccount }: { trades: Trade[]; activeAccount: Account | null }) {
-  const storageKey = `journedge_prop_${activeAccount?.id ?? "default"}`;
+  const storageKey = `quantedge_prop_${activeAccount?.id ?? "default"}`;
   const [loaded, setLoaded] = useState(false);
   const [config, setConfig] = useState<ChallengeConfig>(() => ({
     ...DEFAULT_CHALLENGE,

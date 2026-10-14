@@ -393,7 +393,7 @@ export default function Dashboard() {
             No trades yet
           </h3>
           <p style={{ color: "var(--text-muted)", fontSize: "14px", marginBottom: "24px" }}>
-            Run the Journedge exporter on your MetaTrader terminal, then import the CSV to get started.
+            Run the QuantEdge exporter on your MetaTrader terminal, then import the CSV to get started.
           </p>
           <div style={{ display: "flex", gap: "12px", justifyContent: "center" }}>
             <button

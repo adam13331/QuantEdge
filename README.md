@@ -1,11 +1,16 @@
-# Journedge
+# QuantEdge
+
+> **This is a permanent fork of [Journedge](https://github.com/TheQuantum-Dev/journedge).**
+> QuantEdge began as Journedge v4.0.0 by Quantum Dev, MIT licensed, and is now developed independently
+> under the name QuantEdge. No affiliation with or endorsement by the original author.
+> Journedge and its logo remain the property of Quantum Dev — see [`LICENSE`](./LICENSE).
 
 <div align="center">
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="public/journedge-logo-dark.svg">
-  <source media="(prefers-color-scheme: light)" srcset="public/journedge-logo-light.svg">
-  <img alt="Journedge" src="public/journedge-logo-light.svg" width="260" />
+  <source media="(prefers-color-scheme: dark)" srcset="public/quantedge-logo-dark.svg">
+  <source media="(prefers-color-scheme: light)" srcset="public/quantedge-logo-light.svg">
+  <img alt="QuantEdge" src="public/quantedge-logo-light.svg" width="260" />
 </picture>
 
 <br /><br />
@@ -26,9 +31,9 @@
 
 ---
 
-## Why Journedge
+## Why QuantEdge
 
-Most trading journals are either too simple to be useful or locked behind expensive subscriptions. Journedge is built differently — it is a complete trading process tool, not just a P&L logger.
+Most trading journals are either too simple to be useful or locked behind expensive subscriptions. QuantEdge is built differently — it is a complete trading process tool, not just a P&L logger.
 
 **Your data stays yours.** Everything runs locally on your machine using SQLite. No cloud sync, no user accounts, no telemetry, no third-party data transfers of any kind. Your trade history, journal entries, screenshots, and performance data never leave your machine.
 
@@ -101,7 +106,7 @@ Monthly P&L calendar — always hardcoded red/green. Snaps to your most recent t
 ![Calendar](docs/screenshots/calendar.png)
 
 ### Import
-MetaTrader 5 history export via the bundled `JournedgeExport.mq5` script, which rebuilds each closed trade from its deals.
+MetaTrader 5 history export via the bundled `QuantEdgeExport.mq5` script, which rebuilds each closed trade from its deals.
 
 ![Import](docs/screenshots/import.png)
 
@@ -250,8 +255,8 @@ Shortcuts are disabled while typing in any input field or the journal editor.
 ### Installation
 
 ```bash
-git clone https://github.com/TheQuantum-Dev/journedge.git
-cd journedge
+git clone https://github.com/adam13331/QuantEdge.git
+cd QuantEdge
 npm install
 cp .env.example .env
 npx prisma migrate dev
@@ -275,18 +280,18 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 ## Importing Trades
 
-Trades enter Journedge from **MetaTrader 5** only, using the bundled exporter.
+Trades enter QuantEdge from **MetaTrader 5** only, using the bundled exporter.
 
 | Platform | Notes | Status |
 |----------|-------|--------|
-| MetaTrader 5 | Run `scripts/JournedgeExport.mq5` on any chart, import the CSV it writes to `MQL5\Files` | ✅ Supported |
+| MetaTrader 5 | Run `scripts/QuantEdgeExport.mq5` on any chart, import the CSV it writes to `MQL5\Files` | ✅ Supported |
 
 ### MetaTrader 5
 
-1. In MetaEditor, open `scripts/JournedgeExport.mq5` and press **F7** to compile.
-2. Back in the terminal, open any chart. **Navigator → Expert Advisors → Scripts**, then double-click **JournedgeExport** to attach it.
-3. The script writes `MQL5\Files\journedge-<login>-<date>.csv` and pops an alert with the trade count. Find the folder via **File → Open Data Folder**; the full log is in the **Experts** tab.
-4. In Journedge: **Import Trades**, drop the CSV in.
+1. In MetaEditor, open `scripts/QuantEdgeExport.mq5` and press **F7** to compile.
+2. Back in the terminal, open any chart. **Navigator → Expert Advisors → Scripts**, then double-click **QuantEdgeExport** to attach it.
+3. The script writes `MQL5\Files\quantedge-<login>-<date>.csv` and pops an alert with the trade count. Find the folder via **File → Open Data Folder**; the full log is in the **Experts** tab.
+4. In QuantEdge: **Import Trades**, drop the CSV in.
 
 The exporter walks the account history, groups deals by position id and rebuilds each closed trade: volume-weighted entry and exit prices, net P&L (profit + commission + swap + fee), instrument classification (options, forex, futures, stocks) and entry/exit times.
 
@@ -301,15 +306,15 @@ Beyond the basic trade record it also captures:
 
 Set a stop loss on your positions for risk and R-multiple data to appear. MAE/MFE are derived from minute bars, so they are accurate to within one bar at each end of the hold; tick `InpExcursions = false` to skip that scan.
 
-> **Re-importing duplicates trades once.** Journedge does not de-duplicate on import, so import a file once. To start over, use **Settings → Clear Trades** and re-import the newest export.
+> **Re-importing duplicates trades once.** QuantEdge does not de-duplicate on import, so import a file once. To start over, use **Settings → Clear Trades** and re-import the newest export.
 
 ---
 
 ## Architecture Notes
 
-**Database.** SQLite via Prisma. All data is local. The database file lives at `prisma/journedge.db` and is gitignored.
+**Database.** SQLite via Prisma. All data is local. The database file lives at `prisma/quantedge.db` and is gitignored.
 
-**CSV parser.** MetaTrader is the only supported import format. `app/lib/parseMetaTraderCSV.ts` validates the header against the constant `JOURNEDGE_HEADER`, which must stay byte-for-byte identical to the `#define` of the same name in `scripts/JournedgeExport.mq5`. Detection compares headers column-by-column so a BOM, stray whitespace, casing or CRLF endings can't break it.
+**CSV parser.** MetaTrader is the only supported import format. `app/lib/parseMetaTraderCSV.ts` validates the header against the constant `QUANTEDGE_HEADER`, which must stay byte-for-byte identical to the `#define` of the same name in `scripts/QuantEdgeExport.mq5`. Detection compares headers column-by-column so a BOM, stray whitespace, casing or CRLF endings can't break it.
 
 **Journal editor.** Built on TipTap with ProseMirror. Documents stored as TipTap JSON in the `journalEntry` TEXT column. Legacy plain-text entries render as plain paragraphs. Autosave debounces 1.5 seconds and patches the in-memory trade immediately so navigation never shows stale content.
 
@@ -336,7 +341,7 @@ Set a stop loss on your positions for risk and R-multiple data to appear. MAE/MF
 ## Project Structure
 
 ```
-journedge/
+QuantEdge/
 ├── app/
 │   ├── api/
 │   │   ├── accounts/            # Account CRUD
@@ -380,10 +385,11 @@ journedge/
 │   ├── schema.prisma             # Full database schema
 │   └── migrations/               # Full migration history
 ├── public/
-│   ├── journedge-logo-dark.svg
-│   ├── journedge-logo-light.svg
+│   ├── quantedge-logo-dark.svg
+│   ├── quantedge-logo-light.svg
 │   └── icon.svg
 ├── scripts/
+│   ├── QuantEdgeExport.mq5       # MetaTrader 5 exporter
 │   └── changelog.js              # Automated changelog entry generator
 ├── docs/
 │   └── screenshots/              # Screenshot assets referenced in this README
@@ -404,7 +410,7 @@ journedge/
 - Light mode and dark mode with no flash on load
 - Keyboard shortcuts with in-app help overlay
 - JSON export alongside existing CSV and PDF
-- Trade deletion from the Dashboard, Journal, and trade quick-view panel (requested by [@thomasfischer089](https://github.com/thomasfischer089) in [#2](https://github.com/TheQuantum-Dev/journedge/issues/2))
+- Trade deletion from the Dashboard, Journal, and trade quick-view panel (requested by [@thomasfischer089](https://github.com/thomasfischer089) in [#2](https://github.com/adam13331/QuantEdge/issues/2))
 
 **v3.2.1**
 - Charles Schwab Realized Gain/Loss CSV import support (community contribution)
@@ -421,9 +427,9 @@ journedge/
 
 Contributions are welcome. Please read [CONTRIBUTING.md](./CONTRIBUTING.md) before opening a pull request.
 
-Thanks to [@lollllcat](https://github.com/lollllcat) for the Charles Schwab import support in v3.2.1 — the first community-contributed feature merged into Journedge.
+Thanks to [@lollllcat](https://github.com/lollllcat) for the Charles Schwab import support in v3.2.1 — the first community-contributed feature merged into QuantEdge.
 
-Thanks to [@thomasfischer089](https://github.com/thomasfischer089) for requesting per-trade deletion in [#2](https://github.com/TheQuantum-Dev/journedge/issues/2) — implemented in v4.0.0.
+Thanks to [@thomasfischer089](https://github.com/thomasfischer089) for requesting per-trade deletion in [#2](https://github.com/adam13331/QuantEdge/issues/2) — implemented in v4.0.0.
 
 ---
 
@@ -441,7 +447,7 @@ See [SECURITY.md](./SECURITY.md) for the vulnerability disclosure policy.
 
 ## License
 
-Journedge is open source under the [MIT License](./LICENSE).
+QuantEdge is open source under the [MIT License](./LICENSE). It began as Journedge by Quantum Dev — see the fork notice at the top of this file for attribution.
 
 ---
 

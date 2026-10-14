@@ -9,7 +9,7 @@ interface Props {
 }
 
 export default function PDFExportInner({ trades, account }: Props) {
-  const filename = `Journedge-report-${
+  const filename = `QuantEdge-report-${
     account?.name?.toLowerCase().replace(/\s+/g, "-") || "account"
   }-${new Date().toISOString().split("T")[0]}.pdf`;
 

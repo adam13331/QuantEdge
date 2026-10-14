@@ -1,4 +1,4 @@
-# journedge — Repository Map
+# QuantEdge — Repository Map
 
 Trading journal. Next.js 16 App Router (single route), Prisma + SQLite, Recharts,
 react-pdf, MetaTrader CSV import. Read this before scanning directories; the list
@@ -28,7 +28,7 @@ below is the whole editable surface.
 | `tsconfig.json` | 34 | Strict TS, bundler resolution, `@/*` → `./*` |
 | `eslint.config.mjs` | 18 | Flat config, `eslint-config-next` + TS rules |
 | `postcss.config.mjs` | 7 | Tailwind v4 PostCSS plugin |
-| `.env.example` | 7 | `DATABASE_URL="file:./prisma/journedge.db"` |
+| `.env.example` | 7 | `DATABASE_URL="file:./prisma/quantedge.db"` |
 | `.gitignore` | 57 | Ignores db files, `public/uploads`, `/backups`, `.next` |
 
 ## Prisma & data
@@ -45,7 +45,7 @@ below is the whole editable surface.
 | `prisma/migrations/20261010092422_rename_broker_to_platform` | 23 | `Account.broker` → `Account.platform` |
 | `prisma/migrations/20261010110706_add_planned_risk_and_duration` | 3 | `durationMin` / `plannedRisk` |
 | `prisma/migrations/20261011120000_add_execution_fields` | 6 | exitReason, magic, legs, averagedDown, balanceAfter |
-| `prisma/journedge.db` | — | Local SQLite created by `prisma migrate dev`. Gitignored, never read |
+| `prisma/quantedge.db` | — | Local SQLite created by `prisma migrate dev`. Gitignored, never read |
 
 Migration is manual (`npx prisma migrate dev`). No seed script exists.
 
@@ -58,7 +58,7 @@ them recompute anything.
 | --- | --- | --- |
 | `app/lib/analytics.ts` | 1206 | **Source of truth.** Sharpe/Sortino/Calmar, expectancy, drawdown, R-multiples, streaks, revenge sequences, stop quality, leg stats, cash-flow reconciliation, prop-firm challenge + Monte Carlo sim, `buildReportStats` |
 | `app/lib/insights.ts` | 1380 | Recommendation rules. `buildInsights(facts)` → ranked `Insight[]` per Analytics tab; thresholds in one block |
-| `app/lib/parseMetaTraderCSV.ts` | 226 | CSV sniff/parse → `Trade[]`; owns `JOURNEDGE_COLUMNS` |
+| `app/lib/parseMetaTraderCSV.ts` | 226 | CSV sniff/parse → `Trade[]`; owns `QUANTEDGE_COLUMNS` |
 | `app/lib/types.ts` | 109 | Interfaces for every entity + the `PageId` union |
 | `app/lib/db.ts` | 10 | PrismaClient singleton cached on `globalThis` (dev HMR) |
 | `app/lib/svgToPng.ts` | 27 | Canvas SVG → base64 PNG for the PDF logo |
@@ -120,7 +120,7 @@ them recompute anything.
 
 | File | Lines | Purpose |
 | --- | --- | --- |
-| `scripts/JournedgeExport.mq5` | 854 | MetaTrader 5 exporter. `OnStart()` writes a 30-column CSV; computes R:R, planned risk, MAE/MFE, legs, balance-after |
+| `scripts/QuantEdgeExport.mq5` | 854 | MetaTrader 5 exporter. `OnStart()` writes a 30-column CSV; computes R:R, planned risk, MAE/MFE, legs, balance-after |
 | `scripts/changelog.js` | 261 | CLI: git log → grouped `CHANGELOG.md` entry |
 
 ## Docs & meta
@@ -134,6 +134,6 @@ them recompute anything.
 ## Largest files
 
 `AnalyticsPage.tsx` 1540 · `insights.ts` 1380 · `analytics.ts` 1206 ·
-`TradingReportPDF.tsx` 1124 · `JournedgeExport.mq5` 854.
+`TradingReportPDF.tsx` 1124 · `QuantEdgeExport.mq5` 854.
 
 Read these by line range with `grep`, never whole.

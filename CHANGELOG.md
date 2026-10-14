@@ -1,6 +1,22 @@
 # Changelog
 
-All notable changes to Journedge are documented here.
+All notable changes to QuantEdge are documented here.
+
+> Entries below the QuantEdge heading are inherited from
+> [Journedge](https://github.com/TheQuantum-Dev/journedge) and are kept verbatim for provenance.
+
+## [Unreleased — QuantEdge fork]
+
+- Rebrand to QuantEdge. Database, export filenames, localStorage keys, the PDF
+  wordmark and the MetaTrader exporter were all renamed from `journedge` to
+  `quantedge`. **Existing users must migrate:** the old `prisma/journedge.db`
+  is no longer read.
+- `scripts/JournedgeExport.mq5` → `scripts/QuantEdgeExport.mq5`. Re-download and
+  re-compile it; the `JOURNEDGE_HEADER` define is now `QUANTEDGE_HEADER`. The
+  30-column CSV layout is unchanged, so previously exported files still import.
+- In-app updater now targets `adam13331/QuantEdge` and reports clearly when the
+  fork has no published release yet, instead of implying a network failure.
+- Insights engine (`app/lib/insights.ts`) and a dedicated Prop Firm page.
 
 ## [4.0.0](https://github.com/TheQuantum-Dev/journedge/compare/v3.2.1...v4.0.0) — 2026-07-19
 

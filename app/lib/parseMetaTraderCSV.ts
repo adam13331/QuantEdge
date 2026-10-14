@@ -1,9 +1,9 @@
 import { Trade } from "./types";
 
-// The exporter (scripts/JournedgeExport.mq5) writes this line verbatim. Columns
+// The exporter (scripts/QuantEdgeExport.mq5) writes this line verbatim. Columns
 // are appended over time, so detection and parsing work off a required prefix
 // rather than an exact match — files exported by an older build still import.
-const JOURNEDGE_COLUMNS = [
+const QUANTEDGE_COLUMNS = [
   "Date", "Symbol", "Underlying", "Type", "Direction", "Option Type", "Strike",
   "Expiry", "Quantity", "Entry Price", "Exit Price", "Commission", "Fees",
   "P&L", "Status", "Entry Time", "Exit Time", "R:R", "Tags", "Journal",
@@ -11,10 +11,10 @@ const JOURNEDGE_COLUMNS = [
   "Exit Reason", "Magic", "Legs", "Averaged Down", "Balance After",
 ] as const;
 
-const JOURNEDGE_HEADER = JOURNEDGE_COLUMNS.join(",");
+const QUANTEDGE_HEADER = QUANTEDGE_COLUMNS.join(",");
 
 // Everything up to and including "P&L" has always been present.
-const REQUIRED_COLUMNS = JOURNEDGE_COLUMNS.slice(0, 14);
+const QUANTEDGE_REQUIRED = QUANTEDGE_COLUMNS.slice(0, 14);
 
 function splitHeader(line: string): string[] {
   return line
@@ -33,7 +33,7 @@ export function firstLine(csvText: string): string {
 export function isMetaTraderCSV(csvText: string): boolean {
   const cols = splitHeader(firstLine(csvText)).map((c) => c.toLowerCase());
   // Older exports stop at "Account ID"; newer ones append extra columns.
-  return REQUIRED_COLUMNS.every((c, i) => cols[i] === c.toLowerCase());
+  return QUANTEDGE_REQUIRED.every((c, i) => cols[i] === c.toLowerCase());
 }
 
 // MetaTrader's FileWrite emits tab-separated rows when the FILE_CSV flag on

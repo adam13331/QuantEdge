@@ -61,8 +61,8 @@ const HIGHLIGHT_PALETTE = [
   "rgba(0,0,0,0.2)",        "rgba(0,0,0,0.4)",
 ];
 
-const PINNED_TEXT_KEY = "journedge_pinned_text_colors";
-const PINNED_HL_KEY   = "journedge_pinned_highlight_colors";
+const PINNED_TEXT_KEY = "quantedge_pinned_text_colors";
+const PINNED_HL_KEY   = "quantedge_pinned_highlight_colors";
 
 function loadPinned(key: string): string[] {
   try { return JSON.parse(localStorage.getItem(key) || "[]"); } catch { return []; }

@@ -1,6 +1,6 @@
 ---
 name: Feature request
-about: Suggest an improvement or new feature for Journedge
+about: Suggest an improvement or new feature for QuantEdge
 title: "[Feature]"
 labels: enhancement
 assignees: ''
