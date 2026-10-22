@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useSyncExternalStore } from "react";
 
 export interface Settings {
   theme: "dark" | "light";
@@ -11,6 +11,9 @@ export interface Settings {
   maxDailyTrades: number;
   defaultRiskPct: number;
   showRecommendations: boolean;
+  // Which day a week begins on. Drives the calendar grid and any weekly
+  // bucketing; forex desks and prop-firm trackers rarely agree on this.
+  weekStart: "sunday" | "monday";
 }
 
 const DEFAULTS: Settings = {
@@ -24,6 +27,7 @@ const DEFAULTS: Settings = {
   maxDailyTrades: 0,
   defaultRiskPct: 1,
   showRecommendations: true,
+  weekStart: "monday",
 };
 
 const STORAGE_KEY = "quantedge_settings";
@@ -53,32 +57,64 @@ function applyTheme(theme: "dark" | "light") {
   }
 }
 
-export function useSettings() {
-  const [settings, setSettings] = useState<Settings>(DEFAULTS);
+function readStored(): Settings {
+  if (typeof window === "undefined") return DEFAULTS;
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (!stored) return DEFAULTS;
+    return { ...DEFAULTS, ...JSON.parse(stored) };
+  } catch {
+    return DEFAULTS;
+  }
+}
 
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) {
-        const parsed: Settings = { ...DEFAULTS, ...JSON.parse(stored) };
-        setSettings(parsed);
-        if (parsed.accentColor) applyAccentColor(parsed.accentColor);
-        if (parsed.theme) applyTheme(parsed.theme);
-      }
-    } catch {}
-  }, []);
+// One store for the whole app rather than a useState copy per caller. Settings
+// that drive derived numbers — weekStart orders the Calendar columns and the
+// day-of-week breakdowns — must change the moment they are toggled, in every
+// component, without a reload.
+let current: Settings = typeof window === "undefined" ? DEFAULTS : readStored();
+const listeners = new Set<() => void>();
+
+function emit() {
+  listeners.forEach((l) => l());
+}
+
+function subscribe(listener: () => void) {
+  listeners.add(listener);
+  return () => { listeners.delete(listener); };
+}
+
+function getSnapshot() {
+  return current;
+}
+
+// The server always renders with DEFAULTS; without this the hydration render
+// on the client would read localStorage and produce different markup, failing
+// hydration for any user with non-default settings stored.
+function getServerSnapshot(): Settings {
+  return DEFAULTS;
+}
+
+if (typeof window !== "undefined") {
+  applyAccentColor(current.accentColor);
+  applyTheme(current.theme);
+}
+
+export function useSettings() {
+  const settings = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 
   const updateSettings = (partial: Partial<Settings>) => {
-    const updated = { ...settings, ...partial };
-    setSettings(updated);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+    current = { ...current, ...partial };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(current));
+    emit();
     if (partial.accentColor) applyAccentColor(partial.accentColor);
     if (partial.theme !== undefined) applyTheme(partial.theme);
   };
 
   const resetSettings = () => {
-    setSettings(DEFAULTS);
+    current = DEFAULTS;
     localStorage.removeItem(STORAGE_KEY);
+    emit();
     applyAccentColor(DEFAULTS.accentColor);
     applyTheme(DEFAULTS.theme);
   };

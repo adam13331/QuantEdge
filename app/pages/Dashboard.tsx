@@ -1,12 +1,10 @@
 "use client";
-import { useState, useMemo } from "react";
-import {
-  Target, Timer, Percent, Ratio, Upload, Search, X,
-  ChevronDown, ShieldCheck, ShieldAlert, Trash2,
-} from "lucide-react";
+import { useMemo } from "react";
+import { Upload, ShieldCheck, ShieldAlert } from "lucide-react";
 import { useApp } from "../context/AppContext";
 import { useSettings } from "../hooks/useSettings";
 import { Trade } from "../lib/types";
+import AnalyticsSections, { OverviewMetrics, useAnalyticsSummary } from "../components/AnalyticsSections";
 
 // Daily Risk Controls Strip 
 function DailyRiskStrip({ trades }: { trades: Trade[] }) {
@@ -136,247 +134,25 @@ function DailyRiskStrip({ trades }: { trades: Trade[] }) {
   );
 }
 
-// Time helpers
-// Entry/exit times are stored as a time of day ("9:32 AM", "14:05"), matching the
-// formats extractHour() in app/api/trades/route.ts accepts on import.
-function toDecimalHours(raw?: string): number | null {
-  if (!raw) return null;
-  const t = raw.trim();
-
-  const ampm = t.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
-  if (ampm) {
-    let h = parseInt(ampm[1], 10);
-    const period = ampm[3].toUpperCase();
-    if (period === "AM" && h === 12) h = 0;
-    if (period === "PM" && h !== 12) h += 12;
-    return h + parseInt(ampm[2], 10) / 60;
-  }
-
-  const h24 = t.match(/^(\d{1,2}):(\d{2})$/);
-  if (h24) {
-    const h = parseInt(h24[1], 10);
-    if (h <= 23) return h + parseInt(h24[2], 10) / 60;
-  }
-
-  return null;
-}
-
-// Hours a trade was held. MetaTrader exports the exact hold time, so prefer it;
-// fall back to the time-of-day pair for older files, where a trade closing after
-// midnight is treated as crossing over (22:10 -> 01:05 = 2.92h).
-function tradeHours(trade: Trade): number | null {
-  if (trade.durationMin != null && trade.durationMin > 0) return trade.durationMin / 60;
-
-  const entry = toDecimalHours(trade.entryTime);
-  const exit  = toDecimalHours(trade.exitTime);
-  if (entry === null || exit === null) return null;
-  const hours = exit - entry < 0 ? exit - entry + 24 : exit - entry;
-  return hours > 0 ? hours : null;
-}
-
-// R:R is stored as free text (the trade panel hints "1:2.5"), and the MetaTrader
-// exporter writes a plain multiple. Returns the reward multiple, or null when
-// the trade has no readable ratio.
-function parseRR(raw?: string): number | null {
-  if (!raw) return null;
-  const cleaned = raw.trim().replace(/[rR]/g, "");
-  if (!cleaned) return null;
-
-  const parts = cleaned.split(":");
-  if (parts.length === 2) {
-    const reward = parseFloat(parts[1]);
-    const risk   = parseFloat(parts[0]);
-    if (isNaN(reward) || isNaN(risk) || risk === 0) return null;
-    return Math.abs(reward / risk);
-  }
-
-  const n = parseFloat(cleaned);
-  return isNaN(n) ? null : n;
-}
-
-function formatHours(hours: number): string {
-  const h = Math.floor(hours);
-  const m = Math.round((hours - h) * 60);
-  if (h === 0) return `${m}m`;
-  return m === 0 ? `${h}h` : `${h}h ${m}m`;
-}
-
-// Stat Cards 
-function StatCard({ label, value, sub, positive, icon: Icon }: {
-  label: string; value: string; sub: string; positive: boolean | null; icon: any;
-}) {
-  // null = no data yet, render neutral instead of picking a side
-  const color = positive === null ? "var(--text-muted)" : positive ? "#00e57a" : "#ff4d6a";
-
-  return (
-    <div style={{
-      background: "var(--bg-card)", border: "1px solid var(--border)",
-      borderRadius: "12px", padding: "20px",
-    }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "12px" }}>
-        <span style={{ fontSize: "12px", color: "var(--text-muted)", fontWeight: "500" }}>{label}</span>
-        <Icon size={16} color={color} />
-      </div>
-      <div style={{
-        fontSize: "24px", fontWeight: "700", fontFamily: "'Syne', sans-serif",
-        color, marginBottom: "4px",
-      }}>
-        {value}
-      </div>
-      <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>{sub}</div>
-    </div>
-  );
-}
-
-const selectStyle: React.CSSProperties = {
-  padding: "8px 30px 8px 12px", borderRadius: "8px",
-  border: "1px solid var(--border)", background: "var(--bg-card)",
-  color: "#f0f0ff", fontSize: "12px", fontFamily: "'DM Sans', sans-serif",
-  cursor: "pointer", appearance: "none", WebkitAppearance: "none", outline: "none",
-};
-
-function SelectWrap({ children }: { children: React.ReactNode }) {
-  return (
-    <div style={{ position: "relative" }}>
-      {children}
-      <ChevronDown size={12} color="#a8a8c8" style={{
-        position: "absolute", right: "10px", top: "50%",
-        transform: "translateY(-50%)", pointerEvents: "none",
-      }} />
-    </div>
-  );
-}
-
 export default function Dashboard() {
-  const { trades, setActivePage, setSelectedTrade, deleteTrade, activeAccount } = useApp();
-
-  const [search, setSearch]             = useState("");
-  const [filterStatus, setFilterStatus] = useState("all");
-  const [filterSymbol, setFilterSymbol] = useState("");
-  const [filterTag, setFilterTag]       = useState("");
-  const [filterFrom, setFilterFrom]     = useState("");
-  const [filterTo, setFilterTo]         = useState("");
-  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
-
-  const symbols = useMemo(() => {
-    const set = new Set(trades.map((t) => t.underlying));
-    return Array.from(set).sort();
-  }, [trades]);
-
-  const allTags = useMemo(() => {
-    const set = new Set<string>();
-    for (const t of trades) {
-      const tags = Array.isArray(t.tags) ? t.tags : [];
-      tags.forEach((tag: string) => set.add(tag));
-    }
-    return Array.from(set).sort();
-  }, [trades]);
-
-  const activeFilterCount = [
-    search, filterStatus !== "all" ? filterStatus : "",
-    filterSymbol, filterTag, filterFrom, filterTo,
-  ].filter(Boolean).length;
-
-  const clearFilters = () => {
-    setSearch(""); setFilterStatus("all"); setFilterSymbol("");
-    setFilterTag(""); setFilterFrom(""); setFilterTo("");
-  };
-
-  const filtered = useMemo(() => {
-    return trades.filter((t) => {
-      if (filterStatus !== "all" && t.status !== filterStatus) return false;
-      if (filterSymbol && t.underlying !== filterSymbol) return false;
-      if (filterTag && !(Array.isArray(t.tags) ? t.tags : []).includes(filterTag)) return false;
-      if (filterFrom && new Date(t.date).getTime() < new Date(filterFrom).getTime()) return false;
-      if (filterTo   && new Date(t.date).getTime() > new Date(filterTo).getTime())   return false;
-      if (search) {
-        const q = search.toLowerCase();
-        if (!t.underlying.toLowerCase().includes(q) && !t.symbol.toLowerCase().includes(q)) return false;
-      }
-      return true;
-    });
-  }, [trades, search, filterStatus, filterSymbol, filterTag, filterFrom, filterTo]);
-
-  const totalPnl     = filtered.reduce((sum, t) => sum + t.pnl, 0);
-  const wins         = filtered.filter((t) => t.status === "win");
-  const losses       = filtered.filter((t) => t.status === "loss");
-  const winRate      = filtered.length > 0 ? Math.round((wins.length / filtered.length) * 100) : 0;
-
-  // Return % — net result measured against the account's starting balance
-  const baseBalance = activeAccount?.initialBalance ?? 0;
-  const returnPct   = baseBalance > 0 ? (totalPnl / baseBalance) * 100 : null;
-
-  // Hourly pay rate — net P&L divided by total time spent in trade
-  const totalHours = filtered.reduce((sum, t) => sum + (tradeHours(t) ?? 0), 0);
-  const hourlyRate = totalHours > 0 ? totalPnl / totalHours : null;
-
-  // Average R:R across the trades that carry a ratio
-  const rrValues = filtered
-    .map((t) => parseRR(t.rr))
-    .filter((v): v is number => v !== null);
-  const avgRR = rrValues.length > 0 ? rrValues.reduce((s, v) => s + v, 0) / rrValues.length : null;
-
-  const tradeCountLabel =
-    `${filtered.length} trade${filtered.length !== 1 ? "s" : ""}${activeFilterCount > 0 ? " (filtered)" : ""}`;
-
-  const stats = [
-    {
-      label: activeFilterCount > 0 ? "Filtered Return" : "Return %",
-      value: returnPct === null ? "—" : `${returnPct >= 0 ? "+" : ""}${returnPct.toFixed(2)}%`,
-      sub:   returnPct === null
-        ? "Set an initial balance to track returns"
-        : `${totalPnl >= 0 ? "+" : ""}$${totalPnl.toFixed(2)} · ${tradeCountLabel}`,
-      positive: returnPct === null ? null : returnPct >= 0,
-      icon: Percent,
-    },
-    {
-      label: "$/Hour",
-      value: hourlyRate === null ? "—" : `${hourlyRate >= 0 ? "+" : ""}$${hourlyRate.toFixed(2)}`,
-      sub:   hourlyRate === null
-        ? "Needs entry and exit times"
-        : `per hour over ${formatHours(totalHours)}`,
-      positive: hourlyRate === null ? null : hourlyRate >= 0,
-      icon: Timer,
-    },
-    {
-      label: "Avg R:R",
-      value: avgRR === null ? "—" : `${avgRR >= 0 ? "+" : ""}${avgRR.toFixed(2)}R`,
-      sub:   avgRR === null
-        ? "Add R:R to a trade to include it"
-        : `${rrValues.length} of ${filtered.length} trade${filtered.length !== 1 ? "s" : ""} rated`,
-      positive: avgRR === null ? null : avgRR >= 1,
-      icon: Ratio,
-    },
-    { label: "Win Rate",      value: `${winRate}%`,  sub: `${wins.length}W / ${losses.length}L`, positive: winRate >= 50, icon: Target },
-  ];
-
-  const handleDelete = async (id: string) => {
-    if (confirmDeleteId !== id) {
-      setConfirmDeleteId(id);
-      return;
-    }
-    await deleteTrade(id);
-    setConfirmDeleteId(null);
-  };
+  const { trades: allTrades, setActivePage } = useApp();
+  // Same hook the tabbed body below reads, so the headline cards and the
+  // Analytics sections can never describe different periods or figures.
+  const { trades, stats: summary, hasRange, dateFrom, dateTo } = useAnalyticsSummary();
 
   return (
     <>
-      <div style={{ marginBottom: "32px" }}>
-        <h2 style={{ fontSize: "26px", fontWeight: "700", color: "var(--text-primary)", letterSpacing: "-0.5px" }}>
-          Dashboard
-        </h2>
-        <p style={{ color: "var(--text-muted)", fontSize: "14px", marginTop: "4px" }}>
-          Welcome back. Here's how you're performing.
-        </p>
-      </div>
+      {/* Headline figures are period-scoped and only exist once there is a
+          period to describe; the import prompt below stands in otherwise. */}
+      {summary && <OverviewMetrics stats={summary} />}
 
-      {/* Daily risk strip — only renders when limits are configured */}
-      <DailyRiskStrip trades={trades} />
+      {/* Today's risk limits are a live guardrail, not a period statistic, so
+          they sit under the headline cards and deliberately read every trade
+          rather than the selected range. Renders only when limits are set. */}
+      <DailyRiskStrip trades={allTrades} />
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "16px", marginBottom: "32px" }}>
-        {stats.map((s) => <StatCard key={s.label} {...s} />)}
-      </div>
-
+      {/* With no trades in range there are no figures to describe, so the
+          import prompt stands in for the analytics body. */}
       {trades.length === 0 ? (
         <div style={{
           background: "var(--bg-card)", border: "1px dashed var(--border)",
@@ -390,10 +166,12 @@ export default function Dashboard() {
             <Upload size={20} color="var(--accent-green)" />
           </div>
           <h3 style={{ fontSize: "18px", fontWeight: "700", marginBottom: "8px", color: "var(--text-primary)" }}>
-            No trades yet
+            {hasRange ? "No trades in this period" : "No trades yet"}
           </h3>
           <p style={{ color: "var(--text-muted)", fontSize: "14px", marginBottom: "24px" }}>
-            Run the QuantEdge exporter on your MetaTrader terminal, then import the CSV to get started.
+            {hasRange
+              ? `Nothing was traded between ${dateFrom || "the start"} and ${dateTo || "today"}.`
+              : "Run the QuantEdge exporter on your MetaTrader terminal, then import the CSV to get started."}
           </p>
           <div style={{ display: "flex", gap: "12px", justifyContent: "center" }}>
             <button
@@ -409,206 +187,7 @@ export default function Dashboard() {
           </div>
         </div>
       ) : (
-        <div style={{
-          background: "var(--bg-card)", border: "1px solid var(--border)",
-          borderRadius: "16px", overflow: "hidden",
-        }}>
-          <div style={{ padding: "20px 24px 0", borderBottom: "1px solid var(--border)" }}>
-            <div style={{
-              display: "flex", justifyContent: "space-between",
-              alignItems: "center", marginBottom: "16px",
-            }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                <h3 style={{ fontSize: "15px", fontWeight: "700", color: "var(--text-primary)" }}>
-                  Trade History
-                </h3>
-                {activeFilterCount > 0 && (
-                  <span style={{
-                    background: "var(--accent-green-dim)", color: "var(--accent-green)",
-                    fontSize: "11px", fontWeight: "700", padding: "2px 8px", borderRadius: "20px",
-                  }}>
-                    {activeFilterCount} filter{activeFilterCount !== 1 ? "s" : ""} active
-                  </span>
-                )}
-                {filtered.length !== trades.length && (
-                  <span style={{ fontSize: "12px", color: "#a8a8c8" }}>
-                    Showing {filtered.length} of {trades.length}
-                  </span>
-                )}
-              </div>
-              {activeFilterCount > 0 && (
-                <button
-                  onClick={clearFilters}
-                  style={{
-                    display: "flex", alignItems: "center", gap: "4px",
-                    background: "none", border: "none", cursor: "pointer",
-                    color: "#ff4d6a", fontSize: "12px",
-                    fontFamily: "'DM Sans', sans-serif", fontWeight: "600",
-                  }}
-                >
-                  <X size={12} /> Clear filters
-                </button>
-              )}
-            </div>
-
-            <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", paddingBottom: "16px" }}>
-              <div style={{ position: "relative", flex: "1", minWidth: "160px" }}>
-                <Search size={13} color="#a8a8c8" style={{
-                  position: "absolute", left: "10px", top: "50%", transform: "translateY(-50%)",
-                }} />
-                <input
-                  value={search} onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Search symbol..."
-                  style={{
-                    width: "100%", padding: "8px 12px 8px 30px", borderRadius: "8px",
-                    border: "1px solid var(--border)", background: "var(--bg-secondary)",
-                    color: "#f0f0ff", fontSize: "12px", fontFamily: "'DM Sans', sans-serif",
-                    boxSizing: "border-box" as const, outline: "none",
-                  }}
-                />
-              </div>
-
-              <SelectWrap>
-                <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} style={selectStyle}>
-                  <option value="all">All Status</option>
-                  <option value="win">Wins</option>
-                  <option value="loss">Losses</option>
-                  <option value="breakeven">Breakeven</option>
-                </select>
-              </SelectWrap>
-
-              {symbols.length > 0 && (
-                <SelectWrap>
-                  <select value={filterSymbol} onChange={(e) => setFilterSymbol(e.target.value)} style={selectStyle}>
-                    <option value="">All Symbols</option>
-                    {symbols.map((s) => <option key={s} value={s}>{s}</option>)}
-                  </select>
-                </SelectWrap>
-              )}
-
-              {allTags.length > 0 && (
-                <SelectWrap>
-                  <select value={filterTag} onChange={(e) => setFilterTag(e.target.value)} style={selectStyle}>
-                    <option value="">All Tags</option>
-                    {allTags.map((tag) => <option key={tag} value={tag}>{tag}</option>)}
-                  </select>
-                </SelectWrap>
-              )}
-
-              <input
-                type="date" value={filterFrom} onChange={(e) => setFilterFrom(e.target.value)}
-                style={{ ...selectStyle, padding: "8px 12px", colorScheme: "dark" }}
-              />
-              <input
-                type="date" value={filterTo} onChange={(e) => setFilterTo(e.target.value)}
-                style={{ ...selectStyle, padding: "8px 12px", colorScheme: "dark" }}
-              />
-            </div>
-          </div>
-
-          {filtered.length === 0 ? (
-            <div style={{ padding: "48px", textAlign: "center", color: "#a8a8c8", fontSize: "14px" }}>
-              No trades match your filters.{" "}
-              <button onClick={clearFilters} style={{
-                background: "none", border: "none", color: "var(--accent-green)",
-                cursor: "pointer", fontSize: "14px", fontFamily: "'DM Sans', sans-serif",
-              }}>
-                Clear filters
-              </button>
-            </div>
-          ) : (
-            <div style={{ overflowX: "auto" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
-                <thead>
-                  <tr style={{ borderBottom: "1px solid var(--border)", background: "var(--bg-secondary)" }}>
-                    {["Date", "Symbol", "Type", "Strike", "Expiry", "Qty", "Entry", "Exit", "P&L", "Status", ""].map((h) => (
-                      <th key={h} style={{
-                        padding: "10px 16px", textAlign: "left",
-                        color: "var(--text-muted)", fontWeight: "600", whiteSpace: "nowrap",
-                      }}>
-                        {h}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {filtered.map((trade: Trade) => (
-                    <tr
-                      key={trade.id}
-                      onClick={() => setSelectedTrade(trade)}
-                      style={{ borderBottom: "1px solid var(--border)", cursor: "pointer" }}
-                      onMouseEnter={(e) => e.currentTarget.style.background = "var(--bg-hover)"}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.background = "transparent";
-                        if (confirmDeleteId === trade.id) setConfirmDeleteId(null);
-                      }}
-                    >
-                      <td style={{ padding: "12px 16px", color: "var(--text-secondary)" }}>{trade.date}</td>
-                      <td style={{ padding: "12px 16px", color: "var(--text-primary)", fontWeight: "700" }}>{trade.underlying}</td>
-                      <td style={{ padding: "12px 16px" }}>
-                        <span style={{
-                          padding: "2px 8px", borderRadius: "4px", fontSize: "11px", fontWeight: "600",
-                          background: trade.optionType === "call" ? "rgba(77,159,255,0.15)" : "rgba(255,77,106,0.15)",
-                          color: trade.optionType === "call" ? "#4d9fff" : "#ff4d6a",
-                        }}>
-                          {trade.optionType ? trade.optionType.toUpperCase() : trade.type.toUpperCase()}
-                        </span>
-                      </td>
-                      <td style={{ padding: "12px 16px", color: "var(--text-secondary)" }}>{trade.strike ? `$${trade.strike}` : "—"}</td>
-                      <td style={{ padding: "12px 16px", color: "var(--text-secondary)" }}>{trade.expiry || "—"}</td>
-                      <td style={{ padding: "12px 16px", color: "var(--text-secondary)" }}>{trade.quantity}</td>
-                      <td style={{ padding: "12px 16px", color: "var(--text-secondary)" }}>${trade.entryPrice}</td>
-                      <td style={{ padding: "12px 16px", color: "var(--text-secondary)" }}>${trade.exitPrice}</td>
-                      <td style={{ padding: "12px 16px", fontWeight: "700", color: trade.pnl >= 0 ? "#00e57a" : "#ff4d6a" }}>
-                        {trade.pnl >= 0 ? "+" : ""}${trade.pnl}
-                      </td>
-                      <td style={{ padding: "12px 16px" }}>
-                        <span style={{
-                          padding: "2px 8px", borderRadius: "4px", fontSize: "11px", fontWeight: "600",
-                          background: trade.status === "win"
-                            ? "rgba(0,229,122,0.12)"
-                            : trade.status === "loss"
-                            ? "rgba(255,77,106,0.12)"
-                            : "rgba(136,136,170,0.12)",
-                          color: trade.status === "win" ? "#00e57a" : trade.status === "loss" ? "#ff4d6a" : "#a8a8c8",
-                        }}>
-                          {trade.status.toUpperCase()}
-                        </span>
-                      </td>
-                      <td style={{ padding: "8px 12px", width: "48px" }}>
-                        <button
-                          onClick={(e) => { e.stopPropagation(); handleDelete(trade.id); }}
-                          title={confirmDeleteId === trade.id ? "Click again to confirm" : "Delete trade"}
-                          style={{
-                            background: confirmDeleteId === trade.id ? "rgba(255,77,106,0.15)" : "transparent",
-                            border: `1px solid ${confirmDeleteId === trade.id ? "#ff4d6a" : "transparent"}`,
-                            borderRadius: "6px", padding: "5px 7px", cursor: "pointer",
-                            display: "flex", alignItems: "center", justifyContent: "center",
-                            transition: "all 0.15s",
-                          }}
-                          onMouseEnter={(e) => {
-                            if (confirmDeleteId !== trade.id) {
-                              e.currentTarget.style.background = "rgba(255,77,106,0.1)";
-                              e.currentTarget.style.borderColor = "rgba(255,77,106,0.4)";
-                            }
-                          }}
-                          onMouseLeave={(e) => {
-                            if (confirmDeleteId !== trade.id) {
-                              e.currentTarget.style.background = "transparent";
-                              e.currentTarget.style.borderColor = "transparent";
-                            }
-                          }}
-                        >
-                          <Trash2 size={13} color={confirmDeleteId === trade.id ? "#ff4d6a" : "#a8a8c8"} />
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
+        <AnalyticsSections />
       )}
     </>
   );

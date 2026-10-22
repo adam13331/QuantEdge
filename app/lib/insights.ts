@@ -185,6 +185,31 @@ const ranked = (list: Insight[]): Insight[] => {
   return [...list].sort((a, b) => rank[a.level] - rank[b.level]);
 };
 
+/** Ranks a dimension without hiding the thin slices. The old rules filtered
+ *  to slices clearing `minSlice` and then called the filtered winner "the
+ *  best", which flatly contradicted the chart whenever a thinner slice had a
+ *  bigger total. The true leader is always returned; callers use
+ *  `bestTrusted` only to offer a well-sampled alternative. */
+function rankBy<T>(
+  items: T[],
+  pnlOf: (d: T) => number,
+  countOf: (d: T) => number,
+  minCount = T.minSlice,
+): { leader: T | null; laggard: T | null; bestTrusted: T | null; worstTrusted: T | null; trustedCount: number; tradedCount: number } {
+  const traded = items.filter((d) => countOf(d) > 0);
+  const trusted = traded.filter((d) => countOf(d) >= minCount);
+  const max = (list: T[]) => list.reduce((b, d) => (pnlOf(d) > pnlOf(b) ? d : b));
+  const min = (list: T[]) => list.reduce((w, d) => (pnlOf(d) < pnlOf(w) ? d : w));
+  return {
+    leader: traded.length > 0 ? max(traded) : null,
+    laggard: traded.length > 0 ? min(traded) : null,
+    bestTrusted: trusted.length > 0 ? max(trusted) : null,
+    worstTrusted: trusted.length > 0 ? min(trusted) : null,
+    trustedCount: trusted.length,
+    tradedCount: traded.length,
+  };
+}
+
 // ─── Overview ───────────────────────────────────────────────────────────
 
 function overviewInsights(f: AnalyticsFacts): Insight[] {
@@ -194,7 +219,7 @@ function overviewInsights(f: AnalyticsFacts): Insight[] {
   if (f.expectancy < 0) {
     out.push({
       level: "bad",
-      title: "Every trade at this size loses money",
+      title: "The average trade loses money at this size",
       detail: `Expectancy is ${money(f.expectancy)} per trade, so volume is the problem, not signal. Cutting size until this turns positive preserves the account; trading it harder compounds the loss.`,
       metric: `${money(f.expectancy)}/trade`,
     });
@@ -241,7 +266,7 @@ function overviewInsights(f: AnalyticsFacts): Insight[] {
       out.push({
         level: "bad",
         title: "Winning less often than the payoff demands",
-        detail: `${pct(f.winRate)} win rate against a ${pct(breakEven)} break-even at ${payoff.toFixed(2)}:1. You are right more often and still losing, so the fix is targets and stops, not entry timing.`,
+        detail: `${pct(f.winRate)} win rate against a ${pct(breakEven)} break-even at ${payoff.toFixed(2)}:1. The hit rate is below what this payoff needs, so the fix is targets and stops, not entry timing.`,
         metric: `${pct(f.winRate)} vs ${pct(breakEven)}`,
       });
     } else if (margin < T.edgeMarginThinPct) {
@@ -293,7 +318,7 @@ function overviewInsights(f: AnalyticsFacts): Insight[] {
     } else if (bestShare >= T.concentrationWarnPct) {
       out.push({
         level: "warn",
-        title: "Profit is concentrated in a single session",
+        title: "Profit is concentrated in a single day",
         detail: `${best.date} contributed ${pct(bestShare)} of net profit. Worth checking whether that day followed your rules or departed from them.`,
         metric: pct(bestShare),
       });
@@ -324,21 +349,33 @@ function overviewInsights(f: AnalyticsFacts): Insight[] {
     const list = bleeders.slice(0, 3).map((s) => `${s.symbol} (${money(s.pnl, 0)})`).join(", ");
     out.push({
       level: "bad",
-      title: `${bleeders.length} market${bleeders.length !== 1 ? "s are" : " is"} costing money`,
-      detail: `${list} each cleared ${T.minSlice}+ trades at a loss. That is a sample large enough to act on: pause ${bleeders.length !== 1 ? "them" : "it"} and re-test before adding size.`,
+      title: `${bleeders.length} well-sampled market${bleeders.length !== 1 ? "s are" : " is"} costing money`,
+      detail: `${list} each cleared ${T.minSlice}+ trades at a loss. That is a sample large enough to act on: pause ${bleeders.length !== 1 ? "them" : "it"} and re-test before adding size. Thin losing markets are excluded here on purpose.`,
       metric: money(sum(bleeders.map((s) => s.pnl)), 0),
     });
   }
 
-  const earners = f.symbolData.filter((s) => s.pnl > 0 && s.count >= T.minSlice);
-  if (earners.length > 0) {
-    const top = earners[0];
-    out.push({
-      level: "good",
-      title: `${top.symbol} is where the edge lives`,
-      detail: `${money(top.pnl)} over ${top.count} trades at a ${top.wr}% win rate. If sizing is uniform across markets, this is the first place a deliberate tilt would show up.`,
-      metric: money(top.pnl, 0),
-    });
+  const symbols = rankBy(f.symbolData, (s) => s.pnl, (s) => s.count);
+  const top = symbols.leader;
+  if (top && top.pnl > 0) {
+    if (top.count >= T.minSlice) {
+      out.push({
+        level: "good",
+        title: `${top.symbol} is where the edge lives`,
+        detail: `${money(top.pnl)} over ${top.count} trades at a ${top.wr}% win rate. If sizing is uniform across markets, this is the first place a deliberate tilt would show up.`,
+        metric: money(top.pnl, 0),
+      });
+    } else {
+      const alt = symbols.bestTrusted && symbols.bestTrusted.symbol !== top.symbol
+        ? ` The best market clearing ${T.minSlice} trades is ${symbols.bestTrusted.symbol} (${money(symbols.bestTrusted.pnl)} over ${symbols.bestTrusted.count}).`
+        : "";
+      out.push({
+        level: "info",
+        title: `${top.symbol} leads on P&L, but the sample is thin`,
+        detail: `${money(top.pnl)} over ${top.count} trade${top.count !== 1 ? "s" : ""} at a ${top.wr}% win rate. Under the ${T.minSlice}-trade floor, so this is a lead to watch rather than a tilt to size.${alt}`,
+        metric: money(top.pnl, 0),
+      });
+    }
   }
 
 
@@ -525,36 +562,74 @@ function riskInsights(f: AnalyticsFacts): Insight[] {
 
 function timeInsights(f: AnalyticsFacts): Insight[] {
   const out: Insight[] = [];
-  const trusted = f.dowData.filter((d) => d.count >= T.minSlice);
+  const sessions = rankBy(f.dowData, (d) => d.pnl, (d) => d.count);
+  const enoughSessions = sessions.trustedCount >= 2;
 
-  if (trusted.length >= 2) {
-    const best  = trusted.reduce((b, d) => (d.pnl > b.pnl ? d : b), trusted[0]);
-    const worst = trusted.reduce((w, d) => (d.pnl < w.pnl ? d : w), trusted[0]);
-
-    if (best.pnl > 0) {
+  // The chart ranks every weekday, including the lightly traded ones. The
+  // recommendation has to agree with it: report the true leader, and only
+  // prescribe a day filter once that leader clears the sample floor.
+  if (sessions.leader && sessions.leader.pnl > 0) {
+    const top = sessions.leader;
+    if (top.count >= T.minSlice && enoughSessions) {
       out.push({
         level: "good",
-        title: `${best.day} is your strongest session`,
-        detail: `${money(best.pnl)} over ${best.count} trades at a ${best.wr}% win rate. If that gap is structural — a news window, a session rhythm — it is the cheapest filter available.`,
-        metric: money(best.pnl, 0),
+        title: `${top.day} is your strongest session`,
+        detail: `${money(top.pnl)} over ${top.count} trades at a ${top.wr}% win rate (${money(top.pnl / top.count)} per trade). If that gap is structural — a news window, a session rhythm — it is the cheapest filter available.`,
+        metric: money(top.pnl, 0),
+      });
+    } else if (top.count >= T.minSlice) {
+      out.push({
+        level: "info",
+        title: `${top.day} is the only well-sampled session`,
+        detail: `${money(top.pnl)} over ${top.count} trades at a ${top.wr}% win rate (${money(top.pnl / top.count)} per trade). No other day clears ${T.minSlice} trades, so there is nothing to rank it against yet.`,
+        metric: money(top.pnl, 0),
+      });
+    } else {
+      const alt = sessions.bestTrusted && sessions.bestTrusted.day !== top.day
+        ? ` The best day clearing ${T.minSlice} trades is ${sessions.bestTrusted.day} (${money(sessions.bestTrusted.pnl)} over ${sessions.bestTrusted.count}).`
+        : "";
+      out.push({
+        level: "info",
+        title: `${top.day} leads on P&L, but the sample is thin`,
+        detail: `${money(top.pnl)} over ${top.count} trade${top.count !== 1 ? "s" : ""} at a ${top.wr}% win rate (${money(top.pnl / top.count)} per trade). Under the ${T.minSlice}-trade floor, so this is a lead to watch rather than a filter to apply.${alt}`,
+        metric: money(top.pnl, 0),
       });
     }
+  }
 
-    if (worst.pnl < 0) {
-      const flat = Math.abs(worst.pnl) < best.pnl;
+  if (sessions.laggard && sessions.laggard.pnl < 0) {
+    const bad = sessions.laggard;
+    if (bad.count >= T.minSlice && enoughSessions) {
+      const ref = sessions.bestTrusted && sessions.bestTrusted.pnl > 0 ? sessions.bestTrusted : null;
+      const flat = ref ? Math.abs(bad.pnl) < ref.pnl : true;
+      const conclusion = ref
+        ? flat
+          ? "Standing aside on this day and trading the other four would leave the total roughly unchanged."
+          : "Standing aside on this day would remove a real drag on the weekly result."
+        : "Every well-sampled session is negative, so a day filter will not fix the book — the setups themselves are the problem.";
       out.push({
-        level: flat ? "warn" : "bad",
-        title: flat
-          ? `${worst.day} is the weakest session`
-          : `${worst.day} costs more than ${best.day} pays`,
-        detail: `${money(worst.pnl)} across ${worst.count} trades at a ${worst.wr}% win rate. Standing aside on this day${flat ? " and trading the other four would leave the total roughly unchanged" : " would remove a real drag on the weekly result"}.`,
-        metric: money(worst.pnl, 0),
+        level: ref && !flat ? "bad" : "warn",
+        title: ref && !flat
+          ? `${bad.day} costs more than ${ref.day} pays`
+          : `${bad.day} is the weakest session`,
+        detail: `${money(bad.pnl)} across ${bad.count} trades at a ${bad.wr}% win rate (${money(bad.pnl / bad.count)} per trade). ${conclusion}`,
+        metric: money(bad.pnl, 0),
+      });
+    } else {
+      const alt = sessions.worstTrusted && sessions.worstTrusted.day !== bad.day
+        ? ` The weakest day clearing ${T.minSlice} trades is ${sessions.worstTrusted.day} (${money(sessions.worstTrusted.pnl)}).`
+        : "";
+      out.push({
+        level: "info",
+        title: `${bad.day} looks like the weakest session, but the sample is thin`,
+        detail: `${money(bad.pnl)} across ${bad.count} trade${bad.count !== 1 ? "s" : ""} at a ${bad.wr}% win rate (${money(bad.pnl / bad.count)} per trade). Under the ${T.minSlice}-trade floor, so this is a warning rather than a rule.${alt}`,
+        metric: money(bad.pnl, 0),
       });
     }
   }
 
   const idle = f.dowData.filter((d) => d.count === 0);
-  if (idle.length > 0 && trusted.length > 0) {
+  if (idle.length > 0 && sessions.trustedCount > 0) {
     out.push({
       level: "info",
       title: `${idle.length} trading day${idle.length !== 1 ? "s" : ""} unused`,
@@ -600,25 +675,46 @@ function timeInsights(f: AnalyticsFacts): Insight[] {
     }
   }
 
-  const tags = f.tagData.filter((t) => t.count >= T.minSlice);
-  if (tags.length >= 2) {
-    const top = tags[0];
-    const bottom = tags[tags.length - 1];
+  const tags = rankBy(f.tagData, (t) => t.pnl, (t) => t.count);
+  if (f.tagData.length >= 2 && tags.leader && tags.laggard) {
+    const top = tags.leader;
+    const bottom = tags.laggard;
     if (top.pnl > 0) {
-      out.push({
-        level: "good",
-        title: `Setup "${top.tag}" is your best tag`,
-        detail: `${money(top.pnl)} across ${top.count} trades at a ${top.wr}% win rate. Where tags are chosen before entry, weighting size toward this one is a free improvement.`,
-        metric: `${top.wr}% WR`,
-      });
+      if (top.count >= T.minSlice && tags.trustedCount >= 2) {
+        out.push({
+          level: "good",
+          title: `Setup "${top.tag}" is your best tag`,
+          detail: `${money(top.pnl)} across ${top.count} trades at a ${top.wr}% win rate. Where tags are chosen before entry, weighting size toward this one is a free improvement.`,
+          metric: `${top.wr}% WR`,
+        });
+      } else {
+        const alt = tags.bestTrusted && tags.bestTrusted.tag !== top.tag
+          ? ` The best tag clearing ${T.minSlice} trades is "${tags.bestTrusted.tag}" (${money(tags.bestTrusted.pnl)} over ${tags.bestTrusted.count}).`
+          : "";
+        out.push({
+          level: "info",
+          title: `Setup "${top.tag}" leads on P&L, but the sample is thin`,
+          detail: `${money(top.pnl)} across ${top.count} trade${top.count !== 1 ? "s" : ""} at a ${top.wr}% win rate. Under the ${T.minSlice}-trade floor, so it is not a sizing signal yet.${alt}`,
+          metric: money(top.pnl, 0),
+        });
+      }
     }
-    if (bottom.pnl < 0) {
-      out.push({
-        level: bottom.count >= T.minSlice * 2 ? "bad" : "warn",
-        title: `Setup "${bottom.tag}" is costing money`,
-        detail: `${money(bottom.pnl)} across ${bottom.count} trades at a ${bottom.wr}% win rate. Dropping this tag entirely is the cheapest test available.`,
-        metric: money(bottom.pnl, 0),
-      });
+    if (bottom.pnl < 0 && bottom.tag !== top.tag) {
+      if (bottom.count >= T.minSlice) {
+        out.push({
+          level: bottom.count >= T.minSlice * 2 ? "bad" : "warn",
+          title: `Setup "${bottom.tag}" is costing money`,
+          detail: `${money(bottom.pnl)} across ${bottom.count} trades at a ${bottom.wr}% win rate. Dropping this tag entirely is the cheapest test available.`,
+          metric: money(bottom.pnl, 0),
+        });
+      } else {
+        out.push({
+          level: "info",
+          title: `Setup "${bottom.tag}" looks like the weakest tag, but the sample is thin`,
+          detail: `${money(bottom.pnl)} across ${bottom.count} trade${bottom.count !== 1 ? "s" : ""} at a ${bottom.wr}% win rate. Under the ${T.minSlice}-trade floor, so do not drop it on this evidence alone.`,
+          metric: money(bottom.pnl, 0),
+        });
+      }
     }
   }
 
@@ -649,30 +745,68 @@ function heatmapInsights(f: AnalyticsFacts): Insight[] {
   }
 
   const totalTrades = sum(f.hourData.map((h) => h.count));
+  const hours = rankBy(f.hourData, (h) => h.totalPnl, (h) => h.count, T.minHourSlice);
   const trusted = f.hourData.filter((h) => h.count >= T.minHourSlice);
+  const enoughHours = hours.trustedCount >= 2;
 
-  if (trusted.length >= 2) {
-    const best  = trusted.reduce((b, h) => h.totalPnl > b.totalPnl ? h : b, trusted[0]);
-    const worst = trusted.reduce((w, h) => h.totalPnl < w.totalPnl ? h : w, trusted[0]);
-
-    if (best.totalPnl > 0) {
+  if (hours.leader && hours.leader.totalPnl > 0) {
+    const best = hours.leader;
+    const label = `${best.label}–${String(best.hour + 1).padStart(2, "0")}:00`;
+    if (best.count >= T.minHourSlice && enoughHours) {
       out.push({
         level: "good",
-        title: `${best.label}–${String(best.hour + 1).padStart(2, "0")}:00 is the window that pays`,
+        title: `${label} is the window that pays`,
         detail: `${money(best.totalPnl)} over ${best.count} trades at a ${best.winRate}% win rate, ${money(best.avgPnl)} per trade. Restricting entries to this window is the highest-leverage change on this tab.`,
         metric: money(best.totalPnl, 0),
       });
-    }
-
-    if (worst.totalPnl < 0) {
+    } else if (best.count >= T.minHourSlice) {
       out.push({
-        level: worst.totalPnl < Math.abs(best.totalPnl) ? "bad" : "warn",
-        title: `${worst.label}–${String(worst.hour + 1).padStart(2, "0")}:00 is the window that bleeds`,
+        level: "info",
+        title: `${label} is the only well-sampled window`,
+        detail: `${money(best.totalPnl)} over ${best.count} trades at a ${best.winRate}% win rate, ${money(best.avgPnl)} per trade. No other hour clears ${T.minHourSlice} trades, so there is nothing to rank it against yet.`,
+        metric: money(best.totalPnl, 0),
+      });
+    } else {
+      const alt = hours.bestTrusted && hours.bestTrusted.hour !== best.hour
+        ? ` The best window clearing ${T.minHourSlice} trades is ${hours.bestTrusted.label} (${money(hours.bestTrusted.totalPnl)} over ${hours.bestTrusted.count} trades).`
+        : "";
+      out.push({
+        level: "info",
+        title: `${label} leads on P&L, but the sample is thin`,
+        detail: `${money(best.totalPnl)} over ${best.count} trade${best.count !== 1 ? "s" : ""} at a ${best.winRate}% win rate, ${money(best.avgPnl)} per trade. Under the ${T.minHourSlice}-trade floor, so this is a window to watch rather than one to enforce.${alt}`,
+        metric: money(best.totalPnl, 0),
+      });
+    }
+  }
+
+  if (hours.laggard && hours.laggard.totalPnl < 0) {
+    const worst = hours.laggard;
+    const label = `${worst.label}–${String(worst.hour + 1).padStart(2, "0")}:00`;
+    if (worst.count >= T.minHourSlice && enoughHours) {
+      const ref = hours.bestTrusted;
+      const worse = ref ? Math.abs(worst.totalPnl) > Math.abs(ref.totalPnl) : false;
+      out.push({
+        level: worse ? "bad" : "warn",
+        title: `${label} is the window that bleeds`,
         detail: `${money(worst.totalPnl)} over ${worst.count} trades at a ${worst.winRate}% win rate, ${money(worst.avgPnl)} per trade. A standing rule to sit this hour out is measurable from here.`,
         metric: money(worst.totalPnl, 0),
       });
+    } else if (worst.count >= T.minHourSlice) {
+      out.push({
+        level: "info",
+        title: `${label} is the only well-sampled window, and it loses`,
+        detail: `${money(worst.totalPnl)} over ${worst.count} trades at a ${worst.winRate}% win rate, ${money(worst.avgPnl)} per trade. It is the only hour clearing ${T.minHourSlice} trades, so treat it as a starting point rather than a proven rule.`,
+        metric: money(worst.totalPnl, 0),
+      });
+    } else {
+      out.push({
+        level: "info",
+        title: `${label} looks like the window that bleeds, but the sample is thin`,
+        detail: `${money(worst.totalPnl)} over ${worst.count} trade${worst.count !== 1 ? "s" : ""} at a ${worst.winRate}% win rate, ${money(worst.avgPnl)} per trade. Under the ${T.minHourSlice}-trade floor, so treat it as a lead rather than a rule.`,
+        metric: money(worst.totalPnl, 0),
+      });
     }
-  } else if (f.hourData.length >= 2) {
+  } else if (f.hourData.length >= 2 && hours.trustedCount === 0) {
     out.push({
       level: "info",
       title: "No hour has enough trades to trust",
@@ -681,13 +815,16 @@ function heatmapInsights(f: AnalyticsFacts): Insight[] {
     });
   }
 
-  if (trusted.length >= 2 && totalTrades > 0) {
+  if (hours.trustedCount >= 2 && totalTrades > 0) {
     const busiest = f.hourData.reduce((b, h) => h.count > b.count ? h : b, f.hourData[0]);
-    const best = trusted.reduce((b, h) => h.totalPnl > b.totalPnl ? h : b, trusted[0]);
-    if (busiest.hour !== best.hour && busiest.totalPnl < best.totalPnl) {
+    const best = hours.bestTrusted;
+    if (best && busiest.hour !== best.hour && busiest.avgPnl < best.avgPnl) {
+      const losing = busiest.totalPnl < 0;
       out.push({
-        level: "warn",
-        title: "Most active in a window that does not pay",
+        level: losing ? "warn" : "info",
+        title: losing
+          ? "Most active in a window that loses money"
+          : "Most active in a window that pays less",
         detail: `${busiest.label} holds ${pct(share(busiest.count, totalTrades), 0)} of all trades and returns ${money(busiest.totalPnl)} at ${money(busiest.avgPnl)} per trade, while ${best.label} returns ${money(best.totalPnl)} at ${money(best.avgPnl)}. Volume and edge are in different places.`,
         metric: `${pct(share(busiest.count, totalTrades), 0)} of trades`,
       });
@@ -772,7 +909,10 @@ function rMultiplesInsights(f: AnalyticsFacts): Insight[] {
     });
   }
 
-  const tailBuckets = ["-2R", "-3R", "≤-3R"];
+  // "-2R" is the histogram bin for [-2R, -1R) — it is not beyond -2R, so it
+  // must not be counted in the left tail. The bins below it are (-3R, -2R) and
+  // ≤-3R, which is exactly the "worse than twice the planned risk" set.
+  const tailBuckets = ["-3R", "≤-3R"];
   const tail = sum(f.rHistogram.filter((b) => tailBuckets.includes(b.bucket)).map((b) => b.count));
   const tailShare = share(tail, total);
   if (tailShare >= T.leftTailBad * 100) {
@@ -824,7 +964,7 @@ function rMultiplesInsights(f: AnalyticsFacts): Insight[] {
     out.push({
       level: "info",
       title: `${pct(winRateFromR, 0)} of trades close at +1R or better`,
-      detail: `${winBucketCount} winners against ${lossBucketCount} losers in R terms. Compare against the break-even rate the payoff on this tab implies — a lower rate is fine when the payoff is high, and not fine when it is not.`,
+      detail: `${winBucketCount} trades closed at +1R or better and ${lossBucketCount} did not. Compare against the break-even rate the payoff on this tab implies — a lower rate is fine when the payoff is high, and not fine when it is not.`,
       metric: pct(winRateFromR, 0),
     });
   }
@@ -882,8 +1022,8 @@ function executionInsights(f: AnalyticsFacts): Insight[] {
   } else if (f.exitEff < T.exitEffWarn) {
     out.push({
       level: "warn",
-      title: "A third of available profit is left behind",
-      detail: `${pct(f.exitEff)} of MFE captured on winning trades. Moving stops to breakeven and letting the planned target do the work usually recovers most of this.`,
+      title: "More than half of available profit is left behind",
+      detail: `${pct(f.exitEff)} of MFE captured on winning trades, so ${pct(100 - f.exitEff)} of the move is being given back. Moving stops to breakeven and letting the planned target do the work usually recovers most of this.`,
       metric: pct(f.exitEff),
     });
   } else if (f.exitEff >= T.exitEffStrong) {
@@ -996,9 +1136,9 @@ function behaviorInsights(f: AnalyticsFacts): Insight[] {
       });
     } else {
       out.push({
-        level: "warn",
+        level: "info",
         title: `${f.revengeCount} trades were taken after a same-day loss`,
-        detail: `${pct(revengeShare, 0)} of the book. They returned ${money(revengeAvg)} per trade against ${money(otherAvg)} elsewhere, so the habit is not costing much — but it is not free either.`,
+        detail: `${pct(revengeShare, 0)} of the book. They returned ${money(revengeAvg)} per trade against ${money(otherAvg)} elsewhere, so the habit is not underperforming on this sample. Keep watching it rather than treating it as safe.`,
         metric: `${pct(revengeShare, 0)} of trades`,
       });
     }
@@ -1111,7 +1251,7 @@ function processInsights(f: AnalyticsFacts): Insight[] {
     out.push({
       level: "bad",
       title: "Costs are consuming a tenth of everything won",
-      detail: `$${costs.costs.toFixed(2)} of commission and fees against $${costs.grossProfit.toFixed(2)} gross profit ($${costs.costPerTrade.toFixed(2)} per trade). Gross profit needs ${costs.breakevenTrades} extra trading days just to break even on friction — reducing trade count is worth more than raising targets here.`,
+      detail: `$${costs.costs.toFixed(2)} of commission and fees against $${costs.grossProfit.toFixed(2)} gross profit ($${costs.costPerTrade.toFixed(2)} per trade). Every extra trade carries that friction whether it wins or loses, so reducing trade count is worth more than raising targets here.`,
       metric: pct(costs.costPctOfGross, 2),
     });
   } else if (costs.costPctOfGross >= T.costWarnPct) {
@@ -1131,29 +1271,52 @@ function processInsights(f: AnalyticsFacts): Insight[] {
   }
 
   // Hold time is usually the biggest single finding in a trading journal.
-  const timedBuckets = f.durationData.filter((d) => d.trades >= T.minSlice);
-  if (timedBuckets.length >= 2) {
-    const best = timedBuckets.reduce((b, d) => (d.pnl > b.pnl ? d : b), timedBuckets[0]);
-    
-    const worstBucket = timedBuckets.reduce((w, d) => (d.pnl < w.pnl ? d : w), timedBuckets[0]);
+  const durations = rankBy(f.durationData, (d) => d.pnl, (d) => d.trades);
+  if (durations.leader && durations.laggard && durations.tradedCount >= 2) {
+    const best = durations.leader;
+    const worst = durations.laggard;
 
-    if (worstBucket.pnl < 0) {
-      const bleeders = timedBuckets.filter((d) => d.pnl < 0);
-      out.push({
-        level: "bad",
-        title: `${worstBucket.bucket} trades lose money`,
-        detail: `${money(worstBucket.pnl)} across ${worstBucket.trades} trades at ${money(worstBucket.avgPnl)} each. ${bleeders.length > 1 ? `${bleeders.length} hold-time bands are negative, so it is the process rather than one band.` : "Raising the floor on this band is the highest-value rule on this tab."}`,
-        metric: money(worstBucket.pnl, 0),
-      });
+    if (worst.pnl < 0) {
+      if (worst.trades >= T.minSlice) {
+        const bleeders = f.durationData.filter((d) => d.trades >= T.minSlice && d.pnl < 0);
+        out.push({
+          level: "bad",
+          title: `${worst.bucket} trades lose money`,
+          detail: `${money(worst.pnl)} across ${worst.trades} trades at ${money(worst.avgPnl)} each. ${bleeders.length > 1 ? `${bleeders.length} well-sampled hold-time bands are negative, so it is the process rather than one band.` : "Raising the floor on this band is the highest-value rule on this tab."}`,
+          metric: money(worst.pnl, 0),
+        });
+      } else {
+        const alt = durations.worstTrusted && durations.worstTrusted.bucket !== worst.bucket
+          ? ` The weakest band clearing ${T.minSlice} trades is ${durations.worstTrusted.bucket} (${money(durations.worstTrusted.pnl)}).`
+          : "";
+        out.push({
+          level: "info",
+          title: `${worst.bucket} looks like a losing band, but the sample is thin`,
+          detail: `${money(worst.pnl)} across ${worst.trades} trade${worst.trades !== 1 ? "s" : ""} at ${money(worst.avgPnl)} each. Under the ${T.minSlice}-trade floor, so do not change the rule on this evidence alone.${alt}`,
+          metric: money(worst.pnl, 0),
+        });
+      }
     }
 
-    if (best.pnl > 0 && best.bucket !== worstBucket.bucket) {
-      out.push({
-        level: "good",
-        title: `${best.bucket} is where holding pays`,
-        detail: `${money(best.pnl)} over ${best.trades} trades at ${money(best.avgPnl)} each. If the losing band is deliberately a scalping window, that is a contradiction worth resolving on paper before the next session.`,
-        metric: money(best.pnl, 0),
-      });
+    if (best.pnl > 0 && best.bucket !== worst.bucket) {
+      if (best.trades >= T.minSlice) {
+        out.push({
+          level: "good",
+          title: `${best.bucket} is where holding pays`,
+          detail: `${money(best.pnl)} over ${best.trades} trades at ${money(best.avgPnl)} each. If the losing band is deliberately a scalping window, that is a contradiction worth resolving on paper before the next session.`,
+          metric: money(best.pnl, 0),
+        });
+      } else {
+        const alt = durations.bestTrusted && durations.bestTrusted.bucket !== best.bucket
+          ? ` The strongest band clearing ${T.minSlice} trades is ${durations.bestTrusted.bucket} (${money(durations.bestTrusted.pnl)}).`
+          : "";
+        out.push({
+          level: "info",
+          title: `${best.bucket} leads on P&L, but the sample is thin`,
+          detail: `${money(best.pnl)} over ${best.trades} trade${best.trades !== 1 ? "s" : ""} at ${money(best.avgPnl)} each. Under the ${T.minSlice}-trade floor, so it is a lead rather than a rule.${alt}`,
+          metric: money(best.pnl, 0),
+        });
+      }
     }
   } else if (f.durationData.every((d) => d.trades === 0)) {
     out.push({
@@ -1193,7 +1356,7 @@ function processInsights(f: AnalyticsFacts): Insight[] {
       out.push({
         level: "warn",
         title: `The edge is one-directional — ${good.bucket} only`,
-        detail: `${good.bucket} returned ${money(good.pnl)} over ${good.trades} trades while ${bad.bucket} returned ${money(bad.pnl)} over ${bad.trades}. Restricting to the profitable side roughly doubles the return on the same sample, at the cost of fewer trades.`,
+        detail: `${good.bucket} returned ${money(good.pnl)} over ${good.trades} trades while ${bad.bucket} returned ${money(bad.pnl)} over ${bad.trades}. Dropping the losing side would turn the combined ${money(good.pnl + bad.pnl)} into ${money(good.pnl)} on this sample, at the cost of fewer trades.`,
         metric: money(good.pnl, 0),
       });
     } else if (good.pnl > 0 && bad.pnl > 0) {
@@ -1326,8 +1489,15 @@ function processInsights(f: AnalyticsFacts): Insight[] {
   }
 
   if (f.cashFlow.coverage >= 2 && f.cashFlow.netFlow > 0) {
-    const flowShare = f.totalPnl > 0 ? share(f.cashFlow.netFlow, f.totalPnl) : 100;
-    if (flowShare >= 20) {
+    const flowShare = f.totalPnl > 0 ? share(f.cashFlow.netFlow, f.totalPnl) : null;
+    if (flowShare == null) {
+      out.push({
+        level: "bad",
+        title: "Deposits are carrying the equity curve",
+        detail: `$${f.cashFlow.deposits.toFixed(2)} went in and $${Math.abs(f.cashFlow.withdrawals).toFixed(2)} came out, a net ${money(f.cashFlow.netFlow)}. Trading itself produced ${money(f.totalPnl)}, so the balance is rising on external cash rather than performance — read every ratio on this tab without it.`,
+        metric: money(f.cashFlow.netFlow, 0),
+      });
+    } else if (flowShare >= 20) {
       out.push({
         level: "bad",
         title: "Deposits are inflating the equity curve",
@@ -1337,8 +1507,8 @@ function processInsights(f: AnalyticsFacts): Insight[] {
     } else {
       out.push({
         level: "good",
-        title: "The curve is entirely trade-generated",
-        detail: `Every balance change is explained by your own trades across ${f.cashFlow.coverage} recorded closes. Nothing in these numbers is being flattered by external cash.`,
+        title: "External cash is a small part of the curve",
+        detail: `Net deposits of ${money(f.cashFlow.netFlow)} are under 20% of net profit across ${f.cashFlow.coverage} recorded closes. The rest is trade-generated, so the ratios on this tab still describe the strategy.`,
         metric: money(f.cashFlow.netFlow, 0),
       });
     }

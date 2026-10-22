@@ -36,6 +36,7 @@ input group                 "Options"
 input bool    InpIncludeOpen = false; // Include positions that are still open (exit price = 0)
 input bool    InpCommentTag  = false; // Use the entry order comment as the trade tag
 input bool    InpExcursions  = true;  // Scan price bars to calculate MAE / MFE (slower)
+input int     InpPostClose   = 60;    // Minutes to scan after exit for the post-close run (hindsight only)
 input bool    InpQuiet       = false; // Skip the completion alert (still logged to Experts)
 
 //+------------------------------------------------------------------+
@@ -65,6 +66,7 @@ struct TradeRow
    double        duration_min; // exact hold time
    double        mae;          // worst excursion against, account currency
    double        mfe;          // best excursion in favour, account currency
+   double        post_close_mfe; // best favourable move after the position was closed (hindsight)
    string        exit_reason;  // stop-loss | take-profit | manual | expert | ...
    long          magic;        // EA magic number; 0 means placed by hand
    int           legs;         // number of entry deals (1 = a single entry)
@@ -657,6 +659,19 @@ bool BuildTrade(const int from, const int to, TradeRow &row)
         }
      }
 
+   // Post-close run: how far price kept moving in favour after the position
+   // was closed, measured from entry price over M1 bars after exit_time.
+   // Pure hindsight — a journaling metric, never a real-time signal.
+   row.post_close_mfe = 0.0;
+   if(InpExcursions && InpPostClose > 0 && have_out && row.exit_time > row.entry_time)
+     {
+      double pmae = 0.0, pmfe = 0.0;
+      const datetime post_to = row.exit_time + InpPostClose * 60;
+      if(ComputeExcursion(row.symbol, row.direction == "long", row.entry_price,
+                          row.quantity, row.exit_time, post_to, pmae, pmfe))
+        row.post_close_mfe = pmfe;
+     }
+
    ClassifySymbol(row.symbol, row.type, row.underlying);
 
    row.option_type = "";
@@ -718,8 +733,9 @@ void WriteRow(const TradeRow &row)
                   row.ticket                                + "," +
                   DoubleToString(row.planned_risk, 2)       + "," +
                   DoubleToString(row.duration_min, 2)       + "," +
-                  DoubleToString(row.mae, 2)               + "," +
-                  DoubleToString(row.mfe, 2)               + "," +
+                   DoubleToString(row.mae, 2)               + "," +
+                   DoubleToString(row.mfe, 2)               + "," +
+                   DoubleToString(row.post_close_mfe, 2)    + "," +
                   CleanCsv(row.exit_reason)                 + "," +
                   IntegerToString(row.magic)                + "," +
                   IntegerToString(row.legs)                 + "," +

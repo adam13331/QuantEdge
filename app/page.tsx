@@ -3,12 +3,12 @@ import { useState, useEffect } from "react";
 import { AppProvider } from "./context/AppContext";
 import { useApp } from "./context/AppContext";
 import Sidebar from "./components/Sidebar";
+import GlobalDateFilter from "./components/GlobalDateFilter";
 import TradePanel from "./components/TradePanel";
 import Dashboard from "./pages/Dashboard";
 import ImportPage from "./pages/ImportPage";
 import CalendarPage from "./pages/CalendarPage";
 import PropFirmPage from "./pages/PropFirmPage";
-import AnalyticsPage from "./pages/AnalyticsPage";
 import JournalPage from "./pages/JournalPage";
 import JournalEditorPage from "./pages/JournalEditorPage";
 import AccountsPage from "./pages/AccountsPage";
@@ -21,7 +21,6 @@ import { X } from "lucide-react";
 const SHORTCUTS = [
   { key: "D", description: "Dashboard"       },
   { key: "J", description: "Journal"         },
-  { key: "A", description: "Analytics"       },
   { key: "C", description: "Calendar"        },
   { key: "F", description: "Prop Firm"       },
   { key: "P", description: "Trade Plans"     },
@@ -104,6 +103,10 @@ function AppShell() {
 
   const isEditorPage = activePage === "journal-editor";
 
+  // The interval scopes the Dashboard figures and the analytics body below
+  // them, so it is only offered where it actually changes numbers.
+  const showsDateRange = activePage === "dashboard";
+
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.metaKey || e.ctrlKey || e.altKey) return;
@@ -120,7 +123,6 @@ function AppShell() {
       switch (e.key) {
         case "d": case "D": setActivePage("dashboard");       break;
         case "j": case "J": setActivePage("journal");         break;
-        case "a": case "A": setActivePage("analytics");       break;
         case "c": case "C": setActivePage("calendar");        break;
         case "f": case "F": setActivePage("propfirm");         break;
         case "p": case "P": setActivePage("plans");           break;
@@ -151,10 +153,11 @@ function AppShell() {
         display: isEditorPage ? "flex" : "block",
         flexDirection: isEditorPage ? "column" : undefined,
       }}>
+        {showsDateRange && <GlobalDateFilter />}
+
         {activePage === "dashboard"      && <Dashboard />}
         {activePage === "journal"        && <JournalPage />}
         {activePage === "journal-editor" && <JournalEditorPage />}
-        {activePage === "analytics"      && <AnalyticsPage />}
         {activePage === "calendar"       && <CalendarPage />}
         {activePage === "propfirm"        && <PropFirmPage />}
         {activePage === "plans"          && <PlansPage />}

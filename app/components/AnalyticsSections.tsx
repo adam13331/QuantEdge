@@ -3,16 +3,17 @@ import { useState, useMemo, Fragment } from "react";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, BarChart, Bar, Cell, PieChart, Pie,
-  ReferenceLine, AreaChart, Area,
+  ReferenceLine, AreaChart, Area, ScatterChart, Scatter,
 } from "recharts";
 import { useApp } from "../context/AppContext";
 import {
-  TrendingUp, TrendingDown, Target, Zap, Award, Clock,
-  BarChart2, Activity, AlertTriangle, Calendar, Shield, Brain, X, SlidersHorizontal,
+  TrendingUp, TrendingDown, Target, Zap, Clock,
+  BarChart2, Activity, AlertTriangle, Calendar, Shield, Brain, SlidersHorizontal,
 } from "lucide-react";
 
 import {
   stdDev, normalizeDate, getDailyPnl, sharpeRatio, sortinoRatio, expectancy,
+  profitFactor as profitFactorOf,
   calmarRatio, drawdownStats, rMultiples, rHistogram, rollingWinRate,
   byDayOfWeek, byHourOfDay, streaks,
   byDuration, byReEntryGap, byDirection, costProfile, recoveryFactor,
@@ -20,8 +21,9 @@ import {
   revengeSequences,
 } from "../lib/analytics";
 import { buildInsights, type SectionId } from "../lib/insights";
-import { SectionCard, MetricCard, InsightPanel } from "../components/AnalyticsCards";
+import { SectionCard, MetricCard, InsightPanel } from "./AnalyticsCards";
 import { useSettings } from "../hooks/useSettings";
+import { Trade } from "../lib/types";
 
 
 function tooltipStyleUnused() {}
@@ -52,67 +54,19 @@ function Tab({ label, active, onClick }: { label: string; active: boolean; onCli
 
 type TabId = "overview" | "risk" | "time" | "heatmap" | "rmultiples" | "execution" | "behavior" | "process";
 
-// From/to date filter, matching the Dashboard trade history controls.
-function DateRangeFilter({
-  dateFrom, dateTo, setDateFrom, setDateTo, onClear, hasRange,
-}: {
-  dateFrom: string;
-  dateTo: string;
-  setDateFrom: (v: string) => void;
-  setDateTo: (v: string) => void;
-  onClear: () => void;
-  hasRange: boolean;
-}) {
-  const inputStyle: React.CSSProperties = {
-    padding: "8px 12px", borderRadius: "8px",
-    border: "1px solid var(--border)", background: "var(--bg-card)",
-    color: "var(--text-primary)", fontSize: "12px", colorScheme: "dark",
-    fontFamily: "'DM Sans', sans-serif", outline: "none",
-  };
-
-  return (
-    <div
-      style={{
-        display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap",
-        marginBottom: "24px", padding: "12px 16px",
-        background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: "12px",
-      }}
-    >
-      <Calendar size={14} color="var(--text-muted)" />
-      <span style={{ fontSize: "12px", fontWeight: "600", color: "var(--text-muted)" }}>Period</span>
-
-      <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} style={inputStyle} />
-      <span style={{ fontSize: "12px", color: "#a8a8c8" }}>to</span>
-      <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} style={inputStyle} />
-
-      {hasRange && (
-        <button
-          onClick={onClear}
-          style={{
-            display: "flex", alignItems: "center", gap: "4px",
-            background: "none", border: "none", cursor: "pointer",
-            color: "#ff4d6a", fontSize: "12px",
-            fontFamily: "'DM Sans', sans-serif", fontWeight: "600",
-          }}
-        >
-          <X size={12} /> Clear
-        </button>
-      )}
-    </div>
-  );
-}
-
-export default function AnalyticsPage() {
-  const { trades: allTrades, activeAccount } = useApp();
+// The period-scoped trade slice and every derived figure, as one hook. It is
+// exported so the Dashboard can render the headline metric cards and the tabbed
+// body below them from the same numbers: two copies of this maths would be free
+// to disagree.
+export function useAnalyticsSummary() {
+  const { trades: allTrades, activeAccount, dateRange, clearDateRange } = useApp();
   const { settings } = useSettings();
-  const [activeTab, setActiveTab] = useState<TabId>("overview");
-  const [riskPct, setRiskPct]     = useState(2);
-  const [heatmapMetric, setHeatmapMetric] = useState<"pnl" | "winrate" | "count">("pnl");
-  const [dateFrom, setDateFrom]   = useState("");
-  const [dateTo, setDateTo]       = useState("");
 
-  // Everything below reads `trades`, so scoping it here filters every tab
-  // (overview, risk, time, heatmap, R-multiples, execution, behavior) at once.
+  // The period comes from the global control in the shell, so it is identical
+  // everywhere and does not reset when the tab changes.
+  const dateFrom = dateRange.from;
+  const dateTo   = dateRange.to;
+
   const trades = useMemo(() => {
     return allTrades.filter((t) => {
       const d = normalizeDate(t.date);
@@ -123,7 +77,6 @@ export default function AnalyticsPage() {
   }, [allTrades, dateFrom, dateTo]);
 
   const hasRange = Boolean(dateFrom || dateTo);
-  const clearRange = () => { setDateFrom(""); setDateTo(""); };
 
   const stats = useMemo(() => {
     if (trades.length === 0) return null;
@@ -138,7 +91,9 @@ export default function AnalyticsPage() {
     const winRate   = trades.length > 0 ? (wins.length / trades.length) * 100 : 0;
     const avgWin    = wins.length > 0 ? wins.reduce((s, t) => s + t.pnl, 0) / wins.length : 0;
     const avgLoss   = losses.length > 0 ? Math.abs(losses.reduce((s, t) => s + t.pnl, 0) / losses.length) : 0;
-    const profitFactor = avgLoss > 0 ? avgWin / avgLoss : avgWin > 0 ? 99 : 0;
+    // 99 is the display sentinel for "no losing trades"; the card turns it into
+    // an infinity symbol rather than showing a made-up ratio.
+    const profitFactor = profitFactorOf(wins, losses) ?? (wins.length > 0 ? 99 : 0);
 
     const initBal = activeAccount?.initialBalance ?? 0;
 
@@ -217,7 +172,7 @@ export default function AnalyticsPage() {
     const avgR = rMs.length > 0 ? rMs.reduce((s, r) => s + r.r, 0) / rMs.length : 0;
 
     const rolling = trades.length >= 20 ? rollingWinRate(sorted, 20) : [];
-    const dowData = byDayOfWeek(trades);
+    const dowData = byDayOfWeek(trades, settings.weekStart);
     const hourData = byHourOfDay(trades);
     const streak  = streaks(trades);
 
@@ -336,7 +291,160 @@ export default function AnalyticsPage() {
       durationData, gapData, directionData, costs, recFactor, rRisk, stop,
       exitReasons, magicData, legData, cashFlow,
     };
-  }, [trades, activeAccount]);
+  }, [trades, activeAccount, settings.weekStart]);
+
+  return { trades, allTrades, stats, hasRange, dateFrom, dateTo, clearDateRange };
+}
+
+// The headline figures a trader checks before reading anything else. The set is
+// deliberately small: net result, edge, survival risk, and the two halves of
+// the edge (hit rate and payoff). Anecdotes like best/worst trade belong lower.
+export function OverviewMetrics({ stats }: {
+  stats: NonNullable<ReturnType<typeof useAnalyticsSummary>["stats"]>;
+}) {
+  const totalTrades = stats.riskCoverage + stats.riskMissing;
+  // Per-trade expectancy across every trade, so breakeven scratches dilute it
+  // the same way they dilute avgR. `stats.exp` excludes scratches and would
+  // describe a different population.
+  const perTrade = totalTrades > 0 ? stats.totalPnl / totalTrades : 0;
+  const returnPct = stats.initBal > 0 ? (stats.totalPnl / stats.initBal) * 100 : null;
+  const payoff = stats.avgLoss > 0 ? stats.avgWin / stats.avgLoss : 0;
+  const grossWins = stats.avgWin * stats.wins.length;
+  const grossLosses = stats.avgLoss * stats.losses.length;
+  const pfLabel = stats.profitFactor >= 99 ? "∞" : stats.profitFactor.toFixed(2);
+
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "16px", marginBottom: "32px" }}>
+      <MetricCard
+        label="Net P&L"
+        value={`${stats.totalPnl >= 0 ? "+" : ""}$${stats.totalPnl.toFixed(2)}`}
+        positive={stats.totalPnl >= 0}
+        icon={TrendingUp}
+        sub={returnPct === null
+          ? `${totalTrades} trades · set an initial balance`
+          : `${returnPct >= 0 ? "+" : ""}${returnPct.toFixed(2)}% of $${stats.initBal.toLocaleString()}`}
+      />
+      <MetricCard
+        label="Expectancy"
+        value={`${stats.avgR >= 0 ? "+" : ""}${stats.avgR.toFixed(2)}R`}
+        positive={stats.avgR > 0}
+        icon={Activity}
+        sub={`${perTrade >= 0 ? "+" : ""}$${perTrade.toFixed(2)} per trade · BE = 0R`}
+      />
+      <MetricCard
+        label="Profit Factor"
+        value={pfLabel}
+        positive={stats.profitFactor >= 1}
+        icon={Zap}
+        sub={`$${grossWins.toFixed(0)} gross win / $${grossLosses.toFixed(0)} gross loss`}
+      />
+      <MetricCard
+        label="Max Drawdown"
+        value={stats.maxDdPct === 0 ? "0.00%" : `-${Math.abs(stats.maxDdPct).toFixed(2)}%`}
+        positive={false}
+        neutral={stats.maxDdPct === 0}
+        icon={TrendingDown}
+        sub={stats.currentDdDays > 0
+          ? `$${Math.abs(stats.maxDd).toFixed(0)} peak-to-trough · ${stats.currentDdDays}d current`
+          : `$${Math.abs(stats.maxDd).toFixed(0)} peak-to-trough · at high-water mark`}
+      />
+      <MetricCard
+        label="Risk per Trade"
+        value={stats.riskPctAvg > 0 ? `${stats.riskPctAvg.toFixed(2)}%` : "—"}
+        neutral
+        icon={Shield}
+        sub={stats.avgRisk <= 0
+          ? "Add a stop loss to size risk"
+          : stats.initBal <= 0
+          ? `$${stats.avgRisk.toFixed(0)} average risk · set an initial balance`
+          : `$${stats.avgRisk.toFixed(0)} average · ${stats.riskCoverage}/${totalTrades} sized`}
+      />
+      <MetricCard
+        label="Win Rate"
+        value={`${stats.winRate.toFixed(1)}%`}
+        positive={stats.profitFactor > 1}
+        neutral={stats.profitFactor === 1}
+        icon={Target}
+        sub={`${payoff.toFixed(2)}:1 payoff · ${stats.wins.length}W/${stats.losses.length}L`}
+      />
+    </div>
+  );
+}
+
+// Compact hold-time label: minutes under an hour, otherwise hours, dropping
+// trailing ".0" so the axis stays short and never overlaps.
+function formatHoldMinutes(m: number): string {
+  if (m < 60) return `${Math.round(m)}m`;
+  const h = m / 60;
+  return h < 10 ? `${h.toFixed(1).replace(/\.0$/, "")}h` : `${Math.round(h)}h`;
+}
+
+// Hold time vs P&L scatter. Each dot is one trade: x is the hold in minutes, y
+// is the realised P&L. Winning and losing trades are split by colour so you can
+// see whether longer holds actually pay out, or whether you are cutting runners
+// by closing too early.
+function HoldVsProfitScatter({ trades }: { trades: Trade[] }) {
+  const points = useMemo(() => {
+    return trades
+      .filter((t) => t.durationMin != null && t.durationMin > 0)
+      .map((t) => ({
+        x: t.durationMin!,
+        y: t.pnl,
+        win: t.status === "win",
+      }));
+  }, [trades]);
+
+  if (points.length === 0) return null;
+
+  return (
+    <SectionCard title="Hold Time vs P&L" subtitle="Each dot is one trade. Longer holds should justify the time — if not, you are cut early or the runner is not there.">
+      <ResponsiveContainer width="100%" height={300}>
+        <ScatterChart margin={{ top: 8, right: 16, bottom: 24, left: 8 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="#2a2a3a" />
+          <XAxis
+            type="number"
+            dataKey="x"
+            tick={axisStyle}
+            axisLine={false}
+            tickLine={false}
+            tickCount={7}
+            tickFormatter={(v: number) => formatHoldMinutes(v)}
+            label={{ value: "Hold time", position: "insideBottom", offset: -12, fill: "#a8a8c8", fontSize: 12 }}
+          />
+          <YAxis
+            type="number"
+            dataKey="y"
+            tick={axisStyle}
+            axisLine={false}
+            tickLine={false}
+            tickFormatter={(v: number) => `$${v}`}
+            width={64}
+          />
+          <Tooltip
+            contentStyle={tooltipStyle}
+            cursor={{ strokeDasharray: "3 3" }}
+            formatter={(v) => [`$${Number(v).toFixed(2)}`, "P&L"]}
+            labelFormatter={(v) => `Hold ${formatHoldMinutes(Number(v))}`}
+          />
+          <ReferenceLine y={0} stroke="#a8a8c8" strokeDasharray="4 4" strokeWidth={1} />
+          <Scatter name="Winning" fill="#00e57a" data={points.filter((p) => p.win)} />
+          <Scatter name="Losing" fill="#ff4d6a" data={points.filter((p) => !p.win)} />
+        </ScatterChart>
+      </ResponsiveContainer>
+    </SectionCard>
+  );
+}
+
+// The Analytics body. It renders below the Dashboard cards rather than on its
+// own page, so it deliberately carries no page header of its own.
+export default function AnalyticsSections() {
+  const { trades, allTrades, stats, hasRange, dateFrom, dateTo, clearDateRange } = useAnalyticsSummary();
+  const { settings } = useSettings();
+  const [activeTab, setActiveTab] = useState<TabId>("overview");
+  const [riskPct, setRiskPct]     = useState(2);
+  const [heatmapMetric, setHeatmapMetric] = useState<"pnl" | "winrate" | "count">("pnl");
+
+  const clearRange = clearDateRange;
 
   // RoR interactive — outside useMemo
   const rorData = (() => {
@@ -434,14 +542,6 @@ export default function AnalyticsPage() {
   if (trades.length === 0) {
     return (
       <div>
-        <div style={{ marginBottom: "24px" }}>
-          <h2 style={{ fontSize: "26px", fontWeight: "700", color: "var(--text-primary)", letterSpacing: "-0.5px", marginBottom: "4px" }}>
-            Analytics
-          </h2>
-          <p style={{ color: "var(--text-muted)", fontSize: "14px" }}>Process, risk and behaviour across every tab</p>
-        </div>
-        <DateRangeFilter dateFrom={dateFrom} dateTo={dateTo} setDateFrom={setDateFrom} setDateTo={setDateTo} onClear={clearRange} hasRange={hasRange} />
-
         <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "50vh", flexDirection: "column", gap: "16px" }}>
           <div style={{ width: "64px", height: "64px", borderRadius: "16px", background: "var(--accent-green-dim)", display: "flex", alignItems: "center", justifyContent: "center" }}>
             <BarChart2 size={28} color="var(--accent-green)" />
@@ -481,17 +581,14 @@ export default function AnalyticsPage() {
 
   return (
     <div>
-      <div style={{ marginBottom: "24px" }}>
-        <h2 style={{ fontSize: "26px", fontWeight: "700", color: "var(--text-primary)", letterSpacing: "-0.5px", marginBottom: "4px" }}>
-          Analytics
-        </h2>
-        <p style={{ color: "var(--text-muted)", fontSize: "14px" }}>
-          {trades.length} trade{trades.length !== 1 ? "s" : ""} · {stats.tradingDays} trading days
-          {hasRange && allTrades.length !== trades.length && ` (filtered from ${allTrades.length})`}
-        </p>
-      </div>
-
-      <DateRangeFilter dateFrom={dateFrom} dateTo={dateTo} setDateFrom={setDateFrom} setDateTo={setDateTo} onClear={clearRange} hasRange={hasRange} />
+      {/* Scope line: which slice of the journal every figure below describes. */}
+      <p style={{ color: "var(--text-muted)", fontSize: "12px", marginBottom: "4px" }}>
+        Process, risk and behaviour across every tab
+      </p>
+      <p style={{ color: "var(--text-muted)", fontSize: "12px", marginBottom: "16px" }}>
+        {trades.length} trade{trades.length !== 1 ? "s" : ""} · {stats.tradingDays} trading days
+        {hasRange && allTrades.length !== trades.length && ` (filtered from ${allTrades.length})`}
+      </p>
 
       {/* Tabs */}
       <div style={{ display: "flex", gap: "4px", marginBottom: "24px", background: "var(--bg-card)", borderRadius: "10px", padding: "4px", border: "1px solid var(--border)", width: "fit-content", flexWrap: "wrap" }}>
@@ -509,19 +606,6 @@ export default function AnalyticsPage() {
       {activeTab === "overview" && (
         <>
           <InsightPanel insights={insightFor("overview")} />
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "12px", marginBottom: "20px" }}>
-            <MetricCard label="Total P&L"     value={`${stats.totalPnl >= 0 ? "+" : ""}$${stats.totalPnl.toFixed(2)}`} positive={stats.totalPnl >= 0} icon={TrendingUp} />
-            <MetricCard label="Win Rate"      value={`${stats.winRate.toFixed(1)}%`} positive={stats.winRate >= 50} icon={Target} sub={`${stats.wins.length}W · ${stats.losses.length}L`} />
-            <MetricCard label="Profit Factor" value={stats.profitFactor.toFixed(2)} positive={stats.profitFactor >= 1} icon={Zap} sub="Avg W / Avg L" />
-            <MetricCard label="Expectancy"    value={`${stats.exp >= 0 ? "+" : ""}$${stats.exp.toFixed(2)}`} positive={stats.exp >= 0} icon={Activity} sub="Per trade" />
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "12px", marginBottom: "20px" }}>
-            <MetricCard label="Avg Win"     value={`+$${stats.avgWin.toFixed(2)}`}  positive icon={Award} />
-            <MetricCard label="Avg Loss"    value={`-$${stats.avgLoss.toFixed(2)}`} positive={false} icon={TrendingDown} />
-            <MetricCard label="Best Trade"  value={`+$${stats.bestTrade.pnl.toFixed(2)}`} positive icon={Award} sub={stats.bestTrade.underlying} />
-            <MetricCard label="Worst Trade" value={`$${stats.worstTrade.pnl.toFixed(2)}`} positive={false} icon={AlertTriangle} sub={stats.worstTrade.underlying} />
-          </div>
-
           <SectionCard title="Equity Curve" subtitle={`Starts at ${stats.initBal.toLocaleString()}, axis scaled to your trade range`}>
             <ResponsiveContainer width="100%" height={240}>
               <AreaChart data={stats.equityCurve}>
@@ -612,6 +696,8 @@ export default function AnalyticsPage() {
               </SectionCard>
             )}
           </div>
+
+          <HoldVsProfitScatter trades={trades} />
 
           <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "12px", marginTop: "20px" }}>
             <MetricCard label="Max Win Streak"  value={`${stats.streak.maxWinStreak}`} positive neutral={stats.streak.maxWinStreak === 0} icon={TrendingUp} sub="Consecutive wins" />

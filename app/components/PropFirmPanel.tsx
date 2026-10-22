@@ -4,12 +4,17 @@ import { Trade, Account } from "../lib/types";
 import {
   ChallengeConfig, DEFAULT_CHALLENGE, FIRM_PRESETS, applyPreset,
   challengeStatus, simulateChallenge, challengePlan, challengeROI,
+  type ChallengeOutcome,
 } from "../lib/analytics";
 import { SectionCard, MetricCard } from "./AnalyticsCards";
 import {
   Target, Shield, Activity, AlertTriangle, Clock, TrendingUp,
   Zap, Percent, Award,
 } from "lucide-react";
+import {
+  ComposedChart, Area, Line, XAxis, YAxis, CartesianGrid, Tooltip,
+  ResponsiveContainer, ReferenceLine, type TooltipContentProps,
+} from "recharts";
 
 const labelStyle: React.CSSProperties = {
   fontSize: "10px", fontWeight: "700", color: "var(--text-muted)",
@@ -20,6 +25,48 @@ const inputStyle: React.CSSProperties = {
   background: "var(--bg-secondary)", color: "var(--text-primary)",
   fontSize: "13px", colorScheme: "dark", fontFamily: "'DM Sans', sans-serif", outline: "none", width: "100%",
 };
+const axisStyle = { fontSize: 11, fill: "#a8a8c8" };
+const chartTooltipStyle: React.CSSProperties = {
+  background: "#16161f", border: "1px solid #2a2a3a",
+  borderRadius: "8px", color: "#f0f0ff", fontSize: "12px",
+};
+
+const PATH_COLORS: Record<ChallengeOutcome, string> = {
+  pass: "#00e57a",
+  daily: "#ff4d6a",
+  dd: "#ff4d6a",
+  timeout: "#a8a8c8",
+  consistency: "#fbbf24",
+};
+
+const money0 = (v: number) =>
+  `${v < 0 ? "-" : ""}$${Math.abs(v).toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
+
+type BandTooltipRow = { p5: number; p50: number; p95: number };
+
+function PathTooltip({ active, payload, label }: TooltipContentProps) {
+  if (!active || !payload || payload.length === 0) return null;
+  const row = payload[0]?.payload as BandTooltipRow | undefined;
+  if (!row || typeof row.p5 !== "number") return null;
+  const rows: [string, number][] = [
+    ["95th pct", row.p95],
+    ["Median", row.p50],
+    ["5th pct", row.p5],
+  ];
+  return (
+    <div style={chartTooltipStyle}>
+      <div style={{ fontSize: 10, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 6 }}>
+        Day {label}
+      </div>
+      {rows.map(([k, v]) => (
+        <div key={k} style={{ display: "flex", justifyContent: "space-between", gap: 24, fontSize: 11 }}>
+          <span style={{ color: "var(--text-muted)" }}>{k}</span>
+          <span style={{ color: "var(--text-primary)", fontWeight: 600 }}>{money0(v)}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 function NumberField({ label, value, onChange, step = 1 }: { label: string; value: number; onChange: (v: number) => void; step?: number }) {
   return (
@@ -95,13 +142,44 @@ export default function PropFirmPanel({ trades, activeAccount }: { trades: Trade
   const set = <K extends keyof ChallengeConfig>(key: K, value: ChallengeConfig[K]) =>
     setConfig((c) => ({ ...c, [key]: value }));
 
+  // 5000 paths is too much work to run on every keystroke, so the simulation
+  // trails the rule inputs by a beat while the cheap single replay stays live.
+  const [simConfig, setSimConfig] = useState<ChallengeConfig>(config);
+  useEffect(() => {
+    const id = setTimeout(() => setSimConfig(config), 250);
+    return () => clearTimeout(id);
+  }, [config]);
+
   const status = useMemo(() => challengeStatus(trades, config), [trades, config]);
-  const sim    = useMemo(() => simulateChallenge(trades, config, 1500), [trades, config]);
+  const sim    = useMemo(
+    () => simulateChallenge(trades, simConfig, 5000, activeAccount?.initialBalance ?? 0),
+    [trades, simConfig, activeAccount?.initialBalance],
+  );
   const plan   = useMemo(() => challengePlan(trades, config), [trades, config]);
   const roi    = useMemo(() => challengeROI(config, sim.passRate), [config, sim.passRate]);
 
   const money = (v: number) => `${v < 0 ? "-" : ""}$${Math.abs(v).toLocaleString("en-US", { maximumFractionDigits: 2 })}`;
   const pct1  = (v: number) => `${v.toFixed(1)}%`;
+
+  // One row per day. Every sampled path contributes a key so the fan can draw
+  // them as individual lines, and terminated paths carry their last balance
+  // forward to keep the chart flat rather than ending early.
+  const chartData = useMemo(() => {
+    if (sim.band.length === 0) return [];
+    return sim.band.map((b) => {
+      const row: Record<string, number> = {
+        day: b.day, bandBase: b.bandBase, bandWidth: b.bandWidth,
+        p5: b.p5, p50: b.p50, p95: b.p95,
+      };
+      sim.paths.forEach((p, i) => {
+        row[`p${i}`] = p.series[Math.min(b.day, p.series.length - 1)];
+      });
+      return row;
+    });
+  }, [sim]);
+
+  const targetBalance = config.accountSize + (config.accountSize * config.targetPct) / 100;
+  const passCount = sim.daysToPass.reduce((s, b) => s + b.count, 0);
 
   const outcomes = [
     { label: "Pass",              value: sim.passRate,        color: "#00e57a" },
@@ -225,7 +303,14 @@ export default function PropFirmPanel({ trades, activeAccount }: { trades: Trade
         </div>
       </SectionCard>
 
-      <SectionCard title="Passing Probability" subtitle="Bootstrap simulation: your trades resampled into thousands of alternate paths, each walked through the rules above.">
+      <SectionCard title="Passing Probability" subtitle="Bootstrap simulation: your trades resampled into 5,000 alternate paths, each walked through the rules above.">
+        {sim.scaled && (
+          <div style={{ background: "rgba(77,159,255,0.08)", border: "1px solid rgba(77,159,255,0.25)", borderRadius: "10px", padding: "10px 14px", marginBottom: "16px" }}>
+            <p style={{ fontSize: "12px", color: "#4d9fff", margin: 0, lineHeight: 1.6 }}>
+              Trade P&amp;L is scaled ×{sim.scale.toFixed(2)} from your {money(activeAccount?.initialBalance ?? 0)} account onto the {money(config.accountSize)} challenge.
+            </p>
+          </div>
+        )}
         {sim.tooFew && (
           <div style={{ background: "rgba(251,191,36,0.1)", border: "1px solid rgba(251,191,36,0.3)", borderRadius: "10px", padding: "12px 14px", marginBottom: "16px" }}>
             <p style={{ fontSize: "12px", color: "#fbbf24", margin: 0, lineHeight: 1.6 }}>
@@ -265,6 +350,79 @@ export default function PropFirmPanel({ trades, activeAccount }: { trades: Trade
         <p style={{ fontSize: "11px", color: "var(--text-muted)", lineHeight: 1.6, marginTop: "14px", marginBottom: 0 }}>
           Intraday drawdown is approximated from closed trades. A trailing or equity-based firm can breach on a position that was never closed at the low, which this model cannot see.
         </p>
+      </SectionCard>
+
+      <SectionCard
+        title="Possible Paths to Funded"
+        subtitle={`${sim.runs.toLocaleString()} simulated attempts, drawn as a percentile fan with a sample of ${sim.paths.length} individual paths. The dashed line is the profit target.`}
+      >
+        {chartData.length === 0 ? (
+          <p style={{ fontSize: "12px", color: "var(--text-muted)" }}>Import trades to generate paths.</p>
+        ) : (
+          <>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "14px", marginBottom: "10px" }}>
+              {[
+                { label: "Pass", color: PATH_COLORS.pass },
+                { label: "Fail", color: PATH_COLORS.daily },
+                { label: "Timeout", color: PATH_COLORS.timeout },
+                { label: "Consistency", color: PATH_COLORS.consistency },
+                { label: "5–95% band", color: "rgba(77,159,255,0.35)" },
+                { label: "Median", color: "#4d9fff" },
+              ].map((l) => (
+                <span key={l.label} style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "11px", color: "var(--text-muted)" }}>
+                  <span style={{ width: "10px", height: "10px", borderRadius: "3px", background: l.color }} />
+                  {l.label}
+                </span>
+              ))}
+            </div>
+
+            <ResponsiveContainer width="100%" height={320}>
+              <ComposedChart data={chartData} margin={{ top: 8, right: 16, bottom: 4, left: 4 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+                <XAxis dataKey="day" tick={axisStyle} axisLine={false} tickLine={false} tickFormatter={(d) => `D${d}`} />
+                <YAxis domain={["auto", "auto"]} tick={axisStyle} axisLine={false} tickLine={false} tickFormatter={(v) => money0(Number(v))} width={64} />
+                <Tooltip content={PathTooltip} />
+                <Area type="monotone" dataKey="bandBase" stackId="band" stroke="none" fill="transparent" isAnimationActive={false} />
+                <Area type="monotone" dataKey="bandWidth" stackId="band" stroke="none" fill="#4d9fff" fillOpacity={0.16} isAnimationActive={false} />
+                {sim.paths.map((p, i) => (
+                  <Line
+                    key={i}
+                    type="monotone"
+                    dataKey={`p${i}`}
+                    stroke={PATH_COLORS[p.outcome]}
+                    strokeOpacity={0.18}
+                    strokeWidth={1}
+                    dot={false}
+                    activeDot={false}
+                    isAnimationActive={false}
+                  />
+                ))}
+                <Line type="monotone" dataKey="p50" stroke="#4d9fff" strokeWidth={2} dot={false} activeDot={false} isAnimationActive={false} />
+                <ReferenceLine
+                  y={targetBalance}
+                  stroke="#00e57a"
+                  strokeDasharray="6 4"
+                  label={{ value: "Target", position: "insideTopRight", fill: "#00e57a", fontSize: 10 }}
+                />
+              </ComposedChart>
+            </ResponsiveContainer>
+
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: "10px", marginTop: "16px" }}>
+              {sim.daysToPass.map((b) => (
+                <div key={b.label} style={{ background: "var(--bg-secondary)", borderRadius: "10px", padding: "10px 12px" }}>
+                  <div style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "4px" }}>{b.label} days</div>
+                  <div style={{ fontSize: "15px", fontWeight: "700", color: "var(--text-primary)" }}>{b.count.toLocaleString()}</div>
+                  <div style={{ fontSize: "10px", color: "var(--text-muted)" }}>
+                    {passCount > 0 ? `${((b.count / passCount) * 100).toFixed(0)}% of passes` : "—"}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <p style={{ fontSize: "11px", color: "var(--text-muted)", lineHeight: 1.6, marginTop: "12px", marginBottom: 0 }}>
+              The band shows where 90% of attempts sit day by day. Paths that fail flatten at their loss; paths that pass flatten at the target, so the fan separates rather than converging.
+            </p>
+          </>
+        )}
       </SectionCard>
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px" }}>

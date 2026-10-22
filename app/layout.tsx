@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Script from "next/script";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -19,7 +20,10 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        <script dangerouslySetInnerHTML={{
+        {/* beforeInteractive so the script is injected by Next.js outside the
+            React tree — a raw <script> here triggers React's script-tag warning
+            and, because it mutates <html> before hydration, a mismatch. */}
+        <Script id="theme-init" strategy="beforeInteractive" dangerouslySetInnerHTML={{
           __html: `
             try {
               var s = localStorage.getItem('quantedge_settings');

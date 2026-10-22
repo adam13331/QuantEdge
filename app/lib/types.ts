@@ -22,6 +22,7 @@ export interface Trade {
   durationMin?: number;
   mae?: number;
   mfe?: number;
+  postCloseMfe?: number;
   exitReason?: string;
   magic?: number;
   legs?: number;
@@ -98,7 +99,6 @@ export type PageId =
   | "dashboard"
   | "journal"
   | "journal-editor"
-  | "analytics"
   | "calendar"
   | "propfirm"
   | "import"

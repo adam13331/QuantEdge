@@ -8,7 +8,7 @@ const QUANTEDGE_COLUMNS = [
   "Expiry", "Quantity", "Entry Price", "Exit Price", "Commission", "Fees",
   "P&L", "Status", "Entry Time", "Exit Time", "R:R", "Tags", "Journal",
   "Account ID", "Ticket", "Planned Risk", "Duration (min)", "MAE", "MFE",
-  "Exit Reason", "Magic", "Legs", "Averaged Down", "Balance After",
+  "Post Close MFE", "Exit Reason", "Magic", "Legs", "Averaged Down", "Balance After",
 ] as const;
 
 const QUANTEDGE_HEADER = QUANTEDGE_COLUMNS.join(",");
@@ -115,6 +115,7 @@ export function parseMetaTraderCSV(csvText: string): Trade[] {
     duration:   at("Duration (min)"),
     mae:        at("MAE"),
     mfe:        at("MFE"),
+    postCloseMfe: at("Post Close MFE"),
     exitReason: at("Exit Reason"),
     magic:      at("Magic"),
     legs:       at("Legs"),
@@ -150,6 +151,7 @@ export function parseMetaTraderCSV(csvText: string): Trade[] {
     const duration    = get(cols, idx.duration);
     const mae         = get(cols, idx.mae);
     const mfe         = get(cols, idx.mfe);
+    const postCloseMfe = get(cols, idx.postCloseMfe);
     const exitReason  = get(cols, idx.exitReason);
     const magic       = get(cols, idx.magic);
     const legs        = get(cols, idx.legs);
@@ -164,6 +166,7 @@ export function parseMetaTraderCSV(csvText: string): Trade[] {
     const parsedDur   = duration ? parseFloat(duration) : undefined;
     const parsedMae   = mae ? parseFloat(mae) : undefined;
     const parsedMfe   = mfe ? parseFloat(mfe) : undefined;
+    const parsedPostCloseMfe = postCloseMfe ? parseFloat(postCloseMfe) : undefined;
     const parsedMagic = magic ? parseInt(magic, 10) : undefined;
     const parsedLegs  = legs ? parseInt(legs, 10) : undefined;
     const parsedBal   = balance ? parseFloat(balance) : undefined;
@@ -207,6 +210,7 @@ export function parseMetaTraderCSV(csvText: string): Trade[] {
       ...(parsedDur !== undefined && !isNaN(parsedDur) && { durationMin: parsedDur }),
       ...(parsedMae !== undefined && !isNaN(parsedMae) && { mae: parsedMae }),
       ...(parsedMfe !== undefined && !isNaN(parsedMfe) && { mfe: parsedMfe }),
+      ...(parsedPostCloseMfe !== undefined && !isNaN(parsedPostCloseMfe) && { postCloseMfe: parsedPostCloseMfe }),
       ...(exitReason && { exitReason }),
       ...(parsedMagic !== undefined && !isNaN(parsedMagic) && { magic: parsedMagic }),
       ...(parsedLegs !== undefined && !isNaN(parsedLegs) && { legs: parsedLegs }),

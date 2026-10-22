@@ -57,6 +57,17 @@ export function expectancy(wins: Trade[], losses: Trade[]): number {
   return wr * avgW - lr * avgL;
 }
 
+// Profit factor is gross profit divided by gross loss, not the payoff ratio
+// (average win / average loss). A book can lose more per trade than it wins and
+// still be profitable if it wins often enough, so the two ratios must stay
+// separate. Null means no losing trades rather than an invented ceiling.
+export function profitFactor(wins: Trade[], losses: Trade[]): number | null {
+  const grossWins = wins.reduce((s, t) => s + t.pnl, 0);
+  const grossLosses = Math.abs(losses.reduce((s, t) => s + t.pnl, 0));
+  if (grossLosses === 0) return grossWins > 0 ? null : 0;
+  return parseFloat((grossWins / grossLosses).toFixed(2));
+}
+
 export function drawdownStats(sortedTrades: Trade[], initialBalance: number) {
   let equity = initialBalance;
   let peak = equity;
@@ -137,7 +148,7 @@ export function rollingWinRate(trades: Trade[], window = 20): { trade: number; w
     });
 }
 
-export function byDayOfWeek(trades: Trade[]): { day: string; pnl: number; count: number; wr: number }[] {
+export function byDayOfWeek(trades: Trade[], weekStart: "sunday" | "monday" = "monday"): { day: string; pnl: number; count: number; wr: number }[] {
   const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
   const map: Record<number, { pnl: number; count: number; wins: number }> = {};
   for (const t of trades) {
@@ -147,12 +158,32 @@ export function byDayOfWeek(trades: Trade[]): { day: string; pnl: number; count:
     map[d].count += 1;
     if (t.status === "win") map[d].wins += 1;
   }
-  return [1, 2, 3, 4, 5].map((d) => ({
+  // Five sessions, running from whichever day the trader calls the week's
+  // start. A Sunday start therefore profiles Sun-Thu, which is the week a
+  // crypto or futures desk actually trades.
+  const first = weekStart === "monday" ? 1 : 0;
+  const session = [0, 1, 2, 3, 4].map((i) => (first + i) % 7);
+  return session.map((d) => ({
     day: days[d],
     pnl: parseFloat((map[d]?.pnl || 0).toFixed(2)),
     count: map[d]?.count || 0,
     wr: map[d]?.count ? Math.round((map[d].wins / map[d].count) * 100) : 0,
   }));
+}
+
+// Calendar grids and weekly bucketing both need "how many days precede this
+// one". Kept here so the calendar header order and its leading blanks can never
+// disagree the way two hardcoded literals silently did.
+export function leadingBlanks(date: Date, weekStart: "sunday" | "monday"): number {
+  const dow = date.getDay();
+  return weekStart === "monday" ? (dow + 6) % 7 : dow;
+}
+
+// Weekday headers rotated to the configured start. Index 0 is the first column.
+export function weekdayHeaders(weekStart: "sunday" | "monday"): string[] {
+  const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  const offset = weekStart === "monday" ? 1 : 0;
+  return [...days.slice(offset), ...days.slice(0, offset)];
 }
 
 export interface HourBucket {
@@ -856,6 +887,22 @@ export function challengeStatus(trades: Trade[], config: ChallengeConfig): Chall
   };
 }
 
+export type ChallengeOutcome = "pass" | "daily" | "dd" | "timeout" | "consistency";
+
+export interface ChallengeSimPath {
+  outcome: ChallengeOutcome;
+  series: number[]; // balance at the end of each day; index 0 = starting size
+}
+
+export interface ChallengeSimBandPoint {
+  day: number;
+  p5: number;
+  p50: number;
+  p95: number;
+  bandBase: number;  // p5, the invisible base of a stacked range area
+  bandWidth: number; // p95 - p5, the visible band
+}
+
 export interface ChallengeSim {
   runs: number;
   passRate: number;       // clean passes (consistency rule respected)
@@ -868,23 +915,48 @@ export interface ChallengeSim {
   sampleDays: number;
   sampleTrades: number;
   tooFew: boolean;
+
+  paths: ChallengeSimPath[];                  // a sample of attempts for the spaghetti overlay
+  band: ChallengeSimBandPoint[];              // percentile envelope across all attempts
+  daysToPass: { label: string; count: number }[];
+  horizonDays: number;                        // last day any attempt was still alive
+  scaled: boolean;                            // whether P&L was rescaled to the challenge size
+  scale: number;
 }
+
+const SIM_DAY_BUCKETS: { label: string; test: (d: number) => boolean }[] = [
+  { label: "1–3",   test: (d) => d <= 3 },
+  { label: "4–7",   test: (d) => d >= 4 && d <= 7 },
+  { label: "8–14",  test: (d) => d >= 8 && d <= 14 },
+  { label: "15–30", test: (d) => d >= 15 && d <= 30 },
+  { label: "31+",   test: (d) => d > 30 },
+];
 
 // Bootstrap Monte Carlo: resample the trader's own trades, day by day, and
 // walk the balance through the firm's rules. This is the only honest way to
 // answer "pass rate" — a closed-form win-rate x R:R figure ignores the daily
 // and drawdown rules that actually end most evaluations.
+//
+// `accountBalance` rescales the account's own dollar P&L onto the challenge
+// account size, so a $10k book can be evaluated against a $100k challenge.
+// Paths are kept and returned as percentile bands plus a sample, which is what
+// the Prop Firm tab draws as a fan.
 export function simulateChallenge(
   trades: Trade[],
   config: ChallengeConfig,
   runs = 2000,
+  accountBalance = 0,
 ): ChallengeSim {
   const size = Math.max(config.accountSize, 0);
   const targetAmount = (size * config.targetPct) / 100;
   const ddAllowed    = (size * config.maxDdPct) / 100;
   const dailyAllowed = (size * config.dailyLimitPct) / 100;
 
-  const pool = trades.map((t) => t.pnl).filter((v) => Number.isFinite(v));
+  // Size ratio, not raw dollars: the challenge account is separate money.
+  const scale = accountBalance > 0 ? size / accountBalance : 1;
+  const pool = trades
+    .map((t) => t.pnl * scale)
+    .filter((v) => Number.isFinite(v));
   const perDay = new Map<string, number>();
   for (const t of trades) perDay.set(normalizeDate(t.date), (perDay.get(normalizeDate(t.date)) ?? 0) + 1);
   const daySizes = Array.from(perDay.values());
@@ -897,6 +969,8 @@ export function simulateChallenge(
   const empty: ChallengeSim = {
     runs: 0, passRate: 0, passRateRaw: 0, failDaily: 0, failDrawdown: 0,
     timeout: 0, consistencyFail: 0, medianDaysToPass: null, sampleDays, sampleTrades, tooFew: true,
+    paths: [], band: [], daysToPass: SIM_DAY_BUCKETS.map((b) => ({ label: b.label, count: 0 })),
+    horizonDays: 0, scaled: scale !== 1, scale,
   };
   if (sampleTrades === 0 || size <= 0 || targetAmount <= 0) return empty;
 
@@ -905,11 +979,16 @@ export function simulateChallenge(
 
   let pass = 0, failDaily = 0, failDd = 0, timeout = 0, consFail = 0;
   const passDays: number[] = [];
+  const dayBucketCounts = SIM_DAY_BUCKETS.map(() => 0);
+  const allSeries: number[][] = [];
+  const sampleEvery = Math.max(1, Math.ceil(runs / 60));
+  const paths: ChallengeSimPath[] = [];
 
   for (let r = 0; r < runs; r++) {
     let bal = size, peak = size, biggestDay = 0;
-    let outcome: "pass" | "daily" | "dd" | "timeout" | null = null;
+    let outcome: ChallengeOutcome | null = null;
     let daysRun = 0;
+    const series: number[] = [size];
 
     while (outcome === null) {
       daysRun++;
@@ -929,20 +1008,37 @@ export function simulateChallenge(
         const ref = config.ddMode === "trailing" ? peak : size;
         if (ddAllowed > 0 && ref - bal >= ddAllowed) { outcome = "dd"; break; }
         if (dailyAllowed > 0 && dayStart - bal >= dailyAllowed) { outcome = "daily"; break; }
-        if (bal - size >= targetAmount) { outcome = "pass"; break; }
+        if (targetAmount > 0 && bal - size >= targetAmount) {
+          // Minimum trading days gate the pass: a target hit on day 2 of a
+          // 4-day rule does not fund the account yet. Either way there is no
+          // reason to keep trading today once the target is reached.
+          if (daysRun >= config.minDays) {
+            const profit = bal - size;
+            const biggest = Math.max(biggestDay, dayPnl);
+            outcome = config.consistencyPct != null
+              && biggest > (config.consistencyPct / 100) * profit
+              ? "consistency"
+              : "pass";
+          }
+          break;
+        }
       }
       if (dayPnl > biggestDay) biggestDay = dayPnl;
+      series.push(bal);
+    }
+
+    allSeries.push(series);
+    if (r % sampleEvery === 0 && paths.length < 60) {
+      paths.push({ outcome: outcome as ChallengeOutcome, series });
     }
 
     if (outcome === "pass") {
-      const totalProfit = bal - size;
-      if (config.consistencyPct != null && biggestDay > (config.consistencyPct / 100) * totalProfit) {
-        consFail++;
-      } else {
-        pass++;
-        passDays.push(daysRun);
-      }
-    } else if (outcome === "daily") failDaily++;
+      pass++;
+      passDays.push(daysRun);
+      const bi = SIM_DAY_BUCKETS.findIndex((b) => b.test(daysRun));
+      if (bi >= 0) dayBucketCounts[bi]++;
+    } else if (outcome === "consistency") consFail++;
+    else if (outcome === "daily") failDaily++;
     else if (outcome === "dd") failDd++;
     else timeout++;
   }
@@ -951,6 +1047,25 @@ export function simulateChallenge(
   const medianDaysToPass = passDays.length > 0
     ? passDays[Math.floor(passDays.length / 2)]
     : null;
+
+  // Percentile envelope across every attempt. Terminated paths carry their
+  // final balance forward, so the band shows the whole distribution (failures
+  // flatline low, passes flatline high) rather than only the survivors.
+  const horizonDays = allSeries.reduce((m, s) => Math.max(m, s.length - 1), 0);
+  const pick = (sorted: number[], p: number) =>
+    sorted[Math.min(sorted.length - 1, Math.floor(p * (sorted.length - 1)))];
+  const band: ChallengeSimBandPoint[] = [];
+  for (let d = 0; d <= horizonDays; d++) {
+    const vals = allSeries.map((s) => s[Math.min(d, s.length - 1)]).sort((a, b) => a - b);
+    const p5 = pick(vals, 0.05);
+    const p50 = pick(vals, 0.5);
+    const p95 = pick(vals, 0.95);
+    band.push({
+      day: d,
+      p5: ROUND2(p5), p50: ROUND2(p50), p95: ROUND2(p95),
+      bandBase: ROUND2(p5), bandWidth: ROUND2(p95 - p5),
+    });
+  }
 
   return {
     runs,
@@ -964,6 +1079,12 @@ export function simulateChallenge(
     sampleDays,
     sampleTrades,
     tooFew,
+    paths,
+    band,
+    daysToPass: SIM_DAY_BUCKETS.map((b, i) => ({ label: b.label, count: dayBucketCounts[i] })),
+    horizonDays,
+    scaled: scale !== 1,
+    scale,
   };
 }
 
@@ -1092,6 +1213,10 @@ export interface ReportStats {  trades: Trade[];
   entryEff: number;
   exitEff: number;
 
+  avgPostCloseMfe: number;
+  avgLeftOnTable: number;
+  captureRate: number;
+
   hourData: HourBucket[];
   dowData: { day: string; pnl: number; count: number; wr: number }[];
   instruments: InstrumentRow[];
@@ -1104,7 +1229,11 @@ export interface ReportStats {  trades: Trade[];
 
 // Everything the PDF report renders, computed once. `initialBalance` is the
 // account's starting balance and drives return %, risk % and drawdown.
-export function buildReportStats(trades: Trade[], initialBalance: number): ReportStats {
+export function buildReportStats(
+  trades: Trade[],
+  initialBalance: number,
+  weekStart: "sunday" | "monday" = "monday",
+): ReportStats {
   const sorted = [...trades].sort((a, b) => normalizeDate(a.date).localeCompare(normalizeDate(b.date)));
   const wins   = trades.filter((t) => t.status === "win");
   const losses = trades.filter((t) => t.status === "loss");
@@ -1162,12 +1291,36 @@ export function buildReportStats(trades: Trade[], initialBalance: number): Repor
     ? winsWithMfe.reduce((s, t) => s + Math.min(100, (t.pnl / t.mfe!) * 100), 0) / winsWithMfe.length
     : 0;
 
+  // Post-close run: how far price kept moving in favour after the position was
+  // closed. LeftOnTable is the extra available after the hold beyond MFE;
+  // CaptureRate is how much of the best possible move (during or after hold)
+  // the trader actually banked on winning trades.
+  const pcTrades = trades.filter((t) => t.postCloseMfe != null);
+  const avgPostCloseMfe = pcTrades.length > 0
+    ? pcTrades.reduce((s, t) => s + (t.postCloseMfe as number), 0) / pcTrades.length
+    : 0;
+  const leftOnTableVals = pcTrades
+    .filter((t) => t.mfe != null)
+    .map((t) => Math.max(0, (t.postCloseMfe as number) - (t.mfe as number)));
+  const avgLeftOnTable = leftOnTableVals.length > 0
+    ? leftOnTableVals.reduce((s, v) => s + v, 0) / leftOnTableVals.length
+    : 0;
+  const captureVals = pcTrades
+    .filter((t) => t.status === "win" && t.mfe != null && t.postCloseMfe != null)
+    .map((t) => {
+      const best = Math.max(t.mfe as number, t.postCloseMfe as number);
+      return best > 0 ? Math.min(100, (t.pnl / best) * 100) : 0;
+    });
+  const captureRate = captureVals.length > 0
+    ? captureVals.reduce((s, v) => s + v, 0) / captureVals.length
+    : 0;
+
   const s = streaks(trades);
 
   return {
     trades, sorted, wins, losses,
     totalPnl, winRate, avgWin, avgLoss,
-    profitFactor: avgLoss > 0 ? parseFloat((avgWin / avgLoss).toFixed(2)) : null,
+    profitFactor: profitFactor(wins, losses),
     tradingDays,
 
     returnPct, totalHours, hourlyRate,
@@ -1193,9 +1346,10 @@ export function buildReportStats(trades: Trade[], initialBalance: number): Repor
 
     execCoverage: execTrades.length,
     avgMae, avgMfe, entryEff, exitEff,
+    avgPostCloseMfe, avgLeftOnTable, captureRate,
 
     hourData: byHourOfDay(trades),
-    dowData: byDayOfWeek(trades),
+    dowData: byDayOfWeek(trades, weekStart),
     instruments: byInstrument(trades),
 
     maxWinStreak: s.maxWinStreak,

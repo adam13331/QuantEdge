@@ -2,6 +2,7 @@
 import { useState, useMemo, useEffect } from "react";
 import dynamic from "next/dynamic";
 import { useApp } from "../context/AppContext";
+import { useSettings } from "../hooks/useSettings";
 import {
   buildReportStats, ReportStats,
   DEFAULT_CHALLENGE, ChallengeConfig,
@@ -327,7 +328,7 @@ function LivePreview({ stats, options, challenge }: { stats: ReportStats; option
             { label: "Net P&L", value: money(stats.totalPnl), color: stats.totalPnl >= 0 ? green : red },
             { label: "Return", value: stats.returnPct === null ? "—" : `${stats.returnPct >= 0 ? "+" : ""}${stats.returnPct.toFixed(2)}%`, color: (stats.returnPct ?? 0) >= 0 ? green : red },
             { label: "Win Rate", value: `${stats.winRate}%` },
-            { label: "Avg R:R", value: stats.avgRR === null ? "—" : `${stats.avgRR.toFixed(2)}R` },
+            { label: "Avg Realised R", value: stats.avgRR === null ? "—" : `${stats.avgRR >= 0 ? "+" : ""}${stats.avgRR.toFixed(2)}R`, color: stats.avgRR === null ? undefined : stats.avgRR > 0 ? green : red },
             { label: "Expectancy", value: money(stats.expectancyDollars), color: stats.expectancyDollars >= 0 ? green : red },
             { label: "$/Hour", value: stats.hourlyRate === null ? "—" : `$${stats.hourlyRate.toFixed(2)}` },
           ])}
@@ -512,6 +513,7 @@ function LivePreview({ stats, options, challenge }: { stats: ReportStats; option
 // Main Export Page
 export default function ExportPage() {
   const { trades, activeAccount } = useApp();
+  const { settings } = useSettings();
 
   const [options, setOptions] = useState<ReportOptions>({
     dateFrom: "", dateTo: "",
@@ -565,8 +567,8 @@ export default function ExportPage() {
 
   // Same maths the PDF and the Analytics tab use, so the preview matches the file.
   const reportStats = useMemo(
-    () => buildReportStats(filteredTrades, activeAccount?.initialBalance ?? 0),
-    [filteredTrades, activeAccount]
+    () => buildReportStats(filteredTrades, activeAccount?.initialBalance ?? 0, settings.weekStart),
+    [filteredTrades, activeAccount, settings.weekStart]
   );
 
   const set = <K extends keyof ReportOptions>(key: K, val: ReportOptions[K]) =>
@@ -762,6 +764,7 @@ export default function ExportPage() {
           trades={filteredTrades}
           account={activeAccount}
           challenge={challenge}
+          weekStart={settings.weekStart}
           options={options}
           filename={filename}
         />

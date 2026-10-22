@@ -1,6 +1,6 @@
 "use client";
 import {
-  LayoutDashboard, BookOpen, BarChart2, Calendar,
+  LayoutDashboard, BookOpen, Calendar,
   Upload, PlusCircle, Settings, Wallet, ChevronDown,
   FileDown, ClipboardList, Library, Shield,
 } from "lucide-react";
@@ -12,7 +12,6 @@ import { useState } from "react";
 const NAV_ITEMS: { icon: any; label: string; id: PageId }[] = [
   { icon: LayoutDashboard,   label: "Dashboard",    id: "dashboard"      },
   { icon: BookOpen,          label: "Journal",       id: "journal"        },
-  { icon: BarChart2,         label: "Analytics",     id: "analytics"      },
   { icon: Calendar,          label: "Calendar",      id: "calendar"       },
   { icon: Shield,            label: "Prop Firm",     id: "propfirm"       },
   { icon: ClipboardList,     label: "Trade Plans",   id: "plans"          },

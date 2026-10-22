@@ -2,13 +2,15 @@
 import { useState, useEffect, useRef } from "react";
 import { ChevronLeft, ChevronRight, X, TrendingUp, TrendingDown, Calendar, BarChart2 } from "lucide-react";
 import { useApp } from "../context/AppContext";
+import { useSettings } from "../hooks/useSettings";
+import { leadingBlanks, weekdayHeaders } from "../lib/analytics";
 import { Trade } from "../lib/types";
 
 const MONTHS = [
   "January", "February", "March", "April", "May", "June",
   "July", "August", "September", "October", "November", "December",
 ];
-const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
 
 const WIN_COLOR   = "#00e57a";
 const LOSS_COLOR  = "#ff4d6a";
@@ -28,11 +30,17 @@ function normalizeDate(dateStr: string): string {
 
 export default function CalendarPage() {
   const { trades, setSelectedTrade, activeAccount } = useApp();
+  const { settings } = useSettings();
   const today = new Date();
 
   const [currentMonth, setCurrentMonth] = useState(today.getMonth());
   const [currentYear,  setCurrentYear]  = useState(today.getFullYear());
   const [selectedDay,  setSelectedDay]  = useState<string | null>(null);
+
+  // Header order and the leading-blank count derive from the same setting, so
+  // the columns and the dates underneath can never drift apart.
+  const days  = weekdayHeaders(settings.weekStart);
+  const firstDayOfMonth = new Date(currentYear, currentMonth, 1);
 
   // Use a ref to track whether we've snapped yet — avoids stale state issues
   const hasSnapped = useRef(false);
@@ -80,7 +88,7 @@ export default function CalendarPage() {
     return pct === null ? "—" : `${pct >= 0 ? "+" : ""}${pct.toFixed(2)}%`;
   };
 
-  const firstDay    = new Date(currentYear, currentMonth, 1).getDay();
+  const firstDay    = leadingBlanks(firstDayOfMonth, settings.weekStart);
   const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
 
   const prevMonth = () => {
@@ -193,7 +201,7 @@ export default function CalendarPage() {
       {/* Calendar Grid */}
       <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: "16px", overflow: "hidden" }}>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", borderBottom: "1px solid var(--border)" }}>
-          {DAYS.map((day) => (
+          {days.map((day) => (
             <div key={day} style={{
               padding: "12px", textAlign: "center",
               fontSize: "11px", fontWeight: "600", color: "var(--text-muted)", letterSpacing: "0.5px",

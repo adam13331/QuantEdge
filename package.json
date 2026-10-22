@@ -44,5 +44,10 @@
     "eslint": "^9",
     "eslint-config-next": "16.1.6",
     "typescript": "^5"
+  },
+  "allowScripts": {
+    "prisma@5.22.0": true,
+    "@prisma/client@5.22.0": true,
+    "@prisma/engines@5.22.0": true
   }
 }

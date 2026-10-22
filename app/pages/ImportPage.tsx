@@ -1,11 +1,11 @@
 "use client";
-import { useState, useRef } from "react";
-import { useApp } from "../context/AppContext";
+import { useState, useRef, useMemo } from "react";
+import { useApp, isPortfolio } from "../context/AppContext";
 import { Trade } from "../lib/types";
 import { parseMetaTraderCSV, isMetaTraderCSV, firstLine } from "../lib/parseMetaTraderCSV";
 import {
   Upload, CheckCircle, AlertCircle, FileText,
-  ArrowRight, X, Database, RefreshCw,
+  ArrowRight, X, Database, RefreshCw, ChevronDown,
 } from "lucide-react";
 
 type ParseStatus = "idle" | "success" | "error" | "importing";
@@ -50,7 +50,7 @@ const FORMAT_CARD = {
 };
 
 export default function ImportPage() {
-  const { activeAccount, reloadTrades, setActivePage } = useApp();
+  const { accounts, activeAccount, setActiveAccount, allTrades, reloadTrades, setActivePage } = useApp();
   const fileRef = useRef<HTMLInputElement>(null);
 
   const [dragging, setDragging] = useState(false);
@@ -59,11 +59,38 @@ export default function ImportPage() {
   const [result,   setResult]   = useState<ParseResult | null>(null);
   const [fileName, setFileName] = useState("");
 
+  // The confirm dialog owns the target account. It starts on whatever is
+  // active, but the whole point of the dialog is that the ambient selection is
+  // the thing most likely to be wrong.
+  const [confirming, setConfirming]     = useState(false);
+  const [targetId, setTargetId]         = useState<string>("");
+
+  // Portfolio aggregates the others; trades stamped to it belong to no real
+  // account, so it is never a valid import target.
+  const targetable = accounts.filter((a) => !isPortfolio(a));
+
+  const openConfirm = () => {
+    setTargetId(isPortfolio(activeAccount) ? (targetable[0]?.id ?? "") : (activeAccount?.id ?? ""));
+    setConfirming(true);
+  };
+
+  const targetAccount = targetable.find((a) => a.id === targetId) || null;
+
+  // Tickets already present in a *different* account. Re-importing the same
+  // file over the same account is a harmless upsert, but the same file landing
+  // elsewhere is the signature of an import that went to the wrong account.
+  const misfiled = useMemo(() => {
+    if (!result || !targetId) return [];
+    const incoming = new Set(result.trades.map((r) => r.id));
+    return allTrades.filter((t) => incoming.has(t.id) && t.accountId !== targetId);
+  }, [result, targetId, allTrades]);
+
   const reset = () => {
     setStatus("idle");
     setMessage("");
     setResult(null);
     setFileName("");
+    setConfirming(false);
     if (fileRef.current) fileRef.current.value = "";
   };
 
@@ -106,14 +133,18 @@ export default function ImportPage() {
 
   const handleConfirm = async () => {
     if (!result) return;
+    setConfirming(false);
     setStatus("importing");
     try {
       const res = await fetch("/api/trades", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ trades: result.trades, accountId: activeAccount?.id || null }),
+        body: JSON.stringify({ trades: result.trades, accountId: targetId || null }),
       });
       if (!res.ok) throw new Error("API error");
+      // Land the user on the account they actually imported into, otherwise the
+      // dashboard still shows the account they picked by mistake.
+      if (targetAccount) setActiveAccount(targetAccount);
       await reloadTrades();
       setActivePage("dashboard");
     } catch {
@@ -130,9 +161,9 @@ export default function ImportPage() {
           Import Trades
         </h2>
         <p style={{ color: "#a8a8c8", fontSize: "14px", marginTop: "4px" }}>
-          {activeAccount
-            ? `Importing into: ${activeAccount.name} (${activeAccount.platform})`
-            : "No account selected — trades will be unlinked"}
+          {targetable.length > 0
+            ? "You'll confirm which account these trades belong to before anything is saved"
+            : "No trading account yet — create one first so equity is tracked"}
         </p>
       </div>
 
@@ -251,15 +282,7 @@ export default function ImportPage() {
         }}>
           <div style={{ fontSize: "13px", color: "#a8a8c8" }}>
             <span style={{ color: "var(--accent-green)", fontWeight: "700" }}>{result.count} trades</span>
-            {" "}will be added to{" "}
-            <span style={{ color: "#f0f0ff", fontWeight: "600" }}>
-              {activeAccount?.name || "no account"}
-            </span>
-            {!activeAccount && (
-              <span style={{ color: "#fb923c", marginLeft: "8px", fontSize: "11px" }}>
-                — create an account first to track equity
-              </span>
-            )}
+            {" "}ready to import — check the target account next
           </div>
           <div style={{ display: "flex", gap: "10px" }}>
             <button
@@ -276,7 +299,7 @@ export default function ImportPage() {
               Cancel
             </button>
             <button
-              onClick={handleConfirm}
+              onClick={openConfirm}
               style={{
                 display: "flex", alignItems: "center", gap: "8px",
                 padding: "9px 20px", borderRadius: "8px",
@@ -285,9 +308,134 @@ export default function ImportPage() {
                 cursor: "pointer", fontFamily: "'DM Sans', sans-serif",
               }}
             >
-              Confirm Import
+              Choose account…
               <ArrowRight size={14} />
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Target account confirmation */}
+      {confirming && result && (
+        <div
+          onClick={() => setConfirming(false)}
+          style={{
+            position: "fixed", inset: 0, zIndex: 200,
+            background: "rgba(0,0,0,0.65)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            padding: "24px",
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: "100%", maxWidth: "460px",
+              background: "var(--bg-card)", border: "1px solid var(--border)",
+              borderRadius: "14px", padding: "24px",
+            }}
+          >
+            <div style={{ fontSize: "16px", fontWeight: "700", color: "var(--text-primary)", marginBottom: "6px" }}>
+              Import into which account?
+            </div>
+            <div style={{ fontSize: "13px", color: "#a8a8c8", lineHeight: "1.5", marginBottom: "18px" }}>
+              {result.count} trade{result.count !== 1 ? "s" : ""} from{" "}
+              <span style={{ color: "#f0f0ff", fontWeight: "600" }}>{fileName}</span>{" "}
+              will be saved under the account you pick here.
+            </div>
+
+            <div style={{ position: "relative", marginBottom: "14px" }}>
+              <select
+                value={targetId}
+                onChange={(e) => setTargetId(e.target.value)}
+                autoFocus
+                style={{
+                  width: "100%", padding: "11px 14px", borderRadius: "8px",
+                  border: "1px solid var(--accent-green)", background: "var(--bg-secondary)",
+                  color: "#f0f0ff", fontSize: "14px", fontWeight: "600",
+                  fontFamily: "'DM Sans', sans-serif",
+                  appearance: "none", WebkitAppearance: "none",
+                  cursor: "pointer", paddingRight: "36px", outline: "none",
+                }}
+              >
+                {targetable.map((a) => (
+                  <option key={a.id} value={a.id}>{a.name} — {a.platform}</option>
+                ))}
+                <option value="">No account (leave unlinked)</option>
+              </select>
+              <ChevronDown
+                size={14} color="#a8a8c8"
+                style={{
+                  position: "absolute", right: "12px", top: "50%", transform: "translateY(-50%)",
+                  pointerEvents: "none",
+                }}
+              />
+            </div>
+
+            {isPortfolio(activeAccount) && targetId && (
+              <div style={{
+                display: "flex", gap: "8px", alignItems: "flex-start",
+                padding: "10px 12px", borderRadius: "8px", marginBottom: "14px",
+                background: "rgba(251,191,36,0.08)", border: "1px solid rgba(251,191,36,0.3)",
+                fontSize: "12px", color: "#fbbf24", lineHeight: "1.5",
+              }}>
+                <AlertCircle size={14} style={{ flexShrink: 0, marginTop: "1px" }} />
+                <span>
+                  Portfolio was selected — it only aggregates the other accounts, so these
+                  trades would not belong to any of them.
+                </span>
+              </div>
+            )}
+
+            {misfiled.length > 0 && (
+              <div style={{
+                display: "flex", gap: "8px", alignItems: "flex-start",
+                padding: "10px 12px", borderRadius: "8px", marginBottom: "14px",
+                background: "rgba(255,77,106,0.08)", border: "1px solid rgba(255,77,106,0.3)",
+                fontSize: "12px", color: "#ff4d6a", lineHeight: "1.5",
+              }}>
+                <AlertCircle size={14} style={{ flexShrink: 0, marginTop: "1px" }} />
+                <span>
+                  {misfiled.length} of these trades already exist under a different account.
+                  Continuing re-assigns them.
+                </span>
+              </div>
+            )}
+
+            {!targetId && (
+              <div style={{
+                padding: "10px 12px", borderRadius: "8px", marginBottom: "14px",
+                background: "rgba(251,146,60,0.08)", border: "1px solid rgba(251,146,60,0.3)",
+                fontSize: "12px", color: "#fb923c", lineHeight: "1.5",
+              }}>
+                These trades will be saved without an account, so equity and analytics
+                will not include them.
+              </div>
+            )}
+
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px" }}>
+              <button
+                onClick={() => setConfirming(false)}
+                style={{
+                  padding: "9px 16px", borderRadius: "8px",
+                  border: "1px solid var(--border)", background: "transparent",
+                  color: "#a8a8c8", fontSize: "13px", cursor: "pointer",
+                  fontFamily: "'DM Sans', sans-serif",
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirm}
+                style={{
+                  padding: "9px 20px", borderRadius: "8px",
+                  border: "none", background: "var(--accent-green)",
+                  color: "#000", fontSize: "13px", fontWeight: "700",
+                  cursor: "pointer", fontFamily: "'DM Sans', sans-serif",
+                }}
+              >
+                Yes, import
+              </button>
+            </div>
           </div>
         </div>
       )}

@@ -7,9 +7,39 @@ interface Tag {
   name: string;
 }
 
+// The single time interval every stats page reads. It lives here rather than
+// in page state so switching tabs cannot reset it: the range is a user
+// selection about the whole journal, not a per-page view option.
+export interface DateRange {
+  from: string;
+  to: string;
+}
+
+const EMPTY_RANGE: DateRange = { from: "", to: "" };
+
+const RANGE_STORAGE_KEY = "quantedge_date_range";
+
+function loadRange(): DateRange {
+  if (typeof window === "undefined") return EMPTY_RANGE;
+  try {
+    const stored = localStorage.getItem(RANGE_STORAGE_KEY);
+    if (!stored) return EMPTY_RANGE;
+    const parsed = JSON.parse(stored);
+    return {
+      from: typeof parsed.from === "string" ? parsed.from : "",
+      to: typeof parsed.to === "string" ? parsed.to : "",
+    };
+  } catch {
+    return EMPTY_RANGE;
+  }
+}
+
 interface AppContextType {
   activePage: PageId;
   setActivePage: (page: PageId) => void;
+  dateRange: DateRange;
+  setDateRange: (range: DateRange) => void;
+  clearDateRange: () => void;
   activeTradeId: string | null;
   setActiveTradeId: (id: string | null) => void;
   trades: Trade[];
@@ -44,13 +74,26 @@ function isPortfolio(account: Account | null): boolean {
 }
 export { isPortfolio };
 
+// The Portfolio balance is derived, never stored as an authored figure: it is
+// always the sum of the trading accounts' balances. Recomputing it here means
+// every consumer (Analytics, Dashboard, PDF) reads the same number, and adding
+// or editing an account can never leave a stale total behind.
+function portfolioBalance(list: Account[]): number {
+  return list
+    .filter((a) => a.id !== PORTFOLIO_ID)
+    .reduce((sum, a) => sum + (Number.isFinite(a.initialBalance) ? a.initialBalance : 0), 0);
+}
+
 // Portfolio always sorts first so it is also the default selection.
 function sortAccounts(list: Account[]): Account[] {
-  return [...list].sort((a, b) => {
-    if (isPortfolio(a)) return -1;
-    if (isPortfolio(b)) return 1;
-    return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
-  });
+  const total = portfolioBalance(list);
+  return [...list]
+    .map((a) => (isPortfolio(a) ? { ...a, initialBalance: total } : a))
+    .sort((a, b) => {
+      if (isPortfolio(a)) return -1;
+      if (isPortfolio(b)) return 1;
+      return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+    });
 }
 
 const AppContext = createContext<AppContextType | null>(null);
@@ -74,6 +117,11 @@ function parsePlaybook(data: Playbook[]): Playbook[] {
 
 export function AppProvider({ children }: { children: ReactNode }) {
   const [activePage, setActivePage]           = useState<PageId>("dashboard");
+  // Start from EMPTY_RANGE so the hydration render matches the server; the
+  // stored range is applied in the effect below. Lazy-reading localStorage
+  // here would produce different input values on the client than the server
+  // rendered, failing hydration.
+  const [dateRange, setDateRangeState]        = useState<DateRange>(EMPTY_RANGE);
   const [activeTradeId, setActiveTradeId]     = useState<string | null>(null);
   const [allTrades, setAllTrades]             = useState<Trade[]>([]);
   const [selectedTrade, setSelectedTrade]     = useState<Trade | null>(null);
@@ -185,6 +233,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
     else setTags(existing);
   };
 
+  const setDateRange = (range: DateRange) => {
+    setDateRangeState(range);
+    localStorage.setItem(RANGE_STORAGE_KEY, JSON.stringify(range));
+  };
+
+  const clearDateRange = () => setDateRange(EMPTY_RANGE);
+
+  useEffect(() => {
+    setDateRangeState(loadRange());
+  }, []);
+
   useEffect(() => {
     const load = async () => {
       await reloadTrades();
@@ -213,11 +272,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
         const data = await res.json();
         if (!Array.isArray(data)) return;
 
-        // The Portfolio account is created on first load. Its balance defaults
-        // to the sum of the trading accounts' starting balances, which can then
-        // be overridden by editing it on the Accounts page.
+        // The Portfolio account row is created on first load. Its balance is
+        // not authored: sortAccounts overwrites it with the sum of the trading
+        // accounts, so the value written here is only a placeholder.
         if (!data.some((a: Account) => a.id === PORTFOLIO_ID)) {
-          const total = data.reduce((sum: number, a: Account) => sum + a.initialBalance, 0);
           const created = await fetch("/api/accounts", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -225,7 +283,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
               id: PORTFOLIO_ID,
               name: "Portfolio",
               platform: "MetaTrader",
-              initialBalance: total,
+              initialBalance: 0,
               currency: data[0]?.currency || "USD",
             }),
           });
@@ -256,6 +314,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   return (
     <AppContext.Provider value={{
       activePage, setActivePage,
+      dateRange, setDateRange, clearDateRange,
       activeTradeId, setActiveTradeId,
       trades, allTrades, setTrades, reloadTrades, updateTradeInMemory, deleteTrade,
       selectedTrade, setSelectedTrade,

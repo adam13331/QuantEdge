@@ -291,6 +291,7 @@ interface Props {
   dateRange?: { from: string; to: string };
   logoUrl?: string;
   challenge?: ChallengeConfig | null;
+  weekStart?: "sunday" | "monday";
   options?: {
     includeCover?: boolean;
     includeStats?: boolean;
@@ -307,7 +308,7 @@ interface Props {
   };
 }
 
-export default function TradingReportPDF({ trades, account, dateRange, logoUrl, challenge, options = {} }: Props) {
+export default function TradingReportPDF({ trades, account, dateRange, logoUrl, challenge, weekStart = "monday", options = {} }: Props) {
   const {
     includeCover = true,
     includeStats = true,
@@ -324,7 +325,7 @@ export default function TradingReportPDF({ trades, account, dateRange, logoUrl, 
   } = options;
 
   // Same maths the Analytics tab uses, so the report can never disagree with it.
-  const s = buildReportStats(trades, account?.initialBalance ?? 0);
+  const s = buildReportStats(trades, account?.initialBalance ?? 0, weekStart);
 
   // Tier A + Tier B, the same functions the Analytics Process tab calls.
   const proc = {
@@ -432,12 +433,12 @@ export default function TradingReportPDF({ trades, account, dateRange, logoUrl, 
                 <Text style={styles.statSub}>{s.wins.length}W / {s.losses.length}L</Text>
               </View>
               <View style={styles.statCard}>
-                <Text style={styles.statLabel}>Avg R:R</Text>
-                <Text style={(s.avgRR ?? 0) >= 1 ? styles.statValueGreen : styles.statValueRed}>
+                <Text style={styles.statLabel}>Avg Realised R</Text>
+                <Text style={(s.avgRR ?? 0) > 0 ? styles.statValueGreen : styles.statValueRed}>
                   {s.avgRR === null ? "—" : `${s.avgRR >= 0 ? "+" : ""}${s.avgRR.toFixed(2)}R`}
                 </Text>
                 <Text style={styles.statSub}>
-                  {s.rrCoverage > 0 ? `${s.rrCoverage} of ${trades.length} rated` : "Not recorded"}
+                  {s.rrCoverage > 0 ? `${s.rrCoverage} of ${trades.length} rated · BE = 0R` : "Not recorded"}
                 </Text>
               </View>
               <View style={styles.statCard}>

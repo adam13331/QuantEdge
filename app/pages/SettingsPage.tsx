@@ -617,6 +617,29 @@ export default function SettingsPage() {
           {/* Analytics */}
           <Section title="Analytics" icon={Lightbulb}>
             <Row
+              label="Week Starts On"
+              description="Sets the first column of the calendar and the anchor for weekly breakdowns."
+            >
+              <div style={{ display: "flex", gap: "6px" }}>
+                {(["monday", "sunday"] as const).map((d) => (
+                  <button
+                    key={d}
+                    onClick={() => updateSettings({ weekStart: d })}
+                    style={{
+                      padding: "7px 14px", borderRadius: "8px",
+                      border: `1px solid ${settings.weekStart === d ? "var(--accent-green)" : "var(--border)"}`,
+                      background: settings.weekStart === d ? "var(--accent-green-dim)" : "transparent",
+                      color: settings.weekStart === d ? "var(--accent-green)" : "var(--text-muted)",
+                      fontSize: "12px", fontWeight: "600", cursor: "pointer",
+                      fontFamily: "'DM Sans', sans-serif",
+                    }}
+                  >
+                    {d === "monday" ? "Monday" : "Sunday"}
+                  </button>
+                ))}
+              </div>
+            </Row>
+            <Row
               label="Show Recommendations"
               description="Adds a panel to the top of every Analytics tab with the actions your own numbers point to. Hides the readings, never the data."
             >

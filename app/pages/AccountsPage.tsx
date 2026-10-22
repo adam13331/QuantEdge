@@ -313,6 +313,15 @@ export default function AccountsPage() {
                           <Check size={13} color="var(--accent-green)" />
                         </button>
                       </div>
+                    ) : isPortfolio(account) ? (
+                      // Derived figure: shown, never authored. Editing it here
+                      // would just be overwritten by the sum on next render.
+                      <div style={{ display: "flex", alignItems: "baseline", gap: "6px" }}>
+                        <span style={{ fontSize: "18px", fontWeight: "700", color: "var(--accent-green)" }}>
+                          {account.currency} {account.initialBalance.toLocaleString()}
+                        </span>
+                        <span style={{ fontSize: "10px", color: "#a8a8c8" }}>sum of accounts</span>
+                      </div>
                     ) : (
                       <button
                         onClick={() => {
