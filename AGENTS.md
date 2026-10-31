@@ -1,7 +1,8 @@
 # QuantEdge conventions
 
 Trading journal. Next.js 16 App Router on a single route, Prisma + SQLite.
-Read `REPO_MAP.md` first for the file list; this file is the rules.
+Read `MAP.md` first for the file list and symbol index, `CONTEXT.md` for the
+current state; this file is the rules.
 
 ## Non-negotiables
 
@@ -21,6 +22,13 @@ Read `REPO_MAP.md` first for the file list; this file is the rules.
   how many are hidden rather than dropping them.
 - **Small sample leads.** Under 30 trades every section is prefixed with the
   provisional caveat; do not bury it at the bottom.
+
+- **`MAP.md` and `CONTEXT.md` stay current.** Any change that adds, deletes or
+  moves a file, or shifts a symbol by ~50 lines, updates `MAP.md` in the same
+  change. `CONTEXT.md` is refreshed at conversation start when the project
+  state moved (commits, uncommitted work, changed known issues) — a
+  no-change session adds one line to its session log. `REPO_MAP.md` is
+  deleted; do not recreate it.
 
 ## Layout
 
@@ -78,5 +86,4 @@ Analytics panels — it hides the reading, never the numbers.
 - Charts are Recharts inside `ResponsiveContainer`; sizing comes from the
   `SectionCard` wrapper, so set an explicit `height` on every chart.
 
-Global rules: `~/.config/opencode/AGENTS.md` · Workspace map:
-`../REPO_MAP.md`
+Global rules: `~/.config/opencode/AGENTS.md`

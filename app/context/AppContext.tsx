@@ -65,35 +65,15 @@ interface AppContextType {
   reloadPlaybook: () => Promise<void>;
 }
 
-// Sentinel id for the built-in aggregate account. It is never deleted and
-// its balance is the base used for return calculations when it is selected.
-export const PORTFOLIO_ID = "portfolio";
+// The built-in Portfolio aggregate was removed — every account stands alone.
+// The id is kept only so a leftover row from an older version is cleaned up on
+// load instead of showing up as an un-deletable phantom account.
+const STALE_PORTFOLIO_ID = "portfolio";
 
-function isPortfolio(account: Account | null): boolean {
-  return account?.id === PORTFOLIO_ID;
-}
-export { isPortfolio };
-
-// The Portfolio balance is derived, never stored as an authored figure: it is
-// always the sum of the trading accounts' balances. Recomputing it here means
-// every consumer (Analytics, Dashboard, PDF) reads the same number, and adding
-// or editing an account can never leave a stale total behind.
-function portfolioBalance(list: Account[]): number {
-  return list
-    .filter((a) => a.id !== PORTFOLIO_ID)
-    .reduce((sum, a) => sum + (Number.isFinite(a.initialBalance) ? a.initialBalance : 0), 0);
-}
-
-// Portfolio always sorts first so it is also the default selection.
 function sortAccounts(list: Account[]): Account[] {
-  const total = portfolioBalance(list);
-  return [...list]
-    .map((a) => (isPortfolio(a) ? { ...a, initialBalance: total } : a))
-    .sort((a, b) => {
-      if (isPortfolio(a)) return -1;
-      if (isPortfolio(b)) return 1;
-      return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
-    });
+  return [...list].sort(
+    (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+  );
 }
 
 const AppContext = createContext<AppContextType | null>(null);
@@ -132,11 +112,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [plans, setPlans]                     = useState<TradePlan[]>([]);
   const [playbook, setPlaybook]               = useState<Playbook[]>([]);
 
-  // Portfolio aggregates every account; anything else is scoped to itself.
+  // Every trade belongs to exactly one account; the Portfolio aggregate that
+  // used to show all trades at once is gone.
   const trades = activeAccount
-    ? isPortfolio(activeAccount)
-      ? allTrades
-      : allTrades.filter((t) => t.accountId === activeAccount.id)
+    ? allTrades.filter((t) => t.accountId === activeAccount.id)
     : allTrades;
 
   const reloadTrades = async () => {
@@ -269,25 +248,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const loadAccounts = async () => {
       try {
         const res = await fetch("/api/accounts");
-        const data = await res.json();
+        let data = await res.json();
         if (!Array.isArray(data)) return;
 
-        // The Portfolio account row is created on first load. Its balance is
-        // not authored: sortAccounts overwrites it with the sum of the trading
-        // accounts, so the value written here is only a placeholder.
-        if (!data.some((a: Account) => a.id === PORTFOLIO_ID)) {
-          const created = await fetch("/api/accounts", {
-            method: "POST",
+        // Remove a leftover Portfolio row from an older version. Its balance
+        // was derived, never authored, so nothing of value is lost; leaving it
+        // would offer an account the user can never delete.
+        const stale = data.find((a: Account) => a.id === STALE_PORTFOLIO_ID);
+        if (stale) {
+          await fetch("/api/accounts", {
+            method: "DELETE",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              id: PORTFOLIO_ID,
-              name: "Portfolio",
-              platform: "MetaTrader",
-              initialBalance: 0,
-              currency: data[0]?.currency || "USD",
-            }),
+            body: JSON.stringify({ id: STALE_PORTFOLIO_ID }),
           });
-          if (created.ok) data.push(await created.json());
+          data = data.filter((a: Account) => a.id !== STALE_PORTFOLIO_ID);
         }
 
         const sorted = sortAccounts(data as Account[]);

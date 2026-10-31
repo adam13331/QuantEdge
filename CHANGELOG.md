@@ -7,6 +7,11 @@ All notable changes to QuantEdge are documented here.
 
 ## [Unreleased — QuantEdge fork]
 
+- **Removed the auto-created Portfolio account.** Every account now stands
+  alone; there is no aggregate view. A leftover `portfolio` row is deleted
+  automatically on the next load — its balance was derived, so no authored
+  figure is lost. Any trade still stamped to `portfolio` becomes unlinked and
+  will not appear in account-scoped analytics; re-import or re-assign those.
 - Rebrand to QuantEdge. Database, export filenames, localStorage keys, the PDF
   wordmark and the MetaTrader exporter were all renamed from `journedge` to
   `quantedge`. **Existing users must migrate:** the old `prisma/journedge.db`

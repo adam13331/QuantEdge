@@ -36,15 +36,6 @@ export async function PATCH(request: NextRequest) {
   try {
     const body = await request.json();
     const { id, ...data } = body;
-    // The Portfolio balance is the sum of the trading accounts. Writing it here
-    // would produce a value the client immediately recomputes, so reject it
-    // rather than letting the stored row drift out of sync.
-    if (id === "portfolio" && "initialBalance" in data) {
-      return NextResponse.json(
-        { error: "Portfolio balance is derived from the other accounts" },
-        { status: 400 }
-      );
-    }
     const account = await prisma.account.update({
       where: { id },
       data,

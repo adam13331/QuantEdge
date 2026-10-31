@@ -1,6 +1,6 @@
 "use client";
 import { useState, useRef, useMemo } from "react";
-import { useApp, isPortfolio } from "../context/AppContext";
+import { useApp } from "../context/AppContext";
 import { Trade } from "../lib/types";
 import { parseMetaTraderCSV, isMetaTraderCSV, firstLine } from "../lib/parseMetaTraderCSV";
 import {
@@ -65,16 +65,12 @@ export default function ImportPage() {
   const [confirming, setConfirming]     = useState(false);
   const [targetId, setTargetId]         = useState<string>("");
 
-  // Portfolio aggregates the others; trades stamped to it belong to no real
-  // account, so it is never a valid import target.
-  const targetable = accounts.filter((a) => !isPortfolio(a));
-
   const openConfirm = () => {
-    setTargetId(isPortfolio(activeAccount) ? (targetable[0]?.id ?? "") : (activeAccount?.id ?? ""));
+    setTargetId(activeAccount?.id ?? "");
     setConfirming(true);
   };
 
-  const targetAccount = targetable.find((a) => a.id === targetId) || null;
+  const targetAccount = accounts.find((a) => a.id === targetId) || null;
 
   // Tickets already present in a *different* account. Re-importing the same
   // file over the same account is a harmless upsert, but the same file landing
@@ -161,7 +157,7 @@ export default function ImportPage() {
           Import Trades
         </h2>
         <p style={{ color: "#a8a8c8", fontSize: "14px", marginTop: "4px" }}>
-          {targetable.length > 0
+          {accounts.length > 0
             ? "You'll confirm which account these trades belong to before anything is saved"
             : "No trading account yet — create one first so equity is tracked"}
         </p>
@@ -357,7 +353,7 @@ export default function ImportPage() {
                   cursor: "pointer", paddingRight: "36px", outline: "none",
                 }}
               >
-                {targetable.map((a) => (
+                {accounts.map((a) => (
                   <option key={a.id} value={a.id}>{a.name} — {a.platform}</option>
                 ))}
                 <option value="">No account (leave unlinked)</option>
@@ -370,21 +366,6 @@ export default function ImportPage() {
                 }}
               />
             </div>
-
-            {isPortfolio(activeAccount) && targetId && (
-              <div style={{
-                display: "flex", gap: "8px", alignItems: "flex-start",
-                padding: "10px 12px", borderRadius: "8px", marginBottom: "14px",
-                background: "rgba(251,191,36,0.08)", border: "1px solid rgba(251,191,36,0.3)",
-                fontSize: "12px", color: "#fbbf24", lineHeight: "1.5",
-              }}>
-                <AlertCircle size={14} style={{ flexShrink: 0, marginTop: "1px" }} />
-                <span>
-                  Portfolio was selected — it only aggregates the other accounts, so these
-                  trades would not belong to any of them.
-                </span>
-              </div>
-            )}
 
             {misfiled.length > 0 && (
               <div style={{

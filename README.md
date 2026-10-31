@@ -159,7 +159,7 @@ Accent color, light/dark mode, risk controls, trading preferences, and in-app au
 
 - Import from **MetaTrader 5** — the only supported format. The header is validated column-by-column on drop, and a file that isn't an MT5 export tells you what its first line actually said
 - Manual trade entry with live P&L preview, auto symbol detection, and OCC option symbol parsing
-- Multi-account support — create accounts per broker, switch from the sidebar, all data account-scoped, plus an auto-created Portfolio view that aggregates every account
+- Multi-account support — create accounts per broker, switch from the sidebar, all data account-scoped
 - Every trade supports: entry/exit times, R:R ratio, planned risk, MAE/MFE, exit reason, magic number, entry legs, balance after, tags, chart link, screenshots, and a rich text journal
 - **Re-importing duplicates trades once** — there is no de-duplication on import. Import a file once; to start over use **Settings → Clear Trades** and re-import
 - Delete any trade from the Dashboard table, the Journal page, or the trade quick-view panel — each requires a two-step confirmation so nothing is removed by accident

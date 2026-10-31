@@ -1,8 +1,8 @@
 "use client";
 import { useState } from "react";
-import { useApp, PORTFOLIO_ID, isPortfolio } from "../context/AppContext";
+import { useApp } from "../context/AppContext";
 import { Account } from "../lib/types";
-import { Wallet, Plus, Check, Trash2, ChevronDown, Layers } from "lucide-react";
+import { Wallet, Plus, Check, Trash2, ChevronDown } from "lucide-react";
 
 // Supported trading platforms. Add more here as needed —
 // the list drives the create-account dropdown and nothing else.
@@ -45,8 +45,7 @@ export default function AccountsPage() {
   const [editingBalance, setEditingBalance] = useState<string | null>(null);
   const [balanceDraft, setBalanceDraft]   = useState("");
 
-  const tradeCountFor = (id: string) =>
-    id === PORTFOLIO_ID ? allTrades.length : allTrades.filter((t) => t.accountId === id).length;
+  const tradeCountFor = (id: string) => allTrades.filter((t) => t.accountId === id).length;
 
   const handleSaveBalance = async (account: Account) => {
     const value = parseFloat(balanceDraft);
@@ -96,7 +95,6 @@ export default function AccountsPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (id === PORTFOLIO_ID) return;
     if (!confirm("Delete this account? This won't delete your trades.")) return;
     await fetch("/api/accounts", {
       method: "DELETE",
@@ -266,24 +264,20 @@ export default function AccountsPage() {
                   display: "flex", alignItems: "center", justifyContent: "center",
                   marginBottom: "12px",
                 }}>
-                  {isPortfolio(account)
-                    ? <Layers size={18} color={isActive ? "var(--accent-green)" : "#a8a8c8"} />
-                    : <Wallet size={18} color={isActive ? "var(--accent-green)" : "#a8a8c8"} />}
+                  <Wallet size={18} color={isActive ? "var(--accent-green)" : "#a8a8c8"} />
                 </div>
 
                 <div style={{ fontSize: "16px", fontWeight: "700", color: "#f0f0ff", marginBottom: "4px" }}>
                   {account.name}
                 </div>
                 <div style={{ fontSize: "12px", color: "#a8a8c8", marginBottom: "16px" }}>
-                  {isPortfolio(account)
-                    ? `All accounts · ${tradeCountFor(account.id)} trades`
-                    : `${account.platform} · ${tradeCountFor(account.id)} trade${tradeCountFor(account.id) === 1 ? "" : "s"}`}
+                  {account.platform} · {tradeCountFor(account.id)} trade{tradeCountFor(account.id) === 1 ? "" : "s"}
                 </div>
 
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
                   <div onClick={(e) => e.stopPropagation()}>
                     <div style={{ fontSize: "11px", color: "#a8a8c8", marginBottom: "2px" }}>
-                      {isPortfolio(account) ? "Portfolio Balance" : "Initial Balance"}
+                      Initial Balance
                     </div>
                     {editingBalance === account.id ? (
                       <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
@@ -313,15 +307,6 @@ export default function AccountsPage() {
                           <Check size={13} color="var(--accent-green)" />
                         </button>
                       </div>
-                    ) : isPortfolio(account) ? (
-                      // Derived figure: shown, never authored. Editing it here
-                      // would just be overwritten by the sum on next render.
-                      <div style={{ display: "flex", alignItems: "baseline", gap: "6px" }}>
-                        <span style={{ fontSize: "18px", fontWeight: "700", color: "var(--accent-green)" }}>
-                          {account.currency} {account.initialBalance.toLocaleString()}
-                        </span>
-                        <span style={{ fontSize: "10px", color: "#a8a8c8" }}>sum of accounts</span>
-                      </div>
                     ) : (
                       <button
                         onClick={() => {
@@ -341,18 +326,16 @@ export default function AccountsPage() {
                       </button>
                     )}
                   </div>
-                  {!isPortfolio(account) && (
-                    <button
-                      onClick={(e) => { e.stopPropagation(); handleDelete(account.id); }}
-                      style={{
-                        background: "rgba(255,77,106,0.1)", border: "none",
-                        borderRadius: "6px", padding: "6px", cursor: "pointer",
-                        display: "flex", alignItems: "center", justifyContent: "center",
-                      }}
-                    >
-                      <Trash2 size={13} color="#ff4d6a" />
-                    </button>
-                  )}
+                  <button
+                    onClick={(e) => { e.stopPropagation(); handleDelete(account.id); }}
+                    style={{
+                      background: "rgba(255,77,106,0.1)", border: "none",
+                      borderRadius: "6px", padding: "6px", cursor: "pointer",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                    }}
+                  >
+                    <Trash2 size={13} color="#ff4d6a" />
+                  </button>
                 </div>
               </div>
             );
