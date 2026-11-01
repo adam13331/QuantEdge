@@ -196,36 +196,6 @@ async function main() {
   console.log(`Inserting ${all.length} trades...`);
   await prisma.trade.createMany({ data: all.map((t) => ({ ...t, accountId: account.id })) });
 
-  // A handful of plans in mixed states.
-  const planTemplates = [
-    { status: "pending",  thesis: "NQ opening range break. Wait for the retest, not the first thrust." },
-    { status: "executed", thesis: "ES reclaim of VWAP after the morning flush." },
-    { status: "missed",   thesis: "AAPL gap fill into the prior close." },
-    { status: "pending",  thesis: "EURUSD continuation if the 4H trend holds above the prior high." },
-  ];
-  for (let i = 0; i < planTemplates.length; i++) {
-    const p = planTemplates[i];
-    await prisma.tradePlan.create({
-      data: {
-        id: `plan-example-${i}`,
-        date: new Date(Date.UTC(2026, 9, 6 + i)).toISOString().slice(0, 10),
-        symbol: ["NQ", "ES", "AAPL", "EURUSD"][i],
-        underlying: ["NQ", "ES", "AAPL", "EUR/USD"][i],
-        direction: i % 2 === 0 ? "Long" : "Short",
-        setupType: SETUPS[i % SETUPS.length].name,
-        thesis: p.thesis,
-        entryZone: "Within 2 points of the trigger",
-        stopLevel: round(range(100, 400)),
-        targetLevel: round(range(600, 1400)),
-        plannedRR: "2.00",
-        plannedSize: 1,
-        invalidation: "One close back outside the range.",
-        status: p.status,
-        accountId: account.id,
-      },
-    });
-  }
-
   const wins = all.filter((t) => t.pnl > 0).length;
   const net = all.reduce((s, t) => s + t.pnl, 0);
   console.log(`\nDone. ${all.length} trades, ${wins} wins (${((wins / all.length) * 100).toFixed(1)}%), net P&L $${round(net)}`);

@@ -245,12 +245,16 @@ export default function SettingsPage() {
       t.quantity, t.entryPrice, t.exitPrice, t.commission, t.fees,
       t.pnl, t.status, t.entryTime || "", t.exitTime || "", t.rr || "",
       (Array.isArray(t.tags) ? t.tags : []).join("|"),
-      (t.journalEntry || "").replace(/,/g, ";"),
+      // Newlines would split one trade across several CSV rows, and an
+      // unescaped quote would end the field early. Commas need no replacement
+      // once the cell is quoted.
+      (t.journalEntry || "").replace(/\r?\n/g, " "),
       t.accountId || "",
     ]);
+    // RFC 4180: double the embedded quotes and wrap every cell.
     const csv = [headers, ...rows]
-      .map((row) => row.map((cell) => `"${cell}"`).join(","))
-      .join("\n");
+      .map((row) => row.map((cell) => `"${String(cell).replace(/"/g, "\"\"")}"`).join(","))
+      .join("\r\n");
     const blob = new Blob([csv], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -640,30 +644,28 @@ export default function SettingsPage() {
               </div>
             </Row>
             <Row
-              label="Show Recommendations"
-              description="Adds a panel to the top of every Analytics tab with the actions your own numbers point to. Hides the readings, never the data."
+              label="Guidance"
+              description="How much reading the Analytics tabs show. Off keeps the numbers; Benchmarks adds the five-band reference scales; Full adds the findings and next steps. Never hides data."
             >
-              <button
-                onClick={() => updateSettings({ showRecommendations: !settings.showRecommendations })}
-                role="switch"
-                aria-checked={settings.showRecommendations}
-                aria-label="Show recommendations in Analytics"
-                style={{
-                  display: "flex", alignItems: "center",
-                  width: "52px", height: "26px", padding: "2px",
-                  borderRadius: "20px", border: "1px solid",
-                  borderColor: settings.showRecommendations ? "var(--accent-green)" : "var(--border)",
-                  background: settings.showRecommendations ? "var(--accent-green-dim)" : "transparent",
-                  cursor: "pointer", transition: "all 0.15s ease",
-                  justifyContent: settings.showRecommendations ? "flex-end" : "flex-start",
-                }}
-              >
-                <span style={{
-                  width: "18px", height: "18px", borderRadius: "50%",
-                  background: settings.showRecommendations ? "var(--accent-green)" : "#55556f",
-                  transition: "all 0.15s ease",
-                }} />
-              </button>
+              <div style={{ display: "flex", gap: "6px" }}>
+                {(["off", "benchmarks", "full"] as const).map((mode) => (
+                  <button
+                    key={mode}
+                    onClick={() => updateSettings({ guidance: mode })}
+                    aria-pressed={settings.guidance === mode}
+                    style={{
+                      padding: "7px 14px", borderRadius: "8px",
+                      border: `1px solid ${settings.guidance === mode ? "var(--accent-green)" : "var(--border)"}`,
+                      background: settings.guidance === mode ? "var(--accent-green-dim)" : "transparent",
+                      color: settings.guidance === mode ? "var(--accent-green)" : "var(--text-muted)",
+                      fontSize: "12px", fontWeight: "600", cursor: "pointer",
+                      fontFamily: "'DM Sans', sans-serif",
+                    }}
+                  >
+                    {mode === "benchmarks" ? "Benchmarks" : mode === "off" ? "Off" : "Full"}
+                  </button>
+                ))}
+              </div>
             </Row>
           <div style={{ display: "flex", justifyContent: "flex-end" }}>
               <button

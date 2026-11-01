@@ -48,14 +48,19 @@ current state; this file is the rules.
 ## Settings
 
 `useSettings()` is localStorage-backed and merged over `DEFAULTS` on load, so a
-new key only needs a field plus a default. `showRecommendations` gates the
-Analytics panels — it hides the reading, never the numbers.
+new key only needs a field plus a default. `settings.guidance`
+(`"off" | "benchmarks" | "full"`) gates the Analytics guidance — it hides the
+reading, never the numbers. It migrates the old `showRecommendations` /
+`showMetricGuides` booleans, so do not reintroduce them.
 
 ## Migration & data
 
 - `npx prisma migrate dev` is manual. There is no seed script; do not assume one
   exists when a database looks empty.
-- `prisma/quantedge.db` is a local SQLite file. Never read it.
+- The local SQLite file is `prisma/prisma/quantedge.db` (Prisma resolves the
+  `file:./prisma/quantedge.db` URL against the schema directory). Never read it,
+  and when code needs it on disk, check both locations — see
+  `findDatabasePath()` in `app/api/update/route.ts`.
 - The in-app updater (`app/api/update/route.ts`) backs up the db before
   migrating and prunes to the 5 most recent. Keep that ordering intact.
 

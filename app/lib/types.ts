@@ -38,26 +38,6 @@ export interface Trade {
   accountId?: string;
 }
 
-export interface TradePlan {
-  id: string;
-  date: string;
-  symbol: string;
-  underlying: string;
-  direction: string;
-  setupType?: string;
-  thesis?: string;
-  entryZone?: string;
-  stopLevel?: number;
-  targetLevel?: number;
-  plannedRR?: string;
-  plannedSize?: number;
-  invalidation?: string;
-  status: "pending" | "executed" | "cancelled" | "missed";
-  tradeId?: string;
-  accountId?: string;
-  createdAt: string;
-}
-
 export interface Playbook {
   id: string;
   name: string;
@@ -105,6 +85,5 @@ export type PageId =
   | "accounts"
   | "settings"
   | "export"
-  | "plans"
   | "playbook";
   

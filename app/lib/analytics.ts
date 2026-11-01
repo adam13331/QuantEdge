@@ -40,11 +40,13 @@ export function sharpeRatio(dailyPnl: number[]): number {
 export function sortinoRatio(dailyPnl: number[]): number {
   if (dailyPnl.length < 5) return 0;
   const mean = dailyPnl.reduce((s, v) => s + v, 0) / dailyPnl.length;
-  const negatives = dailyPnl.filter((v) => v < 0);
-  if (negatives.length === 0) return mean > 0 ? 99 : 0;
-  const downsideSd = stdDev(negatives);
-  if (downsideSd === 0) return 0;
-  return (mean / downsideSd) * Math.sqrt(252);
+  // Downside deviation from a zero target across every period, which is the
+  // standard Sortino denominator. Taking the std dev of only the losing days
+  // around their own mean understates the risk (it removes the distance from
+  // zero) and reports a ratio that drifts with how losing days cluster.
+  const downside = dailyPnl.reduce((s, v) => s + Math.min(0, v) ** 2, 0) / dailyPnl.length;
+  if (downside === 0) return mean > 0 ? 99 : 0;
+  return (mean / Math.sqrt(downside)) * Math.sqrt(252);
 }
 
 export function expectancy(wins: Trade[], losses: Trade[]): number {
@@ -446,7 +448,6 @@ export interface CostProfile {
   costs: number;
   costPctOfGross: number;
   costPerTrade: number;
-  breakevenTrades: number;
 }
 
 // Costs as a share of gross profit. Above roughly 10% this dominates the edge
@@ -455,14 +456,11 @@ export function costProfile(trades: Trade[]): CostProfile {
   const gross = trades.filter((t) => t.pnl > 0).reduce((s, t) => s + t.pnl, 0);
   const costs = trades.reduce((s, t) => s + (t.commission || 0) + (t.fees || 0), 0);
   const perTrade = trades.length > 0 ? costs / trades.length : 0;
-  // How many trades' worth of cost the gross profit covers.
-  const breakevenTrades = perTrade > 0 ? Math.ceil(costs / perTrade) : 0;
   return {
     grossProfit: parseFloat(gross.toFixed(2)),
     costs: parseFloat(costs.toFixed(2)),
     costPctOfGross: gross > 0 ? parseFloat(((costs / gross) * 100).toFixed(2)) : 0,
     costPerTrade: parseFloat(perTrade.toFixed(2)),
-    breakevenTrades,
   };
 }
 
@@ -493,7 +491,9 @@ export function revengeSequences(trades: Trade[]): RevengeStats {
 
   let count = 0, revengePnl = 0, otherPnl = 0;
   for (const day of dayMap.values()) {
-    if (day.length < 2) continue;
+    // Single-trade days still count as "every other trade". Skipping them used
+    // to drop their P&L, which made the other-trade average in the behaviour
+    // insights disagree with the book it was describing.
     const ordered = [...day].sort((a, b) => (a.entryTime || "").localeCompare(b.entryTime || ""));
     let hadLoss = false;
     for (const t of ordered) {
@@ -1246,11 +1246,14 @@ export function buildReportStats(
 
   let totalHours = 0;
   let timedCount = 0;
+  let timedPnl = 0;
   for (const t of trades) {
     const h = tradeHours(t);
-    if (h !== null) { totalHours += h; timedCount++; }
+    if (h !== null) { totalHours += h; timedCount++; timedPnl += t.pnl; }
   }
-  const hourlyRate = totalHours > 0 ? totalPnl / totalHours : null;
+  // Divide by the P&L of the same trades that have hold times. Using total P&L
+  // here credited untimed trades' profit to the hours of the timed ones.
+  const hourlyRate = totalHours > 0 ? timedPnl / totalHours : null;
 
   const rrVals = trades.map((t) => parseRR(t.rr)).filter((v): v is number => v !== null);
   const avgRR = rrVals.length > 0 ? rrVals.reduce((s, v) => s + v, 0) / rrVals.length : null;

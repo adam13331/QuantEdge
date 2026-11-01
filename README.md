@@ -37,7 +37,7 @@ Most trading journals are either too simple to be useful or locked behind expens
 
 **Your data stays yours.** Everything runs locally on your machine using SQLite. No cloud sync, no user accounts, no telemetry, no third-party data transfers of any kind. Your trade history, journal entries, screenshots, and performance data never leave your machine.
 
-**Built for serious traders.** Multi-account support, real equity curve tracking from your actual starting balance, institutional-grade risk metrics, execution quality analysis, behavioral pattern detection, a prop-firm evaluation tracker with pass-rate simulation, a recommendations engine that names the figure behind every finding, pre-trade planning, a strategy playbook with live performance stats, position sizing, hour-of-day heatmaps, and a full rich text journal with templates.
+**Built for serious traders.** Multi-account support, real equity curve tracking from your actual starting balance, institutional-grade risk metrics, execution quality analysis, behavioral pattern detection, a prop-firm evaluation tracker with pass-rate simulation, a recommendations engine that names the figure behind every finding, a strategy playbook with live performance stats, position sizing, hour-of-day heatmaps, and a full rich text journal with templates.
 
 **Open source and auditable.** The entire codebase is open, readable, and open to contribution. You can verify exactly what the application does with your data — because you can read every line of it.
 
@@ -62,7 +62,7 @@ Day-grouped trade cards with journal previews, tags, and quick delete.
 ![Journal](docs/screenshots/journal.png)
 
 ### Analytics — Overview
-Equity curve from actual account balance, P&L by symbol, P&L by tag, win/loss breakdown, and streak analysis. Recommendations rank worst-first and each one names the figure it fired on.
+Equity curve from actual account balance, P&L by symbol, P&L by tag, win/loss breakdown, and streak analysis. The **Period** and **Symbol** controls above the dashboard scope every figure below them, including the headline cards and the drawdown baseline. Recommendations rank worst-first and each one names the figure it fired on.
 *Generated from example data (295 synthetic trades across nine months).*
 
 ![Analytics Overview](docs/screenshots/analytics-overview.png)
@@ -121,12 +121,6 @@ Monthly P&L calendar — always hardcoded red/green. Snaps to your most recent t
 
 ![Calendar](docs/screenshots/calendar.png)
 
-### Pre-Trade Planning
-Plan your thesis, entry zone, stop, and target before the trade. Compare plan vs execution after.
-*Generated from example data (295 synthetic trades across nine months).*
-
-![Trade Plans](docs/screenshots/plans.png)
-
 ### Playbook
 Strategy library with setup rules, entry triggers, and live per-setup performance from linked trades.
 *Generated from example data (295 synthetic trades across nine months).*
@@ -146,7 +140,7 @@ Report builder with filters, section toggles, and live PDF preview. Renders enti
 ![Export](docs/screenshots/export.png)
 
 ### Settings
-Accent color, light/dark mode, risk controls, trading preferences, and in-app auto-update.
+Accent color, light/dark mode, risk controls, trading preferences, a three-level Guidance control (Off / Benchmarks / Full), and in-app auto-update.
 *Generated from example data (295 synthetic trades across nine months).*
 
 ![Settings](docs/screenshots/settings.png)
@@ -161,7 +155,7 @@ Accent color, light/dark mode, risk controls, trading preferences, and in-app au
 - Manual trade entry with live P&L preview, auto symbol detection, and OCC option symbol parsing
 - Multi-account support — create accounts per broker, switch from the sidebar, all data account-scoped
 - Every trade supports: entry/exit times, R:R ratio, planned risk, MAE/MFE, exit reason, magic number, entry legs, balance after, tags, chart link, screenshots, and a rich text journal
-- **Re-importing duplicates trades once** — there is no de-duplication on import. Import a file once; to start over use **Settings → Clear Trades** and re-import
+- **Re-importing is safe** — each row is keyed on its MetaTrader ticket (or a content hash for older exports), so importing the same file again updates those trades in place instead of duplicating them. Importing a file into a different account is flagged before it runs
 - Delete any trade from the Dashboard table, the Journal page, or the trade quick-view panel — each requires a two-step confirmation so nothing is removed by accident
 
 ### Journal Editor
@@ -171,14 +165,6 @@ A full word processor built on TipTap and ProseMirror, not a text area.
 The toolbar includes undo/redo, 15 font families with dynamic Google Fonts loading, font weight from Light to ExtraBold, H1/H2/H3, bold/italic/underline/strikethrough, text color with a 40-swatch palette and pinnable custom hex colors, highlights, text alignment, bullet and numbered lists, horizontal dividers, links, and inline image insertion.
 
 Content autosaves 1.5 seconds after the last keystroke with a live Saving / Saved indicator. Templates let you define a document structure once and auto-apply it whenever you open a new journal for a specific trade type.
-
-### Pre-Trade Planning
-
-Plan before you trade. Review after.
-
-Create a plan with your thesis, setup type, entry zone, stop level, and target. The R:R ratio calculates live as you type. Once the trade executes, link it back to the plan and compare what you intended versus what actually happened.
-
-Plans track their status through a lifecycle: **Pending → Executed / Missed / Cancelled**. Filter and review your full plan history at any time.
 
 ### Strategy Playbook
 
@@ -225,6 +211,8 @@ Every analytics tab carries a **Recommendations** panel ranked worst-first, gene
 - **Thresholds live in one place.** Every cut-off is a named field in the single `T` block, so tuning a rule never means hunting through the codebase.
 
 Panels cap at 6 findings (8 on Process) and state how many are hidden rather than silently dropping them. Under 30 trades every section is prefixed with a provisional caveat — small samples lead.
+
+The panel leads with the single worst finding in full — verdict, figure, a five-band **reference scale** (bad → advanced) and one next step — and lists the rest as one-line rows that expand in place. Settings has one **Guidance** control: Off (numbers only), Benchmarks (the scales without findings), or Full. If you ignore the advice entirely, the scales still tell you what a robust book looks like on that figure.
 
 ### Prop Firm Evaluation
 
@@ -273,10 +261,8 @@ Report builder with date range, ticker, tag, and status filters. Toggle individu
 |-----|--------|
 | `D` | Dashboard |
 | `J` | Journal |
-| `A` | Analytics |
 | `C` | Calendar |
 | `F` | Prop Firm |
-| `P` | Trade Plans |
 | `B` | Playbook |
 | `I` | Import Trades |
 | `E` | Export |
@@ -335,8 +321,7 @@ node scripts/seed-example.js
 ```
 
 That clears existing trades and loads 295 synthetic trades across nine months —
-five instruments, five playbook setups, four pre-trade plans in mixed states, and
-a Prop Firm account. It is deterministic, so screenshots reproduce identically.
+five instruments, five playbook setups, and a Prop Firm account. It is deterministic, so screenshots reproduce identically.
 To go back to a clean slate, use **Settings → Clear Trades**.
 
 ### First Steps
@@ -345,9 +330,8 @@ To go back to a clean slate, use **Settings → Clear Trades**.
 2. Compile `scripts/QuantEdgeExport.mq5` in MetaEditor (F7), attach it to any chart, then go to **Import Trades** and drop the CSV it writes.
 3. Your trades appear immediately across Dashboard, Journal, Analytics, Calendar, and Export.
 4. Open **Playbook** and document the setups you actually trade.
-5. Use **Trade Plans** to write out your thesis before your next trade.
-6. If you're trading a prop challenge, open **Prop Firm** and enter the rules you were given.
-7. Open the **Journal**, click **Open Journal** on any trade, and start writing.
+5. If you're trading a prop challenge, open **Prop Firm** and enter the rules you were given.
+6. Open the **Journal**, click **Open Journal** on any trade, and start writing.
 
 ---
 
@@ -378,7 +362,7 @@ Beyond the basic trade record it also captures:
 
 Set a stop loss on your positions for risk and R-multiple data to appear. MAE/MFE are derived from minute bars, so they are accurate to within one bar at each end of the hold; tick `InpExcursions = false` to skip that scan.
 
-> **Re-importing duplicates trades once.** QuantEdge does not de-duplicate on import, so import a file once. To start over, use **Settings → Clear Trades** and re-import the newest export.
+> **Re-importing is safe.** Trades are keyed on their MetaTrader ticket (content hash for older exports) and upserted, so importing the same export again updates the existing rows. To start over, use **Settings → Clear Trades** and re-import the newest export.
 
 ---
 
@@ -390,7 +374,7 @@ Set a stop loss on your positions for risk and R-multiple data to appear. MAE/MF
 
 **Single source of trading math.** Every ratio, drawdown and R-multiple lives in `app/lib/analytics.ts`. The Analytics page and the PDF report both read it, so the two can never disagree. Pages render; they do not analyse.
 
-**Recommendations engine.** `app/lib/insights.ts` is pure — it takes computed facts and returns ranked findings, with no database or DOM access. All thresholds sit in one `T` block. Each `Insight` carries the `metric` it fired on, which is what stops a rule from being a restatement of the number already on screen. Findings are ranked worst-first, panels cap at 6 (8 on Process) and say how many are hidden.
+**Recommendations engine.** `app/lib/insights.ts` is pure — it takes computed facts and returns ranked findings, with no database or DOM access. All thresholds sit in one `T` block. Each `Insight` carries the `metric` it fired on, which is what stops a rule from being a restatement of the number already on screen, and a `guide` key into `LOOK_FOR` — the reference bands rendered under each finding. Findings are ranked worst-first, panels cap at 6 (8 on Process) and say how many are hidden.
 
 **Journal editor.** Built on TipTap with ProseMirror. Documents stored as TipTap JSON in the `journalEntry` TEXT column. Legacy plain-text entries render as plain paragraphs. Autosave debounces 1.5 seconds and patches the in-memory trade immediately so navigation never shows stale content.
 
@@ -400,8 +384,6 @@ Set a stop loss on your positions for risk and R-multiple data to appear. MAE/MF
 
 **Playbook linking.** `playbookId` is a soft reference on `Trade` with no FK constraint, so playbooks can be deleted without cascading. Stats are computed at read time in `useMemo`.
 
-**Pre-trade planning.** `TradePlan` has a unique `tradeId` constraint enforcing one plan per trade. `planId` on `Trade` links back to the originating plan.
-
 **Trade deletion.** A single `deleteTrade` function lives in `AppContext`, calling `DELETE /api/trades` and removing the trade from in-memory state immediately. It's used identically from the Dashboard table, the Journal page's trade cards, and the trade quick-view panel — each surface implements its own two-click confirmation to prevent accidental deletion, but all three call the same underlying context function.
 
 **Hour-of-day heatmap.** `hourOfDay` (0–23 integer) is extracted from `entryTime` on every trade write and stored directly — enables heatmap queries without recomputing from strings.
@@ -410,7 +392,7 @@ Set a stop loss on your positions for risk and R-multiple data to appear. MAE/MF
 
 **Auto-update.** Streams progress via Server-Sent Events through six steps. Uses a shadow install directory so the live `node_modules` is untouched until the install succeeds. `.next` is deleted last, after packages are fully rebuilt.
 
-**State management.** A single React Context holds trades, accounts, tags, plans, playbook, and navigation state. `updateTradeInMemory` and `deleteTrade` patch the trades array directly without a full API reload.
+**State management.** A single React Context holds trades, accounts, tags, playbook, and navigation state. `updateTradeInMemory` and `deleteTrade` patch the trades array directly without a full API reload.
 
 ---
 
@@ -424,20 +406,22 @@ QuantEdge/
 │   │   ├── trades/              # Trade read, write, patch, delete, clear
 │   │   ├── tags/                # Global tag management
 │   │   ├── templates/           # Journal template CRUD
-│   │   ├── plans/               # Pre-trade plan CRUD
 │   │   ├── playbook/            # Playbook entry CRUD
 │   │   ├── upload/               # Screenshot file uploads
 │   │   └── update/              # Auto-update SSE stream + restart endpoint
 │   ├── components/
 │   │   ├── Sidebar.tsx          # Navigation, account switcher
 │   │   ├── TradePanel.tsx       # Slide-out quick view, edit, and delete panel
-│   │   ├── AddTradeModal.tsx    # Manual trade entry modal
 │   │   ├── TagSelector.tsx      # Shared tag input used across the app
 │   │   ├── JournalToolbar.tsx   # TipTap formatting toolbar
+│   │   ├── AnalyticsSections.tsx # Analytics tabs and charts
+│   │   ├── AnalyticsCards.tsx   # Metric cards, insight panel, band scales
+│   │   ├── GlobalDateFilter.tsx # Period + symbol controls
+│   │   ├── PropFirmPanel.tsx    # Challenge standing and simulation
 │   │   ├── TradingReportPDF.tsx # PDF document definition
 │   │   └── ExportPDFInner.tsx   # Client-only PDF download wrapper
 │   ├── context/
-│   │   └── AppContext.tsx       # Global state — trades, accounts, tags, plans, playbook, deleteTrade
+│   │   └── AppContext.tsx       # Global state — trades, accounts, tags, playbook, deleteTrade
 │   ├── hooks/
 │   │   └── useSettings.ts       # Settings persistence via localStorage
 │   ├── lib/
@@ -449,9 +433,8 @@ QuantEdge/
 │       ├── Dashboard.tsx         # Overview, stat cards, trade history table with delete
 │       ├── JournalPage.tsx       # Day-grouped trade cards with delete on each card
 │       ├── JournalEditorPage.tsx # Full-page rich text editor per trade
-│       ├── AnalyticsPage.tsx     # Seven-tab analytics engine
 │       ├── CalendarPage.tsx      # Monthly P&L calendar
-│       ├── PlansPage.tsx         # Pre-trade planning
+│       ├── PropFirmPage.tsx      # Prop-firm evaluation shell
 │       ├── PlaybookPage.tsx      # Strategy library with trade performance
 │       ├── ImportPage.tsx        # MetaTrader CSV import
 │       ├── AccountsPage.tsx      # Account management
@@ -466,7 +449,9 @@ QuantEdge/
 │   └── quantedge-icon.svg
 ├── scripts/
 │   ├── QuantEdgeExport.mq5       # MetaTrader 5 exporter
-│   └── changelog.js              # Automated changelog entry generator
+│   ├── changelog.js              # Automated changelog entry generator
+│   ├── seed-example.js           # Optional example dataset
+│   └── capture-screenshots.js    # Maintainer screenshot capture (needs playwright)
 ├── docs/
 │   └── screenshots/              # Screenshot assets referenced in this README
 └── backups/                      # Auto-update database backups (gitignored)
@@ -477,7 +462,6 @@ QuantEdge/
 ## Roadmap
 
 **v4.0.0 — Current**
-- Pre-trade planning with thesis, levels, R:R preview, and plan-to-execution linking
 - Strategy playbook with setup rules, entry triggers, and live per-setup trade performance
 - Playbook linking from journal editor and trade panel
 - Hour-of-day performance heatmap in Analytics

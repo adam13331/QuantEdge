@@ -1,19 +1,20 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
+import type { LucideIcon } from "lucide-react";
 import { Trade, Account } from "../lib/types";
 import {
   ChallengeConfig, DEFAULT_CHALLENGE, FIRM_PRESETS, applyPreset,
   challengeStatus, simulateChallenge, challengePlan, challengeROI,
   type ChallengeOutcome,
 } from "../lib/analytics";
-import { SectionCard, MetricCard } from "./AnalyticsCards";
+import { SectionCard } from "./AnalyticsCards";
 import {
   Target, Shield, Activity, AlertTriangle, Clock, TrendingUp,
-  Zap, Percent, Award,
+  Percent, Award, ChevronDown, CheckCircle2, XCircle, Info,
 } from "lucide-react";
 import {
-  ComposedChart, Area, Line, XAxis, YAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer, ReferenceLine, type TooltipContentProps,
+  ComposedChart, BarChart, Area, Line, Bar, Cell, XAxis, YAxis, CartesianGrid,
+  Tooltip, ResponsiveContainer, ReferenceLine, type TooltipContentProps,
 } from "recharts";
 
 const labelStyle: React.CSSProperties = {
@@ -68,6 +69,19 @@ function PathTooltip({ active, payload, label }: TooltipContentProps) {
   );
 }
 
+// Four states cover every rule: satisfied, approaching the limit, past it, or
+// outside this firm's rule set. The words matter more than the colour — a
+// trader skimming the cards reads "Passing" before they read the bar.
+type RuleTone = "ok" | "progress" | "watch" | "fail" | "off";
+
+const TONE: Record<RuleTone, { color: string; bg: string; border: string; word: string; Icon: LucideIcon }> = {
+  ok:       { color: "#00e57a", bg: "rgba(0,229,122,0.07)",  border: "rgba(0,229,122,0.22)",  word: "Passing",  Icon: CheckCircle2 },
+  progress: { color: "#4d9fff", bg: "rgba(77,159,255,0.07)", border: "rgba(77,159,255,0.22)", word: "In progress", Icon: Info },
+  watch:    { color: "#fbbf24", bg: "rgba(251,191,36,0.07)", border: "rgba(251,191,36,0.22)", word: "Watch",    Icon: AlertTriangle },
+  fail:     { color: "#ff4d6a", bg: "rgba(255,77,106,0.07)", border: "rgba(255,77,106,0.22)", word: "Breached", Icon: XCircle },
+  off:      { color: "#a8a8c8", bg: "var(--bg-secondary)",   border: "var(--border)",          word: "No rule",  Icon: Info },
+};
+
 function NumberField({ label, value, onChange, step = 1 }: { label: string; value: number; onChange: (v: number) => void; step?: number }) {
   return (
     <label style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
@@ -94,21 +108,109 @@ function OptionalField({ label, value, onChange }: { label: string; value: numbe
   );
 }
 
-function Bar({ label, pct, detail, inverse }: { label: string; pct: number; detail: string; inverse?: boolean }) {
-  const capped = Math.max(0, Math.min(100, pct));
-  const tone = inverse
-    ? capped >= 90 ? "#ff4d6a" : capped >= 70 ? "#fbbf24" : "#00e57a"
-    : capped >= 100 ? "#00e57a" : "#4d9fff";
+/** Progress ring. Sized in px rather than stretched, so it stays round whatever
+ *  the card width is. */
+function Ring({ pct, color, value, label }: { pct: number; color: string; value: string; label: string }) {
+  const r = 52;
+  const circumference = 2 * Math.PI * r;
+  const filled = Math.max(0, Math.min(1, pct / 100));
   return (
-    <div style={{ marginBottom: "14px" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "6px" }}>
-        <span style={{ fontSize: "12px", fontWeight: "600", color: "var(--text-primary)" }}>{label}</span>
-        <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>{detail}</span>
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "8px", flexShrink: 0 }}>
+      <div style={{ position: "relative", width: "132px", height: "132px" }}>
+        <svg width={132} height={132} viewBox="0 0 132 132" role="img" aria-label={`${label}: ${value}`}>
+          <circle cx="66" cy="66" r={r} fill="none" stroke="var(--bg-secondary)" strokeWidth="10" />
+          <circle
+            cx="66" cy="66" r={r} fill="none" stroke={color} strokeWidth="10" strokeLinecap="round"
+            strokeDasharray={`${circumference * filled} ${circumference}`}
+            transform="rotate(-90 66 66)"
+            style={{ transition: "stroke-dasharray 0.3s ease" }}
+          />
+        </svg>
+        <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <span style={{ fontSize: "26px", fontWeight: "800", color, lineHeight: 1, fontVariantNumeric: "tabular-nums" }}>{value}</span>
+        </div>
       </div>
-      <div style={{ height: "8px", borderRadius: "6px", background: "var(--bg-secondary)", overflow: "hidden" }}>
-        <div style={{ width: `${capped}%`, height: "100%", borderRadius: "6px", background: tone, transition: "width 0.2s ease" }} />
+      <span style={{ ...labelStyle, fontSize: "9.5px", textAlign: "center", lineHeight: 1.3 }}>{label}</span>
+    </div>
+  );
+}
+
+function Stat({ label, value, sub, color }: { label: string; value: string; sub?: string; color?: string }) {
+  return (
+    <div>
+      <div style={{ ...labelStyle, marginBottom: "5px" }}>{label}</div>
+      <div style={{ fontSize: "19px", fontWeight: "800", color: color ?? "var(--text-primary)", lineHeight: 1.1, fontVariantNumeric: "tabular-nums" }}>
+        {value}
+      </div>
+      {sub && <div style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "3px", lineHeight: 1.4 }}>{sub}</div>}
+    </div>
+  );
+}
+
+type RuleCard = {
+  key: string;
+  label: string;
+  icon: LucideIcon;
+  value: string;
+  pct: number;
+  tone: RuleTone;
+  detail: string;
+};
+
+function RuleTile({ rule }: { rule: RuleCard }) {
+  const t = TONE[rule.tone];
+  const capped = Math.max(0, Math.min(100, rule.pct));
+  return (
+    <div style={{
+      background: "var(--bg-secondary)", border: "1px solid var(--border)",
+      borderRadius: "12px", padding: "14px 16px",
+    }}>
+      <div style={{ display: "flex", alignItems: "center", gap: "7px", marginBottom: "9px" }}>
+        <rule.icon size={13} color={t.color} style={{ flexShrink: 0 }} />
+        <span style={{ flex: 1, minWidth: 0, fontSize: "12px", fontWeight: "600", color: "var(--text-primary)" }}>
+          {rule.label}
+        </span>
+      </div>
+
+      {/* The chip sits beside the figure, not the label: at this card width a
+          60px pill next to a 12px label forces every title onto two lines. */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px", marginBottom: "9px" }}>
+        <span style={{ fontSize: "21px", fontWeight: "800", color: t.color, lineHeight: 1, fontVariantNumeric: "tabular-nums" }}>
+          {rule.value}
+        </span>
+        <span style={{
+          fontSize: "9px", fontWeight: "800", letterSpacing: "0.4px", textTransform: "uppercase",
+          color: t.color, background: t.bg, border: `1px solid ${t.border}`,
+          padding: "2px 6px", borderRadius: "20px", whiteSpace: "nowrap", flexShrink: 0,
+        }}>
+          {t.word}
+        </span>
+      </div>
+
+      {/* A rule this firm does not have gets no bar — an empty track reads as
+          "0% used" when the truth is "not measured". */}
+      {rule.tone !== "off" && (
+        <div style={{ height: "7px", borderRadius: "4px", background: "var(--bg-card)", overflow: "hidden" }}>
+          <div style={{
+            width: `${capped}%`, height: "100%", borderRadius: "4px",
+            background: t.color, transition: "width 0.2s ease",
+          }} />
+        </div>
+      )}
+      <div style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "7px", lineHeight: 1.45 }}>
+        {rule.detail}
       </div>
     </div>
+  );
+}
+
+function LegendChip({ color, label, value }: { color: string; label: string; value?: string }) {
+  return (
+    <span style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "11px", color: "var(--text-muted)" }}>
+      <span style={{ width: "9px", height: "9px", borderRadius: "3px", background: color, flexShrink: 0 }} />
+      {label}
+      {value && <span style={{ color: "var(--text-primary)", fontWeight: "700" }}>{value}</span>}
+    </span>
   );
 }
 
@@ -142,6 +244,11 @@ export default function PropFirmPanel({ trades, activeAccount }: { trades: Trade
   const set = <K extends keyof ChallengeConfig>(key: K, value: ChallengeConfig[K]) =>
     setConfig((c) => ({ ...c, [key]: value }));
 
+  // The rule inputs stay open only when the trader asks for them; the summary
+  // line underneath carries the same information at a glance.
+  const [editing, setEditing] = useState(false);
+  const [notesOpen, setNotesOpen] = useState(false);
+
   // 5000 paths is too much work to run on every keystroke, so the simulation
   // trails the rule inputs by a beat while the cheap single replay stays live.
   const [simConfig, setSimConfig] = useState<ChallengeConfig>(config);
@@ -161,6 +268,139 @@ export default function PropFirmPanel({ trades, activeAccount }: { trades: Trade
   const money = (v: number) => `${v < 0 ? "-" : ""}$${Math.abs(v).toLocaleString("en-US", { maximumFractionDigits: 2 })}`;
   const pct1  = (v: number) => `${v.toFixed(1)}%`;
 
+  const verdict = useMemo(() => {
+    if (trades.length === 0) {
+      return {
+        tone: "progress" as RuleTone,
+        headline: "Import trades to score this challenge",
+        line: "Every figure on this page is replayed from your own closed trades.",
+      };
+    }
+    if (status.replayedBreach) {
+      return {
+        tone: "fail" as RuleTone,
+        headline: "Replaying your trades, this path breaches a rule",
+        line: `${status.replayedReason}. Everything below shows how far the path got first.`,
+      };
+    }
+    if (status.targetHit && !status.minDaysMet) {
+      return {
+        tone: "watch" as RuleTone,
+        headline: "Target reached, minimum days not yet met",
+        line: `${status.tradingDays} of ${config.minDays} required trading days. Keep trading without giving profit back.`,
+      };
+    }
+    if (status.targetHit && !status.consistencyOk) {
+      return {
+        tone: "watch" as RuleTone,
+        headline: "Target reached, consistency rule would block it",
+        line: `Your biggest day is ${pct1(status.consistencyShare)} of profit against a ${config.consistencyPct}% cap. It needs more days, not more size.`,
+      };
+    }
+    if (status.targetHit) {
+      return {
+        tone: "ok" as RuleTone,
+        headline: "This path passes every rule",
+        line: "Target, minimum days and consistency are all satisfied by the trades in this account.",
+      };
+    }
+    if (status.ddUsedPct >= 70 || status.dailyUsedPct >= 70) {
+      return {
+        tone: "watch" as RuleTone,
+        headline: "Little room left before a limit",
+        line: `${status.ddUsedPct >= 70 ? `${pct1(status.ddUsedPct)} of the drawdown allowance used` : `${pct1(status.dailyUsedPct)} of the daily limit used`} — the next losing run decides the evaluation.`,
+      };
+    }
+    return {
+      tone: "progress" as RuleTone,
+      headline: "No rule breached yet, target not reached",
+      line: "Replaying your own trades in date order: the account is still alive and still short of the target.",
+    };
+  }, [trades.length, status, config.minDays, config.consistencyPct]);
+
+  const v = TONE[verdict.tone];
+
+  // The five rules that can end an evaluation, in the order they usually bind.
+  // Each figure comes from challengeStatus, so the tile and the simulation can
+  // never quote different numbers for the same rule.
+  const rules: RuleCard[] = useMemo(() => {
+    const rows: RuleCard[] = [];
+    const remaining = Math.max(0, status.targetAmount - status.profitAmount);
+    rows.push({
+      key: "target",
+      label: "Profit target",
+      icon: Target,
+      value: pct1(Math.min(999, status.profitProgress)),
+      pct: status.profitProgress,
+      tone: status.targetHit ? "ok" : "progress",
+      detail: status.targetHit
+        ? `${money(status.profitAmount)} banked, target ${money(status.targetAmount)}`
+        : `${money(status.profitAmount)} of ${money(status.targetAmount)} — ${money(remaining)} to go`,
+    });
+
+    rows.push({
+      key: "dd",
+      label: "Max drawdown",
+      icon: Shield,
+      value: pct1(status.ddUsedPct),
+      pct: status.ddUsedPct,
+      tone: status.ddAllowed <= 0 ? "off" : status.ddUsedPct >= 100 ? "fail" : status.ddUsedPct >= 70 ? "watch" : "ok",
+      detail: status.ddAllowed <= 0
+        ? "No drawdown rule set"
+        : `${money(status.ddUsed)} of ${money(status.ddAllowed)} used · ${config.ddMode} floor ${money(status.ddReference - status.ddAllowed)}`,
+    });
+
+    rows.push({
+      key: "daily",
+      label: "Worst day vs limit",
+      icon: AlertTriangle,
+      value: config.dailyLimitPct === 0 ? "—" : pct1(status.dailyUsedPct),
+      pct: status.dailyUsedPct,
+      tone: config.dailyLimitPct === 0 ? "off" : status.dailyUsedPct >= 100 ? "fail" : status.dailyUsedPct >= 70 ? "watch" : "ok",
+      detail: config.dailyLimitPct === 0
+        ? "This firm has no daily loss rule"
+        : `${money(status.worstDayPnl)} on ${status.worstDayDate || "—"} of ${money(status.dailyAllowed)} allowed`,
+    });
+
+    rows.push({
+      key: "days",
+      label: "Min trading days",
+      icon: Clock,
+      value: config.minDays > 0 ? `${status.tradingDays} / ${config.minDays}` : `${status.tradingDays}`,
+      pct: config.minDays > 0 ? (status.tradingDays / config.minDays) * 100 : 100,
+      tone: status.minDaysMet ? "ok" : "progress",
+      detail: config.minDays === 0
+        ? "No minimum-day rule set"
+        : status.minDaysMet
+          ? `Requirement met — ${status.tradingDays} days traded`
+          : `${config.minDays - status.tradingDays} more day${config.minDays - status.tradingDays === 1 ? "" : "s"} with at least one trade`,
+    });
+
+    rows.push({
+      key: "consistency",
+      label: "Biggest day share",
+      icon: Percent,
+      value: config.consistencyPct == null ? "—" : pct1(status.consistencyShare),
+      pct: config.consistencyPct ? (status.consistencyShare / config.consistencyPct) * 100 : 0,
+      tone: config.consistencyPct == null ? "off" : status.consistencyOk ? "ok" : "fail",
+      detail: config.consistencyPct == null
+        ? "No consistency rule set"
+        : `${money(status.biggestDayProfit)} best day against a ${pct1(config.consistencyPct)} cap on total profit`,
+    });
+
+    return rows;
+  }, [status, config.ddMode, config.dailyLimitPct, config.minDays, config.consistencyPct]);
+
+  const setupSummary = [
+    money0(config.accountSize),
+    `+${config.targetPct}% target`,
+    `${config.maxDdPct}% max DD ${config.ddMode}`,
+    config.dailyLimitPct > 0 ? `${config.dailyLimitPct}% daily` : null,
+    config.minDays > 0 ? `${config.minDays} min days` : null,
+    config.maxDays ? `${config.maxDays}-day limit` : null,
+    config.consistencyPct != null ? `${config.consistencyPct}% consistency` : null,
+  ].filter(Boolean).join(" · ");
+
   // One row per day. Every sampled path contributes a key so the fan can draw
   // them as individual lines, and terminated paths carry their last balance
   // forward to keep the chart flat rather than ending early.
@@ -178,136 +418,243 @@ export default function PropFirmPanel({ trades, activeAccount }: { trades: Trade
     });
   }, [sim]);
 
+  // The last ~60 trading days is enough to see the shape without turning the
+  // bars into hairlines; the worst day is called out above the chart anyway.
+  const dayBars = useMemo(
+    () => status.days.slice(-60).map((d) => ({ label: d.date.slice(5), pnl: d.pnl })),
+    [status.days],
+  );
+
   const targetBalance = config.accountSize + (config.accountSize * config.targetPct) / 100;
+
+  // The percentile band is a stacked area, so its implicit zero baseline pulls
+  // recharts' auto domain down to $0 and squashes the whole fan into the top
+  // third of the chart. Pin the axis to the band, the start balance and the
+  // target instead, then round outward to a readable step.
+  const fanDomain: [number, number] = useMemo(() => {
+    if (chartData.length === 0) return [0, 1];
+    // The axis is also clamped to the sampled paths themselves, because
+    // allowDataOverflow keeps recharts from widening it back out to zero.
+    const pathLows  = sim.paths.map((p) => Math.min(...p.series)).filter(Number.isFinite);
+    const pathHighs = sim.paths.map((p) => Math.max(...p.series)).filter(Number.isFinite);
+    const lo = Math.min(...chartData.map((r) => r.p5), ...pathLows);
+    const hi = Math.max(...chartData.map((r) => r.p95), ...pathHighs, targetBalance);
+    const span = Math.max(1, hi - lo);
+    const pad = span * 0.08;
+    const step = Math.pow(10, Math.floor(Math.log10(span)) - 1);
+    return [Math.floor((lo - pad) / step) * step, Math.ceil((hi + pad) / step) * step];
+  }, [chartData, targetBalance, sim.paths]);
+
   const passCount = sim.daysToPass.reduce((s, b) => s + b.count, 0);
 
   const outcomes = [
-    { label: "Pass",              value: sim.passRate,        color: "#00e57a" },
-    { label: "Fail — daily",      value: sim.failDaily,       color: "#ff4d6a" },
-    { label: "Fail — drawdown",   value: sim.failDrawdown,    color: "#ff4d6a" },
-    { label: "Timeout",           value: sim.timeout,         color: "#a8a8c8" },
+    { label: "Pass",               value: sim.passRate,        color: "#00e57a" },
+    { label: "Fail — daily",       value: sim.failDaily,       color: "#ff4d6a" },
+    { label: "Fail — drawdown",    value: sim.failDrawdown,    color: "#ff4d6a" },
+    { label: "Timeout",            value: sim.timeout,         color: "#a8a8c8" },
     { label: "Consistency breach", value: sim.consistencyFail, color: "#fbbf24" },
   ].filter((o) => o.value > 0.0005);
 
+  const passColor = sim.runs === 0 ? "#a8a8c8" : sim.passRate >= 0.5 ? "#00e57a" : sim.passRate >= 0.3 ? "#fbbf24" : "#ff4d6a";
+
   return (
     <div>
-      <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: "12px", padding: "14px 16px", marginBottom: "20px" }}>
-        <p style={{ fontSize: "12px", color: "var(--text-muted)", lineHeight: 1.7, margin: 0 }}>
-          <strong style={{ color: "var(--text-primary)" }}>Evaluation rules.</strong> Presets are approximate starting points and firms change their rule sets —
-          edit every field to match the exact account you are trading. Passing probability is a bootstrap simulation over your own imported trades, not a promise.
-        </p>
-      </div>
-
-      <SectionCard title="Challenge Rules" subtitle="The account you are evaluating against. Everything below recalculates from these fields.">
-        <div style={{ marginBottom: "16px" }}>
-          <label style={{ display: "flex", flexDirection: "column", gap: "5px", maxWidth: "280px" }}>
-            <span style={labelStyle}>Firm preset</span>
-            <select
-              value={config.firm}
-              onChange={(e) => setConfig((c) => applyPreset(c, e.target.value))}
-              style={inputStyle}
-            >
-              {FIRM_PRESETS.map((p) => <option key={p.name} value={p.name}>{p.name}</option>)}
-            </select>
-          </label>
-        </div>
-
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "12px" }}>
-          <NumberField label="Account size" value={config.accountSize} onChange={(v) => set("accountSize", v)} step={1000} />
-          <NumberField label="Profit target %" value={config.targetPct} onChange={(v) => set("targetPct", v)} step={0.5} />
-          <NumberField label="Max daily loss %" value={config.dailyLimitPct} onChange={(v) => set("dailyLimitPct", v)} step={0.5} />
-          <NumberField label="Max total DD %" value={config.maxDdPct} onChange={(v) => set("maxDdPct", v)} step={0.5} />
-
-          <label style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
-            <span style={labelStyle}>Drawdown type</span>
-            <select value={config.ddMode} onChange={(e) => set("ddMode", e.target.value as "static" | "trailing")} style={inputStyle}>
-              <option value="static">Static (from start)</option>
-              <option value="trailing">Trailing (from peak)</option>
-            </select>
-          </label>
-          <NumberField label="Min trading days" value={config.minDays} onChange={(v) => set("minDays", v)} />
-          <OptionalField label="Time limit (days)" value={config.maxDays} onChange={(v) => set("maxDays", v)} />
-          <OptionalField label="Consistency %" value={config.consistencyPct} onChange={(v) => set("consistencyPct", v)} />
-
-          <NumberField label="Challenge fee" value={config.fee} onChange={(v) => set("fee", v)} step={10} />
-          <NumberField label="Profit split %" value={config.splitPct} onChange={(v) => set("splitPct", v)} step={5} />
-          <NumberField label="Months funded" value={config.monthsFunded} onChange={(v) => set("monthsFunded", v)} />
-          <NumberField label="Expected monthly %" value={config.expectedMonthlyPct} onChange={(v) => set("expectedMonthlyPct", v)} step={0.5} />
-        </div>
-      </SectionCard>
-
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "12px", marginBottom: "20px" }}>
-        <MetricCard
-          label="Pass Rate"
-          value={sim.runs === 0 ? "—" : pct1(sim.passRate * 100)}
-          positive={sim.passRate >= 0.5}
-          neutral={sim.runs === 0}
-          icon={Award}
-          sub={sim.runs === 0 ? "Import trades to simulate" : `${sim.runs.toLocaleString()} simulated attempts`}
-        />
-        <MetricCard
-          label="Target Progress"
-          value={pct1(status.profitProgress)}
-          positive={status.profitProgress >= 100}
-          icon={Target}
-          sub={`${money(status.profitAmount)} of ${money(status.targetAmount)}`}
-        />
-        <MetricCard
-          label="Drawdown Used"
-          value={pct1(status.ddUsedPct)}
-          positive={false}
-          neutral={status.ddAllowed === 0}
-          icon={Shield}
-          sub={`${money(status.ddUsed)} of ${money(status.ddAllowed)} ${config.ddMode}`}
-        />
-        <MetricCard
-          label="Worst Day / Limit"
-          value={config.dailyLimitPct === 0 ? "—" : pct1(status.dailyUsedPct)}
-          positive={false}
-          neutral={config.dailyLimitPct === 0}
-          icon={AlertTriangle}
-          sub={config.dailyLimitPct === 0 ? "No daily rule set" : `${money(status.worstDayPnl)} on ${status.worstDayDate || "—"}`}
-        />
-      </div>
-
-      <SectionCard title="Challenge Standing" subtitle="Where the imported trades sit against each rule, right now.">
-        <Bar label="Profit target" pct={status.profitProgress} detail={`${money(status.profitAmount)} / ${money(status.targetAmount)}`} />
-        <Bar label="Total drawdown" pct={status.ddUsedPct} detail={`${money(status.ddUsed)} / ${money(status.ddAllowed)}`} inverse />
-        {config.dailyLimitPct > 0 && (
-          <Bar label="Worst day vs daily limit" pct={status.dailyUsedPct} detail={`${money(status.worstDayPnl)} / ${money(status.dailyAllowed)}`} inverse />
-        )}
-        <Bar
-          label="Minimum trading days"
-          pct={config.minDays > 0 ? (status.tradingDays / config.minDays) * 100 : 100}
-          detail={config.minDays > 0 ? `${status.tradingDays} / ${config.minDays} days` : `${status.tradingDays} days`}
-        />
-        {config.consistencyPct != null && (
-          <Bar
-            label="Consistency (biggest day share)"
-            pct={config.consistencyPct > 0 ? (status.consistencyShare / config.consistencyPct) * 100 : 0}
-            detail={`${pct1(status.consistencyShare)} / ${pct1(config.consistencyPct)} cap`}
-            inverse
+      {/* ── Verdict ────────────────────────────────────────────────────── */}
+      <div style={{
+        background: v.bg, border: `1px solid ${v.border}`, borderRadius: "16px",
+        padding: "20px 24px", marginBottom: "20px",
+      }}>
+        <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "28px" }}>
+          <Ring
+            pct={sim.passRate * 100}
+            color={passColor}
+            value={sim.runs === 0 ? "—" : `${(sim.passRate * 100).toFixed(0)}%`}
+            label="chance of passing"
           />
-        )}
 
-        <div style={{ marginTop: "8px", background: "var(--bg-secondary)", borderRadius: "10px", padding: "14px 16px" }}>
-          <p style={{ fontSize: "12px", color: "var(--text-muted)", lineHeight: 1.7, margin: 0 }}>
-            {status.replayedBreach
-              ? `Replaying your own trades: ${status.replayedReason}.`
-              : status.replayedPass
-                ? "Replaying your own trades: this path would have reached the target without breaching a rule."
-                : status.targetHit
-                  ? "The target is reached. Check the minimum-days and consistency rules before calling it passed."
-                  : "Replaying your own trades: no rule breached yet, target not reached yet."}
-          </p>
+          <div style={{ flex: "1 1 260px", minWidth: "240px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "7px", marginBottom: "8px" }}>
+              <v.Icon size={14} color={v.color} />
+              <span style={{ fontSize: "10.5px", fontWeight: "800", letterSpacing: "0.7px", textTransform: "uppercase", color: v.color }}>
+                {verdict.tone === "ok" ? "Passing" : verdict.tone === "fail" ? "Would fail" : verdict.tone === "watch" ? "At risk" : "On track"}
+              </span>
+            </div>
+            <h3 style={{ fontSize: "19px", fontWeight: "700", color: "var(--text-primary)", lineHeight: 1.3, margin: "0 0 6px" }}>
+              {verdict.headline}
+            </h3>
+            <p style={{ fontSize: "12.5px", color: "var(--text-secondary)", lineHeight: 1.6, margin: 0 }}>
+              {verdict.line}
+            </p>
+          </div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(96px, 1fr))", gap: "20px", flex: "1 1 320px" }}>
+            <Stat
+              label="Target"
+              value={pct1(status.profitProgress)}
+              color={status.targetHit ? "#00e57a" : "var(--text-primary)"}
+              sub={`${money(status.profitAmount)} / ${money(status.targetAmount)}`}
+            />
+            <Stat
+              label="Drawdown"
+              value={pct1(status.ddUsedPct)}
+              color={status.ddUsedPct >= 100 ? "#ff4d6a" : status.ddUsedPct >= 70 ? "#fbbf24" : "var(--text-primary)"}
+              sub={`${money(status.ddUsed)} / ${money(status.ddAllowed)}`}
+            />
+            <Stat
+              label="Worst day"
+              value={config.dailyLimitPct === 0 ? "—" : pct1(status.dailyUsedPct)}
+              color={status.dailyUsedPct >= 100 ? "#ff4d6a" : status.dailyUsedPct >= 70 ? "#fbbf24" : "var(--text-primary)"}
+              sub={config.dailyLimitPct === 0 ? "No daily rule" : `${money(status.worstDayPnl)} of ${money(status.dailyAllowed)}`}
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* ── Setup ──────────────────────────────────────────────────────── */}
+      <SectionCard
+        title="The account you're tested against"
+        subtitle="Presets are approximate starting points; firms change their rule sets. Everything on this page recalculates from these fields."
+      >
+        <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", marginBottom: "16px" }}>
+          {FIRM_PRESETS.map((p) => {
+            const active = p.name === config.firm;
+            return (
+              <button
+                key={p.name}
+                onClick={() => setConfig((c) => applyPreset(c, p.name))}
+                aria-pressed={active}
+                style={{
+                  padding: "7px 13px", borderRadius: "20px", cursor: "pointer",
+                  fontFamily: "'DM Sans', sans-serif", fontSize: "12px", fontWeight: "600",
+                  background: active ? "rgba(0,229,122,0.12)" : "var(--bg-secondary)",
+                  border: `1px solid ${active ? "rgba(0,229,122,0.45)" : "var(--border)"}`,
+                  color: active ? "var(--accent-green)" : "var(--text-muted)",
+                  transition: "background 0.15s ease, color 0.15s ease",
+                }}
+              >
+                {p.name}
+              </button>
+            );
+          })}
+        </div>
+
+        <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "12px", justifyContent: "space-between" }}>
+          <span style={{ fontSize: "12px", color: "var(--text-secondary)", fontVariantNumeric: "tabular-nums", lineHeight: 1.6 }}>
+            {setupSummary}
+          </span>
+          <button
+            onClick={() => setEditing((e) => !e)}
+            aria-expanded={editing}
+            style={{
+              display: "inline-flex", alignItems: "center", gap: "5px",
+              background: "none", border: "none", cursor: "pointer",
+              color: "var(--accent-green)", fontSize: "12px", fontWeight: "700",
+              fontFamily: "'DM Sans', sans-serif", padding: 0,
+            }}
+          >
+            {editing ? "Done editing" : "Edit rules"}
+            <ChevronDown size={13} style={{ transform: editing ? "rotate(180deg)" : "none", transition: "transform 0.15s ease" }} />
+          </button>
+        </div>
+
+        {editing && (
+          <div style={{
+            display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
+            gap: "12px", marginTop: "18px", paddingTop: "18px", borderTop: "1px solid var(--border)",
+          }}>
+            <NumberField label="Account size" value={config.accountSize} onChange={(x) => set("accountSize", x)} step={1000} />
+            <NumberField label="Profit target %" value={config.targetPct} onChange={(x) => set("targetPct", x)} step={0.5} />
+            <NumberField label="Max total DD %" value={config.maxDdPct} onChange={(x) => set("maxDdPct", x)} step={0.5} />
+            <NumberField label="Max daily loss %" value={config.dailyLimitPct} onChange={(x) => set("dailyLimitPct", x)} step={0.5} />
+
+            <label style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
+              <span style={labelStyle}>Drawdown type</span>
+              <select value={config.ddMode} onChange={(e) => set("ddMode", e.target.value as "static" | "trailing")} style={inputStyle}>
+                <option value="static">Static (from start)</option>
+                <option value="trailing">Trailing (from peak)</option>
+              </select>
+            </label>
+            <NumberField label="Min trading days" value={config.minDays} onChange={(x) => set("minDays", x)} />
+            <OptionalField label="Time limit (days)" value={config.maxDays} onChange={(x) => set("maxDays", x)} />
+            <OptionalField label="Consistency %" value={config.consistencyPct} onChange={(x) => set("consistencyPct", x)} />
+
+            <NumberField label="Challenge fee" value={config.fee} onChange={(x) => set("fee", x)} step={10} />
+            <NumberField label="Profit split %" value={config.splitPct} onChange={(x) => set("splitPct", x)} step={5} />
+            <NumberField label="Months funded" value={config.monthsFunded} onChange={(x) => set("monthsFunded", x)} />
+            <NumberField label="Expected monthly %" value={config.expectedMonthlyPct} onChange={(x) => set("expectedMonthlyPct", x)} step={0.5} />
+          </div>
+        )}
+      </SectionCard>
+
+      {/* ── Rule by rule ───────────────────────────────────────────────── */}
+      <SectionCard
+        title="Rule by rule"
+        subtitle="Every rule that can end the evaluation, worst placed first. 100% means the limit is reached, not passed."
+      >
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(188px, 1fr))", gap: "12px" }}>
+          {rules.map((r) => <RuleTile key={r.key} rule={r} />)}
         </div>
       </SectionCard>
 
-      <SectionCard title="Passing Probability" subtitle="Bootstrap simulation: your trades resampled into 5,000 alternate paths, each walked through the rules above.">
+      {/* ── Day by day ─────────────────────────────────────────────────── */}
+      <SectionCard
+        title="Day by day"
+        subtitle={
+          config.dailyLimitPct === 0
+            ? `Last ${dayBars.length} trading days behind the current balance.`
+            : `Last ${dayBars.length} trading days. The dashed line is this firm's daily loss limit — a day that touches it ends the account.`
+        }
+      >
+        {dayBars.length === 0 ? (
+          <p style={{ fontSize: "12px", color: "var(--text-muted)" }}>Import trades to see the daily shape.</p>
+        ) : (
+          <>
+            <ResponsiveContainer width="100%" height={200}>
+              <BarChart data={dayBars} margin={{ top: 8, right: 8, bottom: 0, left: 4 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+                <XAxis dataKey="label" tick={axisStyle} axisLine={false} tickLine={false} interval="preserveStartEnd" minTickGap={18} />
+                <YAxis tick={axisStyle} axisLine={false} tickLine={false} tickFormatter={(x) => money0(Number(x))} width={62} />
+                <Tooltip
+                  contentStyle={chartTooltipStyle}
+                  cursor={{ fill: "rgba(255,255,255,0.04)" }}
+                  formatter={(value) => [money(Number(value)), "Day P&L"]}
+                />
+                {config.dailyLimitPct > 0 && (
+                  <ReferenceLine
+                    y={-status.dailyAllowed}
+                    stroke="#ff4d6a"
+                    strokeDasharray="6 4"
+                    label={{ value: "Daily limit", position: "insideBottomRight", fill: "#ff4d6a", fontSize: 10 }}
+                  />
+                )}
+                <Bar dataKey="pnl" radius={[2, 2, 0, 0]} isAnimationActive={false}>
+                  {dayBars.map((d, i) => (
+                    <Cell key={i} fill={d.pnl >= 0 ? "#00e57a" : "#ff4d6a"} fillOpacity={0.85} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "16px", marginTop: "10px" }}>
+              <LegendChip color="#00e57a" label="Winning day" />
+              <LegendChip color="#ff4d6a" label="Losing day" />
+              {config.dailyLimitPct > 0 && <LegendChip color="#ff4d6a" label="Daily limit" value={money(status.dailyAllowed)} />}
+              <span style={{ marginLeft: "auto", fontSize: "11px", color: "var(--text-muted)" }}>
+                {status.days.length} trading days · {pct1(status.dailyUsedPct)} of the daily limit used at worst
+              </span>
+            </div>
+          </>
+        )}
+      </SectionCard>
+
+      {/* ── Simulation ─────────────────────────────────────────────────── */}
+      <SectionCard
+        title="Chance of passing"
+        subtitle={`Your trades resampled into ${sim.runs.toLocaleString()} alternate paths, each walked through the rules above.`}
+      >
         {sim.scaled && (
           <div style={{ background: "rgba(77,159,255,0.08)", border: "1px solid rgba(77,159,255,0.25)", borderRadius: "10px", padding: "10px 14px", marginBottom: "16px" }}>
             <p style={{ fontSize: "12px", color: "#4d9fff", margin: 0, lineHeight: 1.6 }}>
-              Trade P&amp;L is scaled ×{sim.scale.toFixed(2)} from your {money(activeAccount?.initialBalance ?? 0)} account onto the {money(config.accountSize)} challenge.
+              Trade P&amp;L is scaled ×{sim.scale.toFixed(2)} from your {money(activeAccount?.initialBalance ?? 0)} account onto the {money0(config.accountSize)} challenge.
             </p>
           </div>
         )}
@@ -318,134 +665,150 @@ export default function PropFirmPanel({ trades, activeAccount }: { trades: Trade
             </p>
           </div>
         )}
+
         {outcomes.length === 0 ? (
           <p style={{ fontSize: "12px", color: "var(--text-muted)" }}>No simulatable outcomes yet.</p>
         ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-            {outcomes.map((o) => (
-              <div key={o.label} style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                <span style={{ width: "160px", fontSize: "12px", color: "var(--text-secondary)" }}>{o.label}</span>
-                <div style={{ flex: 1, height: "10px", borderRadius: "6px", background: "var(--bg-secondary)", overflow: "hidden" }}>
-                  <div style={{ width: `${Math.min(100, o.value * 100)}%`, height: "100%", background: o.color, borderRadius: "6px" }} />
-                </div>
-                <span style={{ width: "60px", textAlign: "right", fontSize: "12px", fontWeight: "700", color: o.color }}>
-                  {pct1(o.value * 100)}
-                </span>
-              </div>
-            ))}
-          </div>
+          <>
+            <div style={{ display: "flex", height: "14px", borderRadius: "7px", overflow: "hidden", background: "var(--bg-secondary)", marginBottom: "12px" }}>
+              {outcomes.map((o) => (
+                <div key={o.label} title={`${o.label} ${pct1(o.value * 100)}`} style={{ width: `${o.value * 100}%`, background: o.color }} />
+              ))}
+            </div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "14px 20px" }}>
+              {outcomes.map((o) => (
+                <LegendChip key={o.label} color={o.color} label={o.label} value={pct1(o.value * 100)} />
+              ))}
+            </div>
+          </>
         )}
-        <div style={{ marginTop: "16px", display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "12px" }}>
+
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: "12px", marginTop: "18px" }}>
           {[
-            { k: "Pass (any path)",     v: pct1(sim.passRateRaw * 100), c: "var(--text-primary)" },
-            { k: "Median days to pass", v: sim.medianDaysToPass != null ? `${sim.medianDaysToPass} days` : "—", c: "var(--text-primary)" },
-            { k: "Consistency breaches", v: pct1(sim.consistencyFail * 100), c: "var(--text-primary)" },
+            { k: "Pass (any path)",      v: sim.runs === 0 ? "—" : pct1(sim.passRateRaw * 100) },
+            { k: "Median days to pass",  v: sim.medianDaysToPass != null ? `${sim.medianDaysToPass}` : "—" },
+            { k: "Consistency breaches", v: sim.runs === 0 ? "—" : pct1(sim.consistencyFail * 100) },
+            { k: "Sample",               v: `${sim.sampleTrades} trades` },
           ].map((row) => (
             <div key={row.k} style={{ background: "var(--bg-secondary)", borderRadius: "10px", padding: "12px 14px" }}>
-              <div style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "6px" }}>{row.k}</div>
-              <div style={{ fontSize: "15px", fontWeight: "700", color: row.c }}>{row.v}</div>
+              <div style={{ ...labelStyle, marginBottom: "5px" }}>{row.k}</div>
+              <div style={{ fontSize: "16px", fontWeight: "700", color: "var(--text-primary)" }}>{row.v}</div>
             </div>
           ))}
         </div>
-        <p style={{ fontSize: "11px", color: "var(--text-muted)", lineHeight: 1.6, marginTop: "14px", marginBottom: 0 }}>
-          Intraday drawdown is approximated from closed trades. A trailing or equity-based firm can breach on a position that was never closed at the low, which this model cannot see.
+
+        <div style={{ marginTop: "26px", paddingTop: "20px", borderTop: "1px solid var(--border)" }}>
+          <div style={{ display: "flex", alignItems: "baseline", gap: "8px", marginBottom: "4px" }}>
+            <h4 style={{ fontSize: "14px", fontWeight: "700", color: "var(--text-primary)", margin: 0 }}>Possible paths to funded</h4>
+            <span style={{ fontSize: "11.5px", color: "var(--text-muted)" }}>
+              percentile fan with {sim.paths.length} sampled attempts
+            </span>
+          </div>
+
+          {chartData.length === 0 ? (
+            <p style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "10px" }}>Import trades to generate paths.</p>
+          ) : (
+            <>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "14px", margin: "12px 0 10px" }}>
+                <LegendChip color={PATH_COLORS.pass} label="Pass" />
+                <LegendChip color={PATH_COLORS.daily} label="Fail" />
+                <LegendChip color={PATH_COLORS.timeout} label="Timeout" />
+                <LegendChip color={PATH_COLORS.consistency} label="Consistency" />
+                <LegendChip color="rgba(77,159,255,0.35)" label="5–95% band" />
+                <LegendChip color="#4d9fff" label="Median" />
+              </div>
+
+              <ResponsiveContainer width="100%" height={320}>
+                <ComposedChart data={chartData} margin={{ top: 8, right: 16, bottom: 4, left: 4 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+                  <XAxis dataKey="day" tick={axisStyle} axisLine={false} tickLine={false} tickFormatter={(d) => `D${d}`} />
+                  <YAxis domain={fanDomain} allowDataOverflow tick={axisStyle} axisLine={false} tickLine={false} tickFormatter={(x) => money0(Number(x))} width={64} />
+                  <Tooltip content={PathTooltip} />
+                  <Area type="monotone" dataKey="bandBase" stackId="band" stroke="none" fill="transparent" isAnimationActive={false} />
+                  <Area type="monotone" dataKey="bandWidth" stackId="band" stroke="none" fill="#4d9fff" fillOpacity={0.16} isAnimationActive={false} />
+                  {sim.paths.map((p, i) => (
+                    <Line
+                      key={i}
+                      type="monotone"
+                      dataKey={`p${i}`}
+                      stroke={PATH_COLORS[p.outcome]}
+                      strokeOpacity={0.18}
+                      strokeWidth={1}
+                      dot={false}
+                      activeDot={false}
+                      isAnimationActive={false}
+                    />
+                  ))}
+                  <Line type="monotone" dataKey="p50" stroke="#4d9fff" strokeWidth={2} dot={false} activeDot={false} isAnimationActive={false} />
+                  <ReferenceLine
+                    y={targetBalance}
+                    stroke="#00e57a"
+                    strokeDasharray="6 4"
+                    label={{ value: "Target", position: "insideTopRight", fill: "#00e57a", fontSize: 10 }}
+                  />
+                </ComposedChart>
+              </ResponsiveContainer>
+
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: "10px", marginTop: "16px" }}>
+                {sim.daysToPass.map((b) => (
+                  <div key={b.label} style={{ background: "var(--bg-secondary)", borderRadius: "10px", padding: "10px 12px" }}>
+                    <div style={{ ...labelStyle, marginBottom: "4px" }}>{b.label} days</div>
+                    <div style={{ fontSize: "15px", fontWeight: "700", color: "var(--text-primary)" }}>{b.count.toLocaleString()}</div>
+                    <div style={{ fontSize: "10px", color: "var(--text-muted)" }}>
+                      {passCount > 0 ? `${((b.count / passCount) * 100).toFixed(0)}% of passes` : "—"}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+
+        <p style={{ fontSize: "11px", color: "var(--text-muted)", lineHeight: 1.6, marginTop: "16px", marginBottom: 0 }}>
+          The band shows where 90% of attempts sit day by day. Paths that fail flatten at their loss and paths that pass flatten at the target, so the fan separates rather than converging. Intraday drawdown is approximated from closed trades — a trailing or equity-based firm can breach on a position that was never closed at the low, which this model cannot see.
         </p>
       </SectionCard>
 
-      <SectionCard
-        title="Possible Paths to Funded"
-        subtitle={`${sim.runs.toLocaleString()} simulated attempts, drawn as a percentile fan with a sample of ${sim.paths.length} individual paths. The dashed line is the profit target.`}
-      >
-        {chartData.length === 0 ? (
-          <p style={{ fontSize: "12px", color: "var(--text-muted)" }}>Import trades to generate paths.</p>
-        ) : (
-          <>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: "14px", marginBottom: "10px" }}>
-              {[
-                { label: "Pass", color: PATH_COLORS.pass },
-                { label: "Fail", color: PATH_COLORS.daily },
-                { label: "Timeout", color: PATH_COLORS.timeout },
-                { label: "Consistency", color: PATH_COLORS.consistency },
-                { label: "5–95% band", color: "rgba(77,159,255,0.35)" },
-                { label: "Median", color: "#4d9fff" },
-              ].map((l) => (
-                <span key={l.label} style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "11px", color: "var(--text-muted)" }}>
-                  <span style={{ width: "10px", height: "10px", borderRadius: "3px", background: l.color }} />
-                  {l.label}
-                </span>
-              ))}
-            </div>
-
-            <ResponsiveContainer width="100%" height={320}>
-              <ComposedChart data={chartData} margin={{ top: 8, right: 16, bottom: 4, left: 4 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
-                <XAxis dataKey="day" tick={axisStyle} axisLine={false} tickLine={false} tickFormatter={(d) => `D${d}`} />
-                <YAxis domain={["auto", "auto"]} tick={axisStyle} axisLine={false} tickLine={false} tickFormatter={(v) => money0(Number(v))} width={64} />
-                <Tooltip content={PathTooltip} />
-                <Area type="monotone" dataKey="bandBase" stackId="band" stroke="none" fill="transparent" isAnimationActive={false} />
-                <Area type="monotone" dataKey="bandWidth" stackId="band" stroke="none" fill="#4d9fff" fillOpacity={0.16} isAnimationActive={false} />
-                {sim.paths.map((p, i) => (
-                  <Line
-                    key={i}
-                    type="monotone"
-                    dataKey={`p${i}`}
-                    stroke={PATH_COLORS[p.outcome]}
-                    strokeOpacity={0.18}
-                    strokeWidth={1}
-                    dot={false}
-                    activeDot={false}
-                    isAnimationActive={false}
-                  />
-                ))}
-                <Line type="monotone" dataKey="p50" stroke="#4d9fff" strokeWidth={2} dot={false} activeDot={false} isAnimationActive={false} />
-                <ReferenceLine
-                  y={targetBalance}
-                  stroke="#00e57a"
-                  strokeDasharray="6 4"
-                  label={{ value: "Target", position: "insideTopRight", fill: "#00e57a", fontSize: 10 }}
-                />
-              </ComposedChart>
-            </ResponsiveContainer>
-
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: "10px", marginTop: "16px" }}>
-              {sim.daysToPass.map((b) => (
-                <div key={b.label} style={{ background: "var(--bg-secondary)", borderRadius: "10px", padding: "10px 12px" }}>
-                  <div style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "4px" }}>{b.label} days</div>
-                  <div style={{ fontSize: "15px", fontWeight: "700", color: "var(--text-primary)" }}>{b.count.toLocaleString()}</div>
-                  <div style={{ fontSize: "10px", color: "var(--text-muted)" }}>
-                    {passCount > 0 ? `${((b.count / passCount) * 100).toFixed(0)}% of passes` : "—"}
-                  </div>
+      {/* ── Pace, budget and fee ───────────────────────────────────────── */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: "20px" }}>
+        <SectionCard title="Time & pace" subtitle="What the target still needs at your historical average.">
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+            {[
+              { icon: Clock, label: "Remaining days", value: plan.remainingDays != null ? `${plan.remainingDays}` : "No limit" },
+              { icon: TrendingUp, label: "Required / day", value: plan.requiredDailyReturn != null ? money(plan.requiredDailyReturn) : "—" },
+              { icon: Activity, label: "Trades to target", value: plan.tradesToTarget != null ? `${plan.tradesToTarget}` : "—" },
+              { icon: Percent, label: "Average / trade", value: money(plan.avgPnl) },
+            ].map((row) => (
+              <div key={row.label} style={{ background: "var(--bg-secondary)", borderRadius: "10px", padding: "12px 14px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "6px" }}>
+                  <row.icon size={11} color="var(--text-muted)" />
+                  <span style={{ ...labelStyle, fontSize: "9.5px" }}>{row.label}</span>
                 </div>
-              ))}
-            </div>
-            <p style={{ fontSize: "11px", color: "var(--text-muted)", lineHeight: 1.6, marginTop: "12px", marginBottom: 0 }}>
-              The band shows where 90% of attempts sit day by day. Paths that fail flatten at their loss; paths that pass flatten at the target, so the fan separates rather than converging.
-            </p>
-          </>
-        )}
-      </SectionCard>
-
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px" }}>
-        <SectionCard title="Time & Pace" subtitle="What the target still requires at your historical average.">
-          {[
-            { icon: Clock, label: "Remaining days", value: plan.remainingDays != null ? `${plan.remainingDays} days` : "No time limit" },
-            { icon: TrendingUp, label: "Required per day", value: plan.requiredDailyReturn != null ? money(plan.requiredDailyReturn) : "—" },
-            { icon: Activity, label: "Trades to target", value: plan.tradesToTarget != null ? `${plan.tradesToTarget} at your avg` : "—" },
-            { icon: Percent, label: "Average per trade", value: money(plan.avgPnl) },
-          ].map((row) => (
-            <div key={row.label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 14px", background: "var(--bg-secondary)", borderRadius: "8px", marginBottom: "8px" }}>
-              <span style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "12px", color: "var(--text-muted)" }}>
-                <row.icon size={13} /> {row.label}
-              </span>
-              <span style={{ fontSize: "13px", fontWeight: "700", color: "var(--text-primary)" }}>{row.value}</span>
-            </div>
-          ))}
+                <div style={{ fontSize: "17px", fontWeight: "800", color: "var(--text-primary)" }}>{row.value}</div>
+              </div>
+            ))}
+          </div>
+          <p style={{ fontSize: "11px", color: "var(--text-muted)", lineHeight: 1.6, marginTop: "14px", marginBottom: 0 }}>
+            At your average trade, this is the pace the target demands. A required-per-day above your average daily P&amp;L means the target is out of reach without changing something.
+          </p>
         </SectionCard>
 
-        <SectionCard title="Risk Budget" subtitle="How much one trade can risk without a normal losing run ending the evaluation.">
+        <SectionCard title="Risk budget" subtitle="How much one trade can risk without an ordinary losing run ending the evaluation.">
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
-            <MetricCard label="Max Risk / Trade" value={money(plan.maxRiskPerTrade)} positive={false} icon={Shield} sub={`${plan.maxRiskPerTradePct.toFixed(2)}% of account`} />
-            <MetricCard label="Daily Loss Allowed" value={config.dailyLimitPct === 0 ? "—" : money(plan.dailyAllowed)} neutral icon={AlertTriangle} sub={config.dailyLimitPct === 0 ? "No daily rule set" : `${config.dailyLimitPct}% of account`} />
+            <div style={{ background: "var(--bg-secondary)", borderRadius: "10px", padding: "14px 16px" }}>
+              <div style={{ ...labelStyle, marginBottom: "6px" }}>Max risk / trade</div>
+              <div style={{ fontSize: "21px", fontWeight: "800", color: "#ff4d6a", lineHeight: 1.1 }}>{money(plan.maxRiskPerTrade)}</div>
+              <div style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "4px" }}>{plan.maxRiskPerTradePct.toFixed(2)}% of account</div>
+            </div>
+            <div style={{ background: "var(--bg-secondary)", borderRadius: "10px", padding: "14px 16px" }}>
+              <div style={{ ...labelStyle, marginBottom: "6px" }}>Daily loss allowed</div>
+              <div style={{ fontSize: "21px", fontWeight: "800", color: config.dailyLimitPct === 0 ? "var(--text-muted)" : "#fbbf24", lineHeight: 1.1 }}>
+                {config.dailyLimitPct === 0 ? "—" : money(plan.dailyAllowed)}
+              </div>
+              <div style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "4px" }}>
+                {config.dailyLimitPct === 0 ? "No daily rule set" : `${config.dailyLimitPct}% of account`}
+              </div>
+            </div>
           </div>
           <p style={{ fontSize: "11px", color: "var(--text-muted)", lineHeight: 1.6, marginTop: "14px", marginBottom: 0 }}>
             Budget assumes three losers inside a day when a daily rule exists, otherwise six inside the total drawdown. Stay under it and an ordinary bad day cannot end the account.
@@ -453,43 +816,82 @@ export default function PropFirmPanel({ trades, activeAccount }: { trades: Trade
         </SectionCard>
       </div>
 
-      <SectionCard title="Return on the Fee" subtitle="Expected value of one attempt, using the simulated pass rate and your funded-account assumptions.">
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "12px", marginBottom: "16px" }}>
-          <MetricCard label="Expected Payout" value={money(roi.expectedPayout)} positive={roi.expectedPayout > 0} icon={TrendingUp} sub={`${config.splitPct}% split, ${config.monthsFunded} months`} />
-          <MetricCard label="Net Expected" value={money(roi.netExpected)} positive={roi.netExpected >= 0} icon={Activity} sub="Payout minus one fee" />
-          <MetricCard label="ROI on Fee" value={pct1(roi.roiPct)} positive={roi.roiPct >= 0} icon={Percent} sub="Per attempt" />
-          <MetricCard label="Attempts to Pass" value={roi.attemptsToPass != null ? roi.attemptsToPass.toFixed(1) : "—"} neutral icon={Zap} sub={roi.costToPass > 0 ? `${money(roi.costToPass)} expected cost` : "Set a pass rate"} />
-        </div>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", padding: "10px 14px", background: "var(--bg-secondary)", borderRadius: "8px" }}>
-            <span style={{ fontSize: "12px", color: "var(--text-muted)" }}>Account profit / month</span>
-            <span style={{ fontSize: "13px", fontWeight: "700", color: "var(--text-primary)" }}>{money(roi.grossMonthlyProfit)}</span>
+      <SectionCard title="Return on the fee" subtitle="Expected value of one attempt, using the simulated pass rate and your funded-account assumptions.">
+        <div style={{ display: "flex", flexWrap: "wrap", alignItems: "flex-start", gap: "28px" }}>
+          <div style={{ flex: "0 0 auto", minWidth: "160px" }}>
+            <div style={{ ...labelStyle, marginBottom: "6px" }}>ROI on fee</div>
+            <div style={{
+              fontSize: "40px", fontWeight: "800", lineHeight: 1,
+              color: roi.roiPct >= 0 ? "#00e57a" : "#ff4d6a", fontVariantNumeric: "tabular-nums",
+            }}>
+              {pct1(roi.roiPct)}
+            </div>
+            <div style={{ fontSize: "11.5px", color: "var(--text-muted)", marginTop: "6px" }}>
+              per attempt, after the {money(config.fee)} fee
+            </div>
           </div>
-          <div style={{ display: "flex", justifyContent: "space-between", padding: "10px 14px", background: "var(--bg-secondary)", borderRadius: "8px" }}>
-            <span style={{ fontSize: "12px", color: "var(--text-muted)" }}>Your payout / month</span>
-            <span style={{ fontSize: "13px", fontWeight: "700", color: "var(--text-primary)" }}>{money(roi.traderMonthlyPayout)}</span>
+
+          <div style={{ flex: "1 1 380px", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(118px, 1fr))", gap: "12px" }}>
+            {[
+              { k: "Expected payout", v: money(roi.expectedPayout), c: roi.expectedPayout > 0 ? "#00e57a" : "var(--text-primary)" },
+              { k: "Net expected", v: money(roi.netExpected), c: roi.netExpected >= 0 ? "#00e57a" : "#ff4d6a" },
+              { k: "Attempts to pass", v: roi.attemptsToPass != null ? roi.attemptsToPass.toFixed(1) : "—", c: "var(--text-primary)" },
+              { k: "Cost to pass", v: roi.costToPass > 0 ? money(roi.costToPass) : "—", c: "var(--text-primary)" },
+              { k: "Profit / month", v: money(roi.grossMonthlyProfit), c: "var(--text-primary)" },
+              { k: "Payout / month", v: money(roi.traderMonthlyPayout), c: "var(--text-primary)" },
+            ].map((row) => (
+              <div key={row.k} style={{ background: "var(--bg-secondary)", borderRadius: "10px", padding: "12px 14px" }}>
+                <div style={{ ...labelStyle, marginBottom: "5px" }}>{row.k}</div>
+                <div style={{ fontSize: "16px", fontWeight: "700", color: row.c }}>{row.v}</div>
+              </div>
+            ))}
           </div>
         </div>
       </SectionCard>
 
-      <SectionCard title="Reading These Numbers">
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
-          {[
-            { name: "Pass Rate", formula: "bootstrap Monte Carlo", what: "Your trades resampled into thousands of paths and walked through every rule. A closed-form win-rate x R:R figure ignores the daily and drawdown rules that end most evaluations." },
-            { name: "Static vs Trailing DD", formula: "floor = start | peak", what: "Static draws down from the starting balance. Trailing draws down from the highest balance reached, so a winner before the breach lowers your floor." },
-            { name: "Daily Loss Limit", formula: "day start - balance", what: "Measured from the balance at the start of each day, resetting every day. It binds fast on a single oversized loser." },
-            { name: "Consistency Rule", formula: "biggest day / total profit", what: "Caps how much of the profit one day may contribute. Breaching it does not fail you — it stops the profit counting, so it needs more days, not more size." },
-            { name: "Expected Payout", formula: "pass rate x split x months", what: "Probability-weighted trader payout. Compare it against the fee to see whether the evaluation is worth taking at all." },
-            { name: "ROI on Fee", formula: "(expected payout - fee) / fee", what: "Positive means one attempt is, on average, profitable. The attempts-to-pass figure is the honest cost of finally getting funded." },
-          ].map(({ name, formula, what }) => (
-            <div key={name} style={{ background: "var(--bg-secondary)", borderRadius: "10px", padding: "14px 16px" }}>
-              <div style={{ fontSize: "13px", fontWeight: "700", color: "var(--text-primary)", marginBottom: "6px" }}>{name}</div>
-              <div style={{ fontSize: "10px", fontFamily: "monospace", color: "#4d9fff", background: "rgba(77,159,255,0.08)", padding: "4px 8px", borderRadius: "4px", marginBottom: "8px", overflowX: "auto", whiteSpace: "nowrap" }}>{formula}</div>
-              <div style={{ fontSize: "11px", color: "var(--text-muted)", lineHeight: 1.5 }}>{what}</div>
-            </div>
-          ))}
-        </div>
-      </SectionCard>
+      {/* ── Definitions, closed by default ─────────────────────────────── */}
+      <div style={{ marginBottom: "20px" }}>
+        <button
+          onClick={() => setNotesOpen((o) => !o)}
+          aria-expanded={notesOpen}
+          style={{
+            display: "flex", alignItems: "center", gap: "8px", width: "100%",
+            background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: "12px",
+            padding: "14px 18px", cursor: "pointer", textAlign: "left",
+            fontFamily: "'DM Sans', sans-serif", color: "var(--text-secondary)", fontSize: "13px", fontWeight: "600",
+          }}
+        >
+          <Award size={14} color="var(--accent-green)" />
+          How these numbers are computed
+          <ChevronDown
+            size={14}
+            color="var(--text-muted)"
+            style={{ marginLeft: "auto", transform: notesOpen ? "rotate(180deg)" : "none", transition: "transform 0.15s ease" }}
+          />
+        </button>
+
+        {notesOpen && (
+          <div style={{
+            display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+            gap: "12px", marginTop: "12px",
+          }}>
+            {[
+              { name: "Pass rate", formula: "bootstrap Monte Carlo", what: "Your trades resampled into thousands of paths and walked through every rule. A closed-form win-rate × R:R figure ignores the daily and drawdown rules that end most evaluations." },
+              { name: "Static vs trailing DD", formula: "floor = start | peak", what: "Static draws down from the starting balance. Trailing draws down from the highest balance reached, so a winner before the breach lowers your floor." },
+              { name: "Daily loss limit", formula: "day start − balance", what: "Measured from the balance at the start of each day, resetting every day. It binds fast on a single oversized loser." },
+              { name: "Consistency rule", formula: "biggest day / total profit", what: "Caps how much of the profit one day may contribute. Breaching it does not fail you — it stops the profit counting, so it needs more days, not more size." },
+              { name: "Expected payout", formula: "pass rate × split × months", what: "Probability-weighted trader payout. Compare it against the fee to see whether the evaluation is worth taking at all." },
+              { name: "ROI on fee", formula: "(expected payout − fee) / fee", what: "Positive means one attempt is, on average, profitable. The attempts-to-pass figure is the honest cost of finally getting funded." },
+            ].map(({ name, formula, what }) => (
+              <div key={name} style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: "12px", padding: "14px 16px" }}>
+                <div style={{ fontSize: "13px", fontWeight: "700", color: "var(--text-primary)", marginBottom: "6px" }}>{name}</div>
+                <div style={{ fontSize: "10px", fontFamily: "monospace", color: "#4d9fff", background: "rgba(77,159,255,0.08)", padding: "4px 8px", borderRadius: "4px", marginBottom: "8px", overflowX: "auto", whiteSpace: "nowrap" }}>{formula}</div>
+                <div style={{ fontSize: "11px", color: "var(--text-muted)", lineHeight: 1.5 }}>{what}</div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

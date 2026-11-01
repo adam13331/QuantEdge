@@ -11,7 +11,10 @@ function DailyRiskStrip({ trades }: { trades: Trade[] }) {
   const { settings } = useSettings();
   const { dailyLossLimit, maxDailyTrades } = settings;
 
-  const todayKey = new Date().toISOString().split("T")[0];
+  // Local date, not toISOString(): UTC rolls over at a different hour than the
+  // trader's session, which made "today" show the wrong day near midnight.
+  const now      = new Date();
+  const todayKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
 
   // ALL hooks must run before any conditional return
   const todayTrades = useMemo(() => {
@@ -138,7 +141,7 @@ export default function Dashboard() {
   const { trades: allTrades, setActivePage } = useApp();
   // Same hook the tabbed body below reads, so the headline cards and the
   // Analytics sections can never describe different periods or figures.
-  const { trades, stats: summary, hasRange, dateFrom, dateTo } = useAnalyticsSummary();
+  const { trades, stats: summary, hasRange, dateFrom, dateTo, symbolFilter } = useAnalyticsSummary();
 
   return (
     <>
@@ -166,10 +169,14 @@ export default function Dashboard() {
             <Upload size={20} color="var(--accent-green)" />
           </div>
           <h3 style={{ fontSize: "18px", fontWeight: "700", marginBottom: "8px", color: "var(--text-primary)" }}>
-            {hasRange ? "No trades in this period" : "No trades yet"}
+            {hasRange || symbolFilter ? "No trades for this selection" : "No trades yet"}
           </h3>
           <p style={{ color: "var(--text-muted)", fontSize: "14px", marginBottom: "24px" }}>
-            {hasRange
+            {symbolFilter && hasRange
+              ? `Nothing was traded on ${symbolFilter} between ${dateFrom || "the start"} and ${dateTo || "today"}.`
+              : symbolFilter
+              ? `No ${symbolFilter} trades in this account.`
+              : hasRange
               ? `Nothing was traded between ${dateFrom || "the start"} and ${dateTo || "today"}.`
               : "Run the QuantEdge exporter on your MetaTrader terminal, then import the CSV to get started."}
           </p>

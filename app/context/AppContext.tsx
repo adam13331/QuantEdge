@@ -1,6 +1,6 @@
 "use client";
 import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from "react";
-import { Trade, Account, TradePlan, Playbook, PageId } from "../lib/types";
+import { Trade, Account, Playbook, PageId } from "../lib/types";
 
 interface Tag {
   id: string;
@@ -18,6 +18,7 @@ export interface DateRange {
 const EMPTY_RANGE: DateRange = { from: "", to: "" };
 
 const RANGE_STORAGE_KEY = "quantedge_date_range";
+const SYMBOL_STORAGE_KEY = "quantedge_symbol_filter";
 
 function loadRange(): DateRange {
   if (typeof window === "undefined") return EMPTY_RANGE;
@@ -40,6 +41,10 @@ interface AppContextType {
   dateRange: DateRange;
   setDateRange: (range: DateRange) => void;
   clearDateRange: () => void;
+  // "" means every symbol. The Dashboard control writes it and the analytics
+  // slice reads it, so the headline cards and tabs scope to the same market.
+  symbolFilter: string;
+  setSymbolFilter: (symbol: string) => void;
   activeTradeId: string | null;
   setActiveTradeId: (id: string | null) => void;
   trades: Trade[];
@@ -59,8 +64,6 @@ interface AppContextType {
   tags: Tag[];
   reloadTags: () => Promise<void>;
   addTag: (name: string) => Promise<Tag | null>;
-  plans: TradePlan[];
-  reloadPlans: () => Promise<void>;
   playbook: Playbook[];
   reloadPlaybook: () => Promise<void>;
 }
@@ -102,6 +105,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // here would produce different input values on the client than the server
   // rendered, failing hydration.
   const [dateRange, setDateRangeState]        = useState<DateRange>(EMPTY_RANGE);
+  const [symbolFilter, setSymbolFilterState]  = useState<string>("");
   const [activeTradeId, setActiveTradeId]     = useState<string | null>(null);
   const [allTrades, setAllTrades]             = useState<Trade[]>([]);
   const [selectedTrade, setSelectedTrade]     = useState<Trade | null>(null);
@@ -109,7 +113,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [accounts, setAccounts]               = useState<Account[]>([]);
   const [activeAccount, setActiveAccountState] = useState<Account | null>(null);
   const [tags, setTags]                       = useState<Tag[]>([]);
-  const [plans, setPlans]                     = useState<TradePlan[]>([]);
   const [playbook, setPlaybook]               = useState<Playbook[]>([]);
 
   // Every trade belongs to exactly one account; the Portfolio aggregate that
@@ -171,16 +174,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const reloadPlans = useCallback(async () => {
-    try {
-      const res = await fetch("/api/plans");
-      const data = await res.json();
-      if (Array.isArray(data)) setPlans(data);
-    } catch (err) {
-      console.error("Failed to load plans:", err);
-    }
-  }, []);
-
   const reloadPlaybook = useCallback(async () => {
     try {
       const res = await fetch("/api/playbook");
@@ -219,8 +212,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const clearDateRange = () => setDateRange(EMPTY_RANGE);
 
+  const setSymbolFilter = (symbol: string) => {
+    setSymbolFilterState(symbol);
+    if (symbol) localStorage.setItem(SYMBOL_STORAGE_KEY, symbol);
+    else localStorage.removeItem(SYMBOL_STORAGE_KEY);
+  };
+
   useEffect(() => {
     setDateRangeState(loadRange());
+    // Same hydration rule as the range: start empty, restore after mount.
+    setSymbolFilterState(localStorage.getItem(SYMBOL_STORAGE_KEY) || "");
   }, []);
 
   useEffect(() => {
@@ -240,7 +241,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [allTrades.length > 0]);
 
   useEffect(() => {
-    reloadPlans();
     reloadPlaybook();
   }, []);
 
@@ -289,13 +289,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
     <AppContext.Provider value={{
       activePage, setActivePage,
       dateRange, setDateRange, clearDateRange,
+      symbolFilter, setSymbolFilter,
       activeTradeId, setActiveTradeId,
       trades, allTrades, setTrades, reloadTrades, updateTradeInMemory, deleteTrade,
       selectedTrade, setSelectedTrade,
       loading,
       accounts, activeAccount, setActiveAccount, addAccount, updateAccount,
       tags, reloadTags, addTag,
-      plans, reloadPlans,
       playbook, reloadPlaybook,
     }}>
       {children}

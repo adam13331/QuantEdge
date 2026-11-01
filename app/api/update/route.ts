@@ -66,9 +66,21 @@ function pruneBackups(backupDir: string, keep = 5): void {
   } catch {}
 }
 
+// Prisma resolves a relative SQLite URL against the schema's directory, so the
+// live file is prisma/prisma/quantedge.db even though DATABASE_URL reads
+// "file:./prisma/quantedge.db". Check both layouts: guessing one path meant the
+// backup step silently reported "no database" and migrations ran unprotected.
+function findDatabasePath(): string | null {
+  const candidates = [
+    path.join(ROOT, "prisma", "prisma", "quantedge.db"),
+    path.join(ROOT, "prisma", "quantedge.db"),
+  ];
+  return candidates.find((p) => fs.existsSync(p)) ?? null;
+}
+
 async function backupDatabase(emit: (e: StepEvent) => void): Promise<boolean> {
-  const dbPath = path.join(ROOT, "prisma", "quantedge.db");
-  if (!fs.existsSync(dbPath)) {
+  const dbPath = findDatabasePath();
+  if (!dbPath) {
     emit({ step: "backup", status: "skipped", message: "No database found — skipping" });
     return true;
   }
@@ -235,6 +247,8 @@ async function updateViaZip(emit: (e: StepEvent) => void): Promise<void> {
   await runCmd(`tar -xzf "${TMP_TAR}" -C "${TMP_DIR}" --strip-components=1`, { timeoutMs: 60_000 });
 
   const preserve = [
+    path.join("prisma", "prisma", "quantedge.db"),
+    path.join("prisma", "prisma", "quantedge.db-journal"),
     path.join("prisma", "quantedge.db"),
     path.join("prisma", "quantedge.db-journal"),
     ".env",

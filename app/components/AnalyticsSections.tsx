@@ -59,7 +59,7 @@ type TabId = "overview" | "risk" | "time" | "heatmap" | "rmultiples" | "executio
 // body below them from the same numbers: two copies of this maths would be free
 // to disagree.
 export function useAnalyticsSummary() {
-  const { trades: allTrades, activeAccount, dateRange, clearDateRange } = useApp();
+  const { trades: allTrades, activeAccount, dateRange, clearDateRange, symbolFilter } = useApp();
   const { settings } = useSettings();
 
   // The period comes from the global control in the shell, so it is identical
@@ -72,9 +72,12 @@ export function useAnalyticsSummary() {
       const d = normalizeDate(t.date);
       if (dateFrom && d < dateFrom) return false;
       if (dateTo && d > dateTo) return false;
+      // Match the market the control groups by, so picking a symbol leaves
+      // exactly the rows the Per-symbol table reports on.
+      if (symbolFilter && (t.underlying || t.symbol) !== symbolFilter) return false;
       return true;
     });
-  }, [allTrades, dateFrom, dateTo]);
+  }, [allTrades, dateFrom, dateTo, symbolFilter]);
 
   const hasRange = Boolean(dateFrom || dateTo);
 
@@ -97,12 +100,25 @@ export function useAnalyticsSummary() {
 
     const initBal = activeAccount?.initialBalance ?? 0;
 
-    // The curve opens on the untouched starting balance rather than on the
-    // first trade, so the line starts where the account actually started.
+    // Equity entering the selection. Trades outside the period — or in another
+    // symbol — still moved the real balance, so opening at initialBalance would
+    // measure the decline against a peak the account had already left. That
+    // overstates the drawdown percentage whenever a filter hides an earlier
+    // gain, which is why the baseline is built from the whole account.
+    const firstDate = sorted.length > 0 ? normalizeDate(sorted[0].date) : null;
+    const priorPnl = firstDate
+      ? allTrades
+          .filter((t) => normalizeDate(t.date) < firstDate)
+          .reduce((s, t) => s + t.pnl, 0)
+      : 0;
+    const openingEquity = initBal + priorPnl;
+
+    // The curve opens on the balance the selection inherited rather than on the
+    // first trade, so the line starts where the account actually stood.
     const equityCurve: { date: string; equity: number; pnl: number }[] = [
-      { date: "Start", equity: initBal, pnl: 0 },
+      { date: "Start", equity: openingEquity, pnl: 0 },
     ];
-    let running = initBal;
+    let running = openingEquity;
     for (const t of sorted) {
       running += t.pnl;
       equityCurve.push({
@@ -115,7 +131,7 @@ export function useAnalyticsSummary() {
     // Y-axis follows the trades rather than the balance. Without an explicit
     // domain recharts defaults an AreaChart to [0, dataMax], so a 1% move on a
     // five-figure balance spans 1% of the axis and renders as a flat line.
-    let eqMin = initBal, eqMax = initBal;
+    let eqMin = openingEquity, eqMax = openingEquity;
     for (const p of equityCurve) {
       if (p.equity < eqMin) eqMin = p.equity;
       if (p.equity > eqMax) eqMax = p.equity;
@@ -131,8 +147,10 @@ export function useAnalyticsSummary() {
     const sortino = sortinoRatio(dailyPnlValues);
     const exp     = expectancy(wins, losses);
 
+    // Same baseline as the curve above, so the card and the chart agree on
+    // where the peak was.
     const { maxDd, maxDdPct, longestDdDays, currentDdDays, ddCurve } =
-      drawdownStats(sorted, initBal);
+      drawdownStats(sorted, openingEquity);
     const calmar = calmarRatio(totalPnl, initBal, tradingDays, maxDdPct);
 
     // Risk actually accepted at entry, read from the stop loss MetaTrader
@@ -181,10 +199,13 @@ export function useAnalyticsSummary() {
 
     const bySymbol: Record<string, { pnl: number; count: number; wins: number }> = {};
     for (const t of trades) {
-      if (!bySymbol[t.underlying]) bySymbol[t.underlying] = { pnl: 0, count: 0, wins: 0 };
-      bySymbol[t.underlying].pnl += t.pnl;
-      bySymbol[t.underlying].count += 1;
-      if (t.status === "win") bySymbol[t.underlying].wins += 1;
+      // Same key as byInstrument and the symbol filter: an export with a blank
+      // underlying must not collapse every market into one empty bucket.
+      const key = t.underlying || t.symbol;
+      if (!bySymbol[key]) bySymbol[key] = { pnl: 0, count: 0, wins: 0 };
+      bySymbol[key].pnl += t.pnl;
+      bySymbol[key].count += 1;
+      if (t.status === "win") bySymbol[key].wins += 1;
     }
     const symbolData = Object.entries(bySymbol)
       .map(([s, d]) => ({ symbol: s, pnl: parseFloat(d.pnl.toFixed(2)), count: d.count, wr: Math.round((d.wins / d.count) * 100) }))
@@ -229,7 +250,9 @@ export function useAnalyticsSummary() {
         }, 0) / maeFdTrades.length
       : 0;
 
-    const maeMfeChart = maeFdTrades.slice(-20).map((t, i) => ({
+    // "Last 20" has to mean the most recent 20, not the first 20 in whatever
+    // order the account fetch returned.
+    const maeMfeChart = sorted.filter((t) => t.mae != null && t.mfe != null).slice(-20).map((t, i) => ({
       trade: i + 1,
       mae: parseFloat(t.mae!.toFixed(2)),
       mfe: parseFloat(t.mfe!.toFixed(2)),
@@ -291,9 +314,9 @@ export function useAnalyticsSummary() {
       durationData, gapData, directionData, costs, recFactor, rRisk, stop,
       exitReasons, magicData, legData, cashFlow,
     };
-  }, [trades, activeAccount, settings.weekStart]);
+  }, [trades, allTrades, activeAccount, settings.weekStart]);
 
-  return { trades, allTrades, stats, hasRange, dateFrom, dateTo, clearDateRange };
+  return { trades, allTrades, stats, hasRange, dateFrom, dateTo, symbolFilter, clearDateRange };
 }
 
 // The headline figures a trader checks before reading anything else. The set is
@@ -339,7 +362,7 @@ export function OverviewMetrics({ stats }: {
         sub={`$${grossWins.toFixed(0)} gross win / $${grossLosses.toFixed(0)} gross loss`}
       />
       <MetricCard
-        label="Max Drawdown"
+        label="Drawdown"
         value={stats.maxDdPct === 0 ? "0.00%" : `-${Math.abs(stats.maxDdPct).toFixed(2)}%`}
         positive={false}
         neutral={stats.maxDdPct === 0}
@@ -535,9 +558,15 @@ export default function AnalyticsSections() {
     });
   }, [stats, trades, rorData, riskPct]);
 
-  // One lookup per tab, so a section can ask for its own recommendations.
-  const insightFor = (section: SectionId) =>
-    settings.showRecommendations ? insights?.[section] ?? [] : [];
+  // One lookup per tab. The guidance mode decides whether the tab shows the
+  // findings, only the benchmark scales, or nothing — the panel does the rest.
+  const sectionInsights = (section: SectionId) =>
+    insights && settings.guidance !== "off" ? (
+      <InsightPanel
+        insights={insights[section] ?? []}
+        mode={settings.guidance === "benchmarks" ? "benchmarks" : "full"}
+      />
+    ) : null;
 
   if (trades.length === 0) {
     return (
@@ -605,7 +634,7 @@ export default function AnalyticsSections() {
       {/* Overview */}
       {activeTab === "overview" && (
         <>
-          <InsightPanel insights={insightFor("overview")} />
+          {sectionInsights("overview")}
           <SectionCard title="Equity Curve" subtitle={`Starts at ${stats.initBal.toLocaleString()}, axis scaled to your trade range`}>
             <ResponsiveContainer width="100%" height={240}>
               <AreaChart data={stats.equityCurve}>
@@ -718,7 +747,7 @@ export default function AnalyticsSections() {
       {/* Risk */}
       {activeTab === "risk" && (
         <>
-          <InsightPanel insights={insightFor("risk")} />
+          {sectionInsights("risk")}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "12px", marginBottom: "20px" }}>
             <MetricCard label="Sharpe Ratio"  value={stats.sharpe.toFixed(2)}  positive={stats.sharpe > 1}  neutral={stats.sharpe === 0}  icon={Activity}
               sub={stats.sharpe > 2 ? "Excellent" : stats.sharpe > 1 ? "Good" : stats.sharpe > 0 ? "Below avg" : "N/A (<5 days)"} />
@@ -834,7 +863,7 @@ export default function AnalyticsSections() {
       {/* Time */}
       {activeTab === "time" && (
         <>
-          <InsightPanel insights={insightFor("time")} />
+          {sectionInsights("time")}
           <SectionCard title="P&L by Day of Week" subtitle="Which days are most profitable.">
             <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: "12px", marginBottom: "24px" }}>
               {stats.dowData.map(({ day, pnl, count, wr }) => (
@@ -901,7 +930,7 @@ export default function AnalyticsSections() {
       {/* Heatmap */}
       {activeTab === "heatmap" && (
         <>
-          <InsightPanel insights={insightFor("heatmap")} />
+          {sectionInsights("heatmap")}
           {stats.hourData.length === 0 ? (
             <div style={{
               background: "var(--bg-card)", border: "1px solid var(--border)",
@@ -1055,7 +1084,7 @@ export default function AnalyticsSections() {
       {/* R-Multiples */}
       {activeTab === "rmultiples" && (
         <>
-          <InsightPanel insights={insightFor("rmultiples")} />
+          {sectionInsights("rmultiples")}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "12px", marginBottom: "20px" }}>
             <MetricCard label="Avg R-Multiple" value={stats.avgR >= 0 ? `+${stats.avgR.toFixed(2)}R` : `${stats.avgR.toFixed(2)}R`} positive={stats.avgR > 0} icon={Activity} sub="Mean outcome in R-units" />
             <MetricCard
@@ -1121,7 +1150,7 @@ export default function AnalyticsSections() {
       {/* Execution */}
       {activeTab === "execution" && (
         <>
-          <InsightPanel insights={insightFor("execution")} />
+          {sectionInsights("execution")}
           {!stats.hasMaeMfe ? (
             <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: "16px", padding: "48px", textAlign: "center" }}>
               <div style={{ width: "56px", height: "56px", borderRadius: "14px", background: "var(--accent-green-dim)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
@@ -1184,7 +1213,7 @@ export default function AnalyticsSections() {
       {/* Behavior */}
       {activeTab === "behavior" && (
         <>
-          <InsightPanel insights={insightFor("behavior")} />
+          {sectionInsights("behavior")}
           <div style={{ marginBottom: "8px" }}>
             <h3 style={{ fontSize: "16px", fontWeight: "700", color: "var(--text-primary)", marginBottom: "4px" }}>Overtrading Detection</h3>
             <p style={{ fontSize: "12px", color: "var(--text-muted)" }}>
@@ -1344,7 +1373,7 @@ export default function AnalyticsSections() {
       {/* Process */}
       {activeTab === "process" && (
         <>
-          <InsightPanel insights={insightFor("process")} />
+          {sectionInsights("process")}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "12px", marginBottom: "20px" }}>
             <MetricCard label="Recovery Factor" value={stats.recFactor === 0 ? "—" : stats.recFactor.toFixed(2)}
               positive={stats.recFactor >= 3} neutral={stats.recFactor === 0} icon={Activity}

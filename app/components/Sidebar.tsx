@@ -2,7 +2,7 @@
 import {
   LayoutDashboard, BookOpen, Calendar,
   Upload, PlusCircle, Settings, Wallet, ChevronDown,
-  FileDown, ClipboardList, Library, Shield,
+  FileDown, Library, Shield,
 } from "lucide-react";
 import Image from "next/image";
 import { useApp } from "../context/AppContext";
@@ -14,7 +14,6 @@ const NAV_ITEMS: { icon: any; label: string; id: PageId }[] = [
   { icon: BookOpen,          label: "Journal",       id: "journal"        },
   { icon: Calendar,          label: "Calendar",      id: "calendar"       },
   { icon: Shield,            label: "Prop Firm",     id: "propfirm"       },
-  { icon: ClipboardList,     label: "Trade Plans",   id: "plans"          },
   { icon: Library,           label: "Playbook",      id: "playbook"       },
   { icon: Wallet,            label: "Accounts",      id: "accounts"       },
   { icon: Upload,            label: "Import Trades", id: "import"         },

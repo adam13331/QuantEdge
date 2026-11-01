@@ -14,7 +14,6 @@ import JournalEditorPage from "./pages/JournalEditorPage";
 import AccountsPage from "./pages/AccountsPage";
 import SettingsPage from "./pages/SettingsPage";
 import ExportPage from "./pages/ExportPage";
-import PlansPage from "./pages/PlansPage";
 import PlaybookPage from "./pages/PlaybookPage";
 import { X } from "lucide-react";
 
@@ -23,7 +22,6 @@ const SHORTCUTS = [
   { key: "J", description: "Journal"         },
   { key: "C", description: "Calendar"        },
   { key: "F", description: "Prop Firm"       },
-  { key: "P", description: "Trade Plans"     },
   { key: "B", description: "Playbook"        },
   { key: "I", description: "Import Trades"   },
   { key: "E", description: "Export"          },
@@ -125,7 +123,6 @@ function AppShell() {
         case "j": case "J": setActivePage("journal");         break;
         case "c": case "C": setActivePage("calendar");        break;
         case "f": case "F": setActivePage("propfirm");         break;
-        case "p": case "P": setActivePage("plans");           break;
         case "b": case "B": setActivePage("playbook");        break;
         case "i": case "I": setActivePage("import");          break;
         case "e": case "E": setActivePage("export");          break;
@@ -160,7 +157,6 @@ function AppShell() {
         {activePage === "journal-editor" && <JournalEditorPage />}
         {activePage === "calendar"       && <CalendarPage />}
         {activePage === "propfirm"        && <PropFirmPage />}
-        {activePage === "plans"          && <PlansPage />}
         {activePage === "playbook"       && <PlaybookPage />}
         {activePage === "import"         && <ImportPage />}
         {activePage === "accounts"       && <AccountsPage />}

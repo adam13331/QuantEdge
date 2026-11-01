@@ -7,6 +7,25 @@ All notable changes to QuantEdge are documented here.
 
 ## [Unreleased — QuantEdge fork]
 
+- **Prop Firm tab redesigned around one answer.** A verdict card leads — pass
+  probability ring, the standing in one sentence and target / drawdown / worst
+  day — then clickable firm presets with the rule fields behind an **Edit
+  rules** toggle, a rule-by-rule grid, a day-by-day chart against the daily
+  limit, and the simulation with its percentile fan. The six definition blocks
+  are now one collapsed "How these numbers are computed" panel. Every figure
+  still comes from `challengeStatus` / `simulateChallenge` in `analytics.ts`.
+
+- **Removed the Trade Plans tab.** The page, its nav entry and `P` shortcut,
+  the `/api/plans` route, the `TradePlan` TypeScript type and the plans slice of
+  `AppContext` are gone. The `TradePlan` table is deliberately left in the
+  schema so no saved plan is destroyed; drop it with a manual migration if you
+  want the data gone too.
+- **Recommendations redesigned for scanning.** The worst finding leads in
+  full — verdict, figure, a five-band scale and one next step — and the rest
+  are compact rows that expand in place. Every metric now carries a `LOOK_FOR`
+  reference scale (bad → advanced) plus an action line, and the two guidance
+  toggles became one **Guidance** control (Off / Benchmarks / Full) that
+  migrates existing preferences.
 - **Removed the auto-created Portfolio account.** Every account now stands
   alone; there is no aggregate view. A leftover `portfolio` row is deleted
   automatically on the next load — its balance was derived, so no authored
@@ -17,8 +36,27 @@ All notable changes to QuantEdge are documented here.
   `quantedge`. **Existing users must migrate:** the old `prisma/journedge.db`
   is no longer read.
 - `scripts/JournedgeExport.mq5` → `scripts/QuantEdgeExport.mq5`. Re-download and
-  re-compile it; the `JOURNEDGE_HEADER` define is now `QUANTEDGE_HEADER`. The
-  30-column CSV layout is unchanged, so previously exported files still import.
+  re-compile it; the `JOURNEDGE_HEADER` define is now `QUANTEDGE_HEADER`. The CSV
+  layout is unchanged apart from the header fix below, so previously exported
+  files still import.
+- **Fixed the exporter header.** `QUANTEDGE_HEADER` was missing
+  `Post Close MFE`, so a 32-value row was read against 31 column names and every
+  field from `Exit Reason` onward arrived shifted (exit reasons, magic numbers,
+  legs, averaging and balances). Re-download the `.mq5`, re-export and re-import
+  to repair affected rows.
+- **Fixed the updater's database backup.** It looked for
+  `prisma/quantedge.db`, but Prisma resolves the URL against the schema folder,
+  so the live file is `prisma/prisma/quantedge.db`. The backup step reported
+  "no database" and migrations ran unprotected. Both layouts are checked now.
+- **Analytics corrections.** Sortino now uses downside deviation from a zero
+  target; `$/hour` divides by the P&L of the timed trades it measured; the
+  revenge-trade comparison includes single-trade days; per-symbol figures and the
+  symbol filter group on `underlying || symbol`; the MAE/MFE chart shows the most
+  recent 20 trades rather than the first 20 fetched. Drawdown and equity curves
+  open on the equity entering the selected period instead of the account's
+  original balance, so filtered views no longer overstate the decline.
+- Removed the unused duplicate PDF wrappers (`ExportPDFButton`,
+  `PDFExportInner`) and the throwaway `scripts/_dbcheck.js`.
 - In-app updater now targets `adam13331/QuantEdge` and reports clearly when the
   fork has no published release yet, instead of implying a network failure.
 - Insights engine (`app/lib/insights.ts`) and a dedicated Prop Firm page.

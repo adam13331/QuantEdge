@@ -26,7 +26,7 @@
 // Must stay in sync with QUANTEDGE_COLUMNS in app/lib/parseMetaTraderCSV.ts.
 // The parser reads by column name, so columns may be appended here without
 // breaking files exported by older builds of this script.
-#define QUANTEDGE_HEADER "Date,Symbol,Underlying,Type,Direction,Option Type,Strike,Expiry,Quantity,Entry Price,Exit Price,Commission,Fees,P&L,Status,Entry Time,Exit Time,R:R,Tags,Journal,Account ID,Ticket,Planned Risk,Duration (min),MAE,MFE,Exit Reason,Magic,Legs,Averaged Down,Balance After"
+#define QUANTEDGE_HEADER "Date,Symbol,Underlying,Type,Direction,Option Type,Strike,Expiry,Quantity,Entry Price,Exit Price,Commission,Fees,P&L,Status,Entry Time,Exit Time,R:R,Tags,Journal,Account ID,Ticket,Planned Risk,Duration (min),MAE,MFE,Post Close MFE,Exit Reason,Magic,Legs,Averaged Down,Balance After"
 
 input group                 "Range"
 input datetime InpFrom      = 0;  // From  (0 = entire history)

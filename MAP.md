@@ -33,12 +33,13 @@ fall back to a keyword grep in the same file — the file itself will be right.
 | --- | --- |
 | Add/rename a nav page | `app/lib/types.ts` `PageId` (~98) · `app/components/Sidebar.tsx` `NAV_ITEMS` (~12) · `app/page.tsx` `AppShell` conditional map (158–168) — all three, or it breaks silently |
 | New analytics metric | `app/lib/analytics.ts` (new exported fn + add field to `ReportStats` ~1167 / `buildReportStats` ~1232) → consume in `app/components/AnalyticsSections.tsx` |
-| New recommendation rule | `app/lib/insights.ts`: add threshold to `T` (~105), push an `Insight` in the matching `<tab>Insights` fn, add any new input to `AnalyticsFacts` (~34) so TS forces the Analytics page to supply it |
-| Change a recommendation threshold | `app/lib/insights.ts` `T` block, lines 105–165. Only place thresholds live |
+| New recommendation rule | `app/lib/insights.ts`: add threshold to `T` (~109), push an `Insight` (with a `guide` key) in the matching `<tab>Insights` fn, add any new input to `AnalyticsFacts` (~38) so TS forces the Analytics page to supply it |
+| Change a recommendation threshold | `app/lib/insights.ts` `T` block, lines 109–170. Only place thresholds live |
+| Edit a "what good looks like" scale | `app/lib/insights.ts` `LOOK_FOR` (191) — `action` is the next-step line, `bands` the reference copy; firing thresholds stay in `T` |
 | Add a chart to an Analytics tab | `app/components/AnalyticsSections.tsx`, find the `activeTab === "<id>" &&` block (~606–1460), wrap in `SectionCard` |
 | Add a Prisma column | `prisma/schema.prisma` → `npx prisma migrate dev` (manual, no seed script) → `app/lib/types.ts` `Trade` → `scripts/QuantEdgeExport.mq5` header + row → `QUANTEDGE_COLUMNS` in `parseMetaTraderCSV.ts` (order matters, all four) |
 | CSV import format | `app/lib/parseMetaTraderCSV.ts` `QUANTEDGE_COLUMNS` (6). Must stay in sync with the `.mq5` exporter; `QUANTEDGE_HEADER` is built from it at line 14 |
-| Self-update / backup logic | `app/api/update/route.ts` (434). Keep: db backup → migrate → prune to 5 |
+| Self-update / backup logic | `app/api/update/route.ts` (458). Keep: db backup → migrate → prune to 5. `findDatabasePath()` must cover both possible SQLite locations |
 | PDF report layout | `app/components/TradingReportPDF.tsx` (~311 default export); options wired in `ExportPDFInner.tsx` |
 | Theme / accent colour | `app/hooks/useSettings.ts` `applyAccentColor` consumer + `app/pages/SettingsPage.tsx` `applyAccentColor` (~24) + CSS vars in `app/globals.css` |
 | Settings default | `app/hooks/useSettings.ts`: add a field to `Settings` (~3) and to `DEFAULTS`. localStorage-backed, merged on load |
@@ -64,12 +65,17 @@ Only the entries an agent actually needs. `fn` = exported function.
 `challengePlan` 1104 · `challengeROI` 1146 · `ReportStats` 1167 ·
 `buildReportStats` 1232
 
-### `app/lib/insights.ts` (1549) — recommendations
-`T` thresholds 105 · `halfTrend` 171 · `rankBy` 193 ·
-`overviewInsights` 215 · `riskInsights` 387 · `timeInsights` 563 ·
-`heatmapInsights` 735 · `rMultiplesInsights` 867 · `executionInsights` 977 ·
-`behaviorInsights` 1078 · `processInsights` 1230 · `buildInsights` 1522
-Types: `InsightLevel` 18 · `SectionId` 20 · `Insight` 24 · `AnalyticsFacts` 34
+### `app/lib/insights.ts` (1957) — recommendations
+`T` thresholds 109 · `MetricGuide` 177 (label, what, action, bands) · `Grade` 173 ·
+`GRADE_ORDER` 175 · `LOOK_FOR` 191 (41 reference scales + next steps) ·
+`GuideKey` 440 · `halfTrend` ~451 · `rankBy` ~473 · `overviewInsights` ~495 ·
+`riskInsights` ~684 · `timeInsights` ~880 · `heatmapInsights` ~1066 ·
+`rMultiplesInsights` ~1209 · `executionInsights` ~1329 ·
+`behaviorInsights` ~1441 · `processInsights` ~1608 · `buildInsights` 1929
+Types: `InsightLevel` 18 · `SectionId` 20 · `Insight` 24 (has optional `guide`) ·
+`AnalyticsFacts` 38. **Every rule sets `guide`**; a new rule must too, or the
+reference scale under the finding disappears. Add a scale to `LOOK_FOR` when
+the rule fires on a new metric.
 
 ### `app/components/AnalyticsSections.tsx` (1622) — the Analytics page
 `useAnalyticsSummary` 61 (filters by dateRange, builds `stats`, maps to
@@ -79,47 +85,61 @@ Types: `InsightLevel` 18 · `SectionId` 20 · `Insight` 24 · `AnalyticsFacts` 3
 `process` 1345)
 
 ### Everything else
-`app/lib/types.ts` 109 — `Trade` 1 · `TradePlan` 41 · `Playbook` 61 ·
-`Account` 76 · `Tag` 85 · `JournalTemplate` 90 · `PageId` 98
+`app/lib/types.ts` 88 — `Trade` 1 · `Playbook` 41 · `Account` 56 · `Tag` 65 ·
+`JournalTemplate` 70 · `PageId` 78
 
-`app/context/AppContext.tsx` 310 — `AppContextType` 37 · `DateRange` 13 ·
-`sortAccounts` 73 · `AppProvider` 98 · `useApp` 306
+`app/context/AppContext.tsx` 310 — `AppContextType` 38 · `DateRange` 13 ·
+`symbolFilter` (state + storage) 110 · `sortAccounts` ~82 · `AppProvider` 101 ·
+`useApp` 306
 
 `app/lib/parseMetaTraderCSV.ts` 230 — `QUANTEDGE_COLUMNS` 6 (32 cols, order
 is the contract) · `QUANTEDGE_HEADER` 14 · `firstLine` 28 · `isMetaTraderCSV` 33 ·
 `parseMetaTraderCSV` 78
 
-`app/hooks/useSettings.ts` 122 — `Settings` 3 · `useSettings` 103
+`app/hooks/useSettings.ts` 140 — `GuidanceMode` 7 · `Settings` 11 · `guidance`
+  (default `"full"`, migrates the old two booleans) 35 · `useSettings` ~121
 `app/lib/db.ts` 9 — Prisma singleton on `globalThis`
 `app/lib/svgToPng.ts` 27 — canvas SVG→PNG for the PDF logo
-`app/components/AnalyticsCards.tsx` 116 — `SectionCard` 7 · `MetricCard` 22 ·
-`InsightPanel` 63 (the three Analytics UI primitives)
+`app/components/AnalyticsCards.tsx` 357 — `SectionCard` 11 · `MetricCard` 26 ·
+`GradeScale` 75 (five-band bar; ranges printed under it) · `NextStep` 114 ·
+`HeroFinding` 145 (worst finding, full) · `FindingRow` 202 (compact,
+expandable) · `BenchmarkPanel` 266 (guidance = benchmarks) · `InsightPanel` 313
+(takes `mode: "full" | "benchmarks"`)
 `app/components/Sidebar.tsx` 211 — `NAV_ITEMS`, account switcher
-`app/components/GlobalDateFilter.tsx` 57 — writes `dateRange` to context
+`app/components/GlobalDateFilter.tsx` 88 — writes `dateRange` + `symbolFilter`
+to context; symbol options built from the active account's trades
 `app/components/TradePanel.tsx` 632 · `JournalToolbar.tsx` 639 (TipTap bar,
-default export 525) · `TagSelector.tsx` 241 · `PropFirmPanel.tsx` 495 ·
-`TradingReportPDF.tsx` 1124 (default 311) · `ExportPDFInner.tsx` 90 ·
-`PDFExportInner.tsx` 55 · `ExportPDFButton.tsx` 28
+default export 525) · `TagSelector.tsx` 241 · `PropFirmPanel.tsx` 871 (`TONE` 77, `Ring` 113,
+`Stat` 138, `RuleTile` 160, `LegendChip` 202, default `PropFirmPanel` 212 —
+verdict hero, preset chips, rule tiles, day-by-day chart, simulation) ·
+`TradingReportPDF.tsx` 1124 (default 311) · `ExportPDFInner.tsx` 90 (the only
+PDF wrapper the app imports)
 
 Pages (default export unless noted): `Dashboard` 194 · `JournalPage` 632 ·
 `CalendarPage` 494 · `PropFirmPage` 24 (thin shell over `PropFirmPanel`) ·
-`PlansPage` 716 · `PlaybookPage` 858 · `ImportPage` 520 · `ExportPage` 805 ·
+`PlaybookPage` 858 · `ImportPage` 520 · `ExportPage` 805 ·
 `AccountsPage` 364 · `JournalEditorPage` 767 · `SettingsPage` 813
 (exported `applyAccentColor` at 24)
 
 API routes: `trades` 107 (GET/POST/PATCH/DELETE, derives `hourOfDay`, bulk
-upsert) · `playbook` 67 · `accounts` 59 · `templates` 58 · `plans` 51 ·
+upsert) · `playbook` 67 · `accounts` 59 · `templates` 58 ·
 `tags` 41 · `upload` 26 (multipart → `public/uploads/`) · `update` 434 ·
 `update/restart` 15 · `trades/clear` 11
 
 Prisma models: `Account` · `Trade` (40 fields, incl. `plannedRisk`,
 `durationMin`, `mae`/`mfe`, `exitReason`, `magic`, `legs`, `averagedDown`,
-`balanceAfter`) · `TradePlan` · `Playbook` · `JournalTemplate` · `Tag`.
-SQLite via `DATABASE_URL="file:./prisma/quantedge.db"`.
+`balanceAfter`) · `TradePlan` (kept in the schema, but the Trade Plans tab and
+`/api/plans` were removed — do not delete the model without a manual migration)
+· `Playbook` · `JournalTemplate` · `Tag`.
+SQLite via `DATABASE_URL="file:./prisma/quantedge.db"`; Prisma resolves that
+relative to `prisma/schema.prisma`, so the live file is
+`prisma/prisma/quantedge.db`. Anything touching the database on disk must find
+it, not assume the root-relative path (`app/api/update/route.ts`
+`findDatabasePath()` checks both).
 
 ## ✕ Do not read
 
-- `prisma/quantedge.db` — local SQLite, gitignored
+- `prisma/prisma/quantedge.db` — local SQLite (also gitignored), never read
 - `docs/screenshots/*.png` (16) — README assets
 - `public/*.svg`, `app/icon.svg` — logos
 - `package-lock.json`, `node_modules/`, `.next/`

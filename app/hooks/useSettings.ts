@@ -1,5 +1,11 @@
 import { useSyncExternalStore } from "react";
 
+// One control instead of two booleans: how much of the guidance layer to show.
+//   off        numbers only
+//   benchmarks the reference scales, no findings
+//   full       findings + next steps + scales
+export type GuidanceMode = "off" | "benchmarks" | "full";
+
 export interface Settings {
   theme: "dark" | "light";
   accentColor: string;
@@ -10,7 +16,7 @@ export interface Settings {
   dailyLossLimit: number;
   maxDailyTrades: number;
   defaultRiskPct: number;
-  showRecommendations: boolean;
+  guidance: GuidanceMode;
   // Which day a week begins on. Drives the calendar grid and any weekly
   // bucketing; forex desks and prop-firm trackers rarely agree on this.
   weekStart: "sunday" | "monday";
@@ -26,7 +32,7 @@ const DEFAULTS: Settings = {
   dailyLossLimit: 0,
   maxDailyTrades: 0,
   defaultRiskPct: 1,
-  showRecommendations: true,
+  guidance: "full",
   weekStart: "monday",
 };
 
@@ -62,7 +68,19 @@ function readStored(): Settings {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (!stored) return DEFAULTS;
-    return { ...DEFAULTS, ...JSON.parse(stored) };
+    const parsed = JSON.parse(stored) as Partial<Settings> & {
+      showRecommendations?: boolean;
+      showMetricGuides?: boolean;
+    };
+    const merged: Settings = { ...DEFAULTS, ...parsed };
+    // The old build stored two switches. Map them to the single control so an
+    // existing choice survives the upgrade instead of resetting to defaults.
+    if (parsed.guidance === undefined) {
+      merged.guidance = parsed.showRecommendations === false
+        ? (parsed.showMetricGuides ? "benchmarks" : "off")
+        : "full";
+    }
+    return merged;
   } catch {
     return DEFAULTS;
   }
