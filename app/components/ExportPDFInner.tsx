@@ -12,6 +12,7 @@ interface Props {
   account: Account | null;
   challenge?: ChallengeConfig | null;
   weekStart?: "sunday" | "monday";
+  timeFormat?: "24h" | "12h";
   options: {
     includeCover?: boolean;
     includeStats?: boolean;
@@ -30,7 +31,7 @@ interface Props {
   filename: string;
 }
 
-export default function ExportPDFInner({ trades, account, challenge, weekStart, options, filename }: Props) {
+export default function ExportPDFInner({ trades, account, challenge, weekStart, timeFormat, options, filename }: Props) {
   const [logoUrl, setLogoUrl] = useState<string | undefined>(undefined);
 
   useEffect(() => {
@@ -63,6 +64,7 @@ export default function ExportPDFInner({ trades, account, challenge, weekStart, 
           account={account}
           challenge={challenge}
           weekStart={weekStart}
+          timeFormat={timeFormat}
           options={options}
           logoUrl={logoUrl}
         />
@@ -83,7 +85,7 @@ export default function ExportPDFInner({ trades, account, challenge, weekStart, 
           transition: "all 0.2s ease",
         }}>
           <FileDown size={16} />
-          {loading ? "Preparing PDF..." : `Export ${trades.length} Trades`}
+          {loading ? "Preparing PDF..." : `Download PDF · ${trades.length} trade${trades.length === 1 ? "" : "s"}`}
         </button>
       )}
     </PDFDownloadLink>

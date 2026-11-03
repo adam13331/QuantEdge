@@ -26,7 +26,7 @@
 // Must stay in sync with QUANTEDGE_COLUMNS in app/lib/parseMetaTraderCSV.ts.
 // The parser reads by column name, so columns may be appended here without
 // breaking files exported by older builds of this script.
-#define QUANTEDGE_HEADER "Date,Symbol,Underlying,Type,Direction,Option Type,Strike,Expiry,Quantity,Entry Price,Exit Price,Commission,Fees,P&L,Status,Entry Time,Exit Time,R:R,Tags,Journal,Account ID,Ticket,Planned Risk,Duration (min),MAE,MFE,Post Close MFE,Exit Reason,Magic,Legs,Averaged Down,Balance After"
+#define QUANTEDGE_HEADER "Date,Symbol,Underlying,Type,Direction,Option Type,Strike,Expiry,Quantity,Entry Price,Exit Price,Commission,Fees,P&L,Status,Entry Time,Exit Time,R:R,Tags,Journal,Account ID,Ticket,Planned Risk,Duration (min),MAE,MFE,Post Close MFE,Exit Reason,Magic,Legs,Averaged Down,Balance After,ATR (14),Spread,Day Range"
 
 input group                 "Range"
 input datetime InpFrom      = 0;  // From  (0 = entire history)
@@ -36,6 +36,7 @@ input group                 "Options"
 input bool    InpIncludeOpen = false; // Include positions that are still open (exit price = 0)
 input bool    InpCommentTag  = false; // Use the entry order comment as the trade tag
 input bool    InpExcursions  = true;  // Scan price bars to calculate MAE / MFE (slower)
+input int     InpAtrPeriod   = 14;    // ATR period recorded at entry (chart timeframe)
 input int     InpPostClose   = 60;    // Minutes to scan after exit for the post-close run (hindsight only)
 input bool    InpQuiet       = false; // Skip the completion alert (still logged to Experts)
 
@@ -73,6 +74,9 @@ struct TradeRow
    bool          avg_down;     // a later entry was at a worse price than the first
    double        balance_after;// account balance once this position closed
    bool          has_balance;  // whether balance_after could be reconstructed
+   double        atr;          // ATR at entry on the chart timeframe
+   double        spread;       // spread, price units (symbol's current setting)
+   double        day_range;    // high-low of the entry day
   };
 
 //+------------------------------------------------------------------+
@@ -525,6 +529,9 @@ bool BuildTrade(const int from, const int to, TradeRow &row)
    row.avg_down     = false;
    row.balance_after = 0.0;
    row.has_balance  = false;
+   row.atr          = 0.0;
+   row.spread       = 0.0;
+   row.day_range    = 0.0;
    row.ticket       = IntegerToString((long)g_deals[g_order[from]].position_id);
 
    for(int i = from; i < to; i++)
@@ -700,8 +707,43 @@ bool BuildTrade(const int from, const int to, TradeRow &row)
 //| output. QuantEdge would then read the header (written literally)    |
 //| but discard every data row.                                        |
 //+------------------------------------------------------------------+
+//| Market context for the entry, so QuantEdge can ask questions like  |
+//| "do stops inside half an ATR survive?" without a data feed.         |
+//| Spread is the symbol's current setting, not a historical quote —     |
+//| the terminal does not store per-deal spread.                        |
+//+------------------------------------------------------------------+
+void MarketContext(const TradeRow &row, double &atr_out, double &spread_out, double &range_out)
+  {
+   atr_out = 0.0; spread_out = 0.0; range_out = 0.0;
+   if(row.entry_time <= 0 || row.symbol == "") return;
+   if(!SymbolSelect(row.symbol, true)) return;
+
+   const double point = SymbolInfoDouble(row.symbol, SYMBOL_POINT);
+   spread_out = (double)SymbolInfoInteger(row.symbol, SYMBOL_SPREAD) * point;
+
+   const ENUM_TIMEFRAMES tf = (ENUM_TIMEFRAMES)Period();
+   const int atr_handle = iATR(row.symbol, tf, InpAtrPeriod);
+   if(atr_handle != INVALID_HANDLE)
+     {
+      double buf[];
+      if(CopyBuffer(atr_handle, 0, row.entry_time, 1, buf) == 1) atr_out = buf[0];
+      IndicatorRelease(atr_handle);
+     }
+
+   const int day_bar = iBarShift(row.symbol, PERIOD_D1, row.entry_time, false);
+   if(day_bar >= 0)
+     {
+      const double hi = iHigh(row.symbol, PERIOD_D1, day_bar);
+      const double lo = iLow(row.symbol, PERIOD_D1, day_bar);
+      if(hi > 0.0 && lo > 0.0) range_out = hi - lo;
+     }
+  }
+
+//+------------------------------------------------------------------+
 void WriteRow(const TradeRow &row)
   {
+   double ctx_atr = 0.0, ctx_spread = 0.0, ctx_range = 0.0;
+   MarketContext(row, ctx_atr, ctx_spread, ctx_range);
    const datetime basis = (row.entry_time > 0 ? row.entry_time : row.exit_time);
 
    string status = "breakeven";
@@ -740,7 +782,10 @@ void WriteRow(const TradeRow &row)
                   IntegerToString(row.magic)                + "," +
                   IntegerToString(row.legs)                 + "," +
                   (row.avg_down ? "yes" : "no")             + "," +
-                  (row.has_balance ? DoubleToString(row.balance_after, 2) : "");
+                  (row.has_balance ? DoubleToString(row.balance_after, 2) : "") + "," +
+                  (ctx_atr    > 0.0 ? DoubleToString(ctx_atr, 5)    : "") + "," +
+                  (ctx_spread > 0.0 ? DoubleToString(ctx_spread, 5) : "") + "," +
+                  (ctx_range  > 0.0 ? DoubleToString(ctx_range, 5)  : "");
 
    FileWriteString(g_file, line + "\r\n");
   }

@@ -1,6 +1,6 @@
 "use client";
 import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from "react";
-import { Trade, Account, Playbook, PageId } from "../lib/types";
+import { Trade, Account, Playbook, PageId, Experiment } from "../lib/types";
 
 interface Tag {
   id: string;
@@ -66,6 +66,11 @@ interface AppContextType {
   addTag: (name: string) => Promise<Tag | null>;
   playbook: Playbook[];
   reloadPlaybook: () => Promise<void>;
+  experiments: Experiment[];
+  reloadExperiments: () => Promise<void>;
+  addExperiment: (experiment: Partial<Experiment>) => Promise<Experiment | null>;
+  updateExperiment: (id: string, patch: Partial<Experiment>) => Promise<void>;
+  deleteExperiment: (id: string) => Promise<void>;
 }
 
 // The built-in Portfolio aggregate was removed — every account stands alone.
@@ -86,6 +91,7 @@ function parseTrades(data: Trade[]): Trade[] {
     ...t,
     tags: typeof t.tags === "string" ? JSON.parse(t.tags) : t.tags || [],
     imageUrls: typeof t.imageUrls === "string" ? JSON.parse(t.imageUrls) : t.imageUrls || [],
+    mistakeTags: typeof t.mistakeTags === "string" ? JSON.parse(t.mistakeTags) : t.mistakeTags || [],
   }));
 }
 
@@ -95,6 +101,7 @@ function parsePlaybook(data: Playbook[]): Playbook[] {
     rules: typeof p.rules === "string" ? JSON.parse(p.rules) : p.rules || [],
     entryTriggers: typeof p.entryTriggers === "string" ? JSON.parse(p.entryTriggers) : p.entryTriggers || [],
     imageUrls: typeof p.imageUrls === "string" ? JSON.parse(p.imageUrls) : p.imageUrls || [],
+    revisions: typeof p.revisions === "string" ? JSON.parse(p.revisions) : p.revisions || [],
   }));
 }
 
@@ -114,6 +121,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [activeAccount, setActiveAccountState] = useState<Account | null>(null);
   const [tags, setTags]                       = useState<Tag[]>([]);
   const [playbook, setPlaybook]               = useState<Playbook[]>([]);
+  const [experiments, setExperiments]         = useState<Experiment[]>([]);
 
   // Every trade belongs to exactly one account; the Portfolio aggregate that
   // used to show all trades at once is gone.
@@ -184,6 +192,50 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const reloadExperiments = useCallback(async () => {
+    try {
+      const res = await fetch("/api/experiments");
+      const data = await res.json();
+      if (Array.isArray(data)) setExperiments(data);
+    } catch (err) {
+      console.error("Failed to load experiments:", err);
+    }
+  }, []);
+
+  const addExperiment = async (experiment: Partial<Experiment>): Promise<Experiment | null> => {
+    try {
+      const res = await fetch("/api/experiments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(experiment),
+      });
+      if (!res.ok) return null;
+      const created: Experiment = await res.json();
+      setExperiments((prev) => [created, ...prev]);
+      return created;
+    } catch {
+      return null;
+    }
+  };
+
+  const updateExperiment = async (id: string, patch: Partial<Experiment>) => {
+    setExperiments((prev) => prev.map((e) => (e.id === id ? { ...e, ...patch } : e)));
+    await fetch("/api/experiments", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, ...patch }),
+    });
+  };
+
+  const deleteExperiment = async (id: string) => {
+    setExperiments((prev) => prev.filter((e) => e.id !== id));
+    await fetch("/api/experiments", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id }),
+    });
+  };
+
   const seedTagsFromTrades = async (trades: Trade[]) => {
     const existingRes = await fetch("/api/tags");
     const existing: Tag[] = await existingRes.json();
@@ -210,7 +262,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
     localStorage.setItem(RANGE_STORAGE_KEY, JSON.stringify(range));
   };
 
-  const clearDateRange = () => setDateRange(EMPTY_RANGE);
+  // Removing the stored range matters as much as clearing the state: without
+  // it the next reload silently restores the period the user just cleared.
+  const clearDateRange = () => {
+    setDateRangeState(EMPTY_RANGE);
+    localStorage.removeItem(RANGE_STORAGE_KEY);
+  };
 
   const setSymbolFilter = (symbol: string) => {
     setSymbolFilterState(symbol);
@@ -242,7 +299,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     reloadPlaybook();
-  }, []);
+    reloadExperiments();
+  }, [reloadPlaybook, reloadExperiments]);
 
   useEffect(() => {
     const loadAccounts = async () => {
@@ -297,6 +355,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       accounts, activeAccount, setActiveAccount, addAccount, updateAccount,
       tags, reloadTags, addTag,
       playbook, reloadPlaybook,
+      experiments, reloadExperiments, addExperiment, updateExperiment, deleteExperiment,
     }}>
       {children}
     </AppContext.Provider>

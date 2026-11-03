@@ -4,7 +4,10 @@ import { ChevronLeft, ChevronRight, X, TrendingUp, TrendingDown, Calendar, BarCh
 import { useApp } from "../context/AppContext";
 import { useSettings } from "../hooks/useSettings";
 import { leadingBlanks, weekdayHeaders } from "../lib/analytics";
+import { formatTime } from "../lib/time";
 import { Trade } from "../lib/types";
+
+const CALENDAR_RETURN_DAY = "quantedge_calendar_return_day";
 
 const MONTHS = [
   "January", "February", "March", "April", "May", "June",
@@ -12,8 +15,8 @@ const MONTHS = [
 ];
 
 
-const WIN_COLOR   = "#00e57a";
-const LOSS_COLOR  = "#ff4d6a";
+const WIN_COLOR   = "var(--profit)";
+const LOSS_COLOR  = "var(--loss)";
 const WIN_BG      = "rgba(0,229,122,0.07)";
 const LOSS_BG     = "rgba(255,77,106,0.07)";
 const WIN_BORDER  = "rgba(0,229,122,0.25)";
@@ -42,8 +45,32 @@ export default function CalendarPage() {
   const days  = weekdayHeaders(settings.weekStart);
   const firstDayOfMonth = new Date(currentYear, currentMonth, 1);
 
+  // The day drawer is a modal surface; Escape dismisses it like the other
+  // overlays instead of leaving the user hunting for the close icon.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setSelectedDay(null);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
   // Use a ref to track whether we've snapped yet — avoids stale state issues
   const hasSnapped = useRef(false);
+
+  // Coming back from the journal editor: reopen the day the entry belonged to
+  // rather than snapping to the latest trade month with nothing selected.
+  useEffect(() => {
+    const stored = sessionStorage.getItem(CALENDAR_RETURN_DAY);
+    if (!stored) return;
+    sessionStorage.removeItem(CALENDAR_RETURN_DAY);
+    const [year, month] = stored.split("-").map(Number);
+    if (!year || !month) return;
+    hasSnapped.current = true;
+    setCurrentYear(year);
+    setCurrentMonth(month - 1);
+    setSelectedDay(stored);
+  }, []);
 
   useEffect(() => {
     if (hasSnapped.current || trades.length === 0) return;
@@ -167,7 +194,7 @@ export default function CalendarPage() {
               background: "var(--bg-card)", border: "1px solid var(--border)",
               borderRadius: "10px", padding: "10px 16px", textAlign: "center",
             }}>
-              <div style={{ fontSize: "11px", color: "var(--text-muted)", marginBottom: "2px" }}>Days</div>
+              <div style={{ fontSize: "11px", color: "var(--text-muted)", marginBottom: "2px" }}>Trades</div>
               <div style={{ fontSize: "14px", fontWeight: "700" }}>
                 <span style={{ color: WIN_COLOR }}>{monthWins.length}W</span>
                 <span style={{ color: "var(--text-muted)", margin: "0 4px" }}>/</span>
@@ -217,7 +244,7 @@ export default function CalendarPage() {
               minHeight: "90px",
               borderRight: "1px solid var(--border)",
               borderBottom: "1px solid var(--border)",
-              background: "rgba(0,0,0,0.15)",
+              background: "var(--calendar-empty)",
             }} />
           ))}
 
@@ -227,6 +254,7 @@ export default function CalendarPage() {
             const dayTrades = tradesByDate[dateStr] || [];
             const dayPnl    = pnlByDate[dateStr];
             const hasTrades = dayTrades.length > 0;
+            const missingNotes = dayTrades.filter((t) => !(t.journalEntry || "").trim()).length;
             const isToday   =
               day === today.getDate() &&
               currentMonth === today.getMonth() &&
@@ -286,8 +314,18 @@ export default function CalendarPage() {
                     <div style={{ fontSize: "13px", fontWeight: "700", color: isWin ? WIN_COLOR : LOSS_COLOR, marginBottom: "3px" }}>
                       {fmtPct(dayPnl)}
                     </div>
-                    <div style={{ fontSize: "10px", color: "var(--text-muted)" }}>
-                      {dayTrades.length} trade{dayTrades.length !== 1 ? "s" : ""}
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "5px", fontSize: "10px", color: "var(--text-muted)" }}>
+                      <span>{dayTrades.length} trade{dayTrades.length !== 1 ? "s" : ""}</span>
+                      {missingNotes > 0 && (
+                        <span
+                          title={`${missingNotes} trade${missingNotes !== 1 ? "s" : ""} without a journal entry`}
+                          aria-label={`${missingNotes} trade${missingNotes !== 1 ? "s" : ""} without a journal entry`}
+                          style={{
+                            width: "6px", height: "6px", borderRadius: "50%",
+                            background: "var(--warning)", flexShrink: 0,
+                          }}
+                        />
+                      )}
                     </div>
                   </div>
                 )}
@@ -299,7 +337,7 @@ export default function CalendarPage() {
 
       {/* Monthly breakdown */}
       {tradingDaysCount > 0 ? (
-        <div style={{ marginTop: "24px", display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "16px" }}>
+        <div style={{ marginTop: "24px", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: "16px" }}>
           <div style={{
             background: "var(--bg-card)", border: "1px solid var(--border)",
             borderRadius: "14px", padding: "20px", display: "flex", flexDirection: "column", gap: "6px",
@@ -410,7 +448,7 @@ export default function CalendarPage() {
 
             <div style={{ flex: 1, overflowY: "auto", padding: "16px" }}>
               <p style={{ fontSize: "11px", color: "var(--text-muted)", marginBottom: "12px" }}>
-                Click any trade to open the journal panel
+                Click any trade to view it and write the journal
               </p>
               {selectedTrades.map((trade) => (
                 <div
@@ -450,7 +488,7 @@ export default function CalendarPage() {
                     <span style={{ fontSize: "12px", color: "var(--text-muted)" }}>Entry: ${trade.entryPrice}</span>
                     <span style={{ fontSize: "12px", color: "var(--text-muted)" }}>Exit: ${trade.exitPrice}</span>
                     {trade.rr && <span style={{ fontSize: "12px", color: "var(--text-muted)" }}>R:R {trade.rr}</span>}
-                    {trade.entryTime && <span style={{ fontSize: "12px", color: "var(--text-muted)" }}>{trade.entryTime}</span>}
+                    {trade.entryTime && <span style={{ fontSize: "12px", color: "var(--text-muted)" }}>{formatTime(trade.entryTime, settings.timeFormat)}</span>}
                   </div>
 
                   {(() => {
@@ -472,6 +510,12 @@ export default function CalendarPage() {
                       </div>
                     ) : null;
                   })()}
+
+                  {!(trade.journalEntry || "").trim() && (
+                    <div style={{ fontSize: "11px", fontWeight: "600", color: "var(--warning)", marginTop: "6px" }}>
+                      No journal entry yet
+                    </div>
+                  )}
 
                   {trade.journalEntry && (
                     <p style={{

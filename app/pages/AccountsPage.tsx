@@ -11,7 +11,7 @@ const PLATFORMS = ["MetaTrader"];
 const inputStyle: React.CSSProperties = {
   width: "100%", padding: "10px 12px", borderRadius: "8px",
   border: "1px solid var(--border)", background: "var(--bg-secondary)",
-  color: "#f0f0ff", fontSize: "13px", fontFamily: "'DM Sans', sans-serif",
+  color: "var(--text-primary)", fontSize: "13px", fontFamily: "'DM Sans', sans-serif",
   boxSizing: "border-box", outline: "none",
 };
 
@@ -26,7 +26,7 @@ function SelectWrapper({ children }: { children: React.ReactNode }) {
     <div style={{ position: "relative" }}>
       {children}
       <ChevronDown
-        size={14} color="#a8a8c8"
+        size={14} color="var(--text-secondary)"
         style={{ position: "absolute", right: "12px", top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }}
       />
     </div>
@@ -45,7 +45,19 @@ export default function AccountsPage() {
   const [editingBalance, setEditingBalance] = useState<string | null>(null);
   const [balanceDraft, setBalanceDraft]   = useState("");
 
-  const tradeCountFor = (id: string) => allTrades.filter((t) => t.accountId === id).length;
+  // Live equity is the starting balance plus every closed trade on this
+  // account. It is the figure a trader actually checks, so it leads the card
+  // instead of sitting behind a page switch.
+  const statsFor = (id: string) => {
+    const own = allTrades.filter((t) => t.accountId === id);
+    const pnl = own.reduce((sum, t) => sum + (Number.isFinite(t.pnl) ? t.pnl : 0), 0);
+    const account = accounts.find((a) => a.id === id);
+    const start = account?.initialBalance ?? 0;
+    return { count: own.length, pnl, equity: start + pnl, pct: start > 0 ? (pnl / start) * 100 : null };
+  };
+
+  const fmtAmount = (currency: string, value: number, signed = false) =>
+    `${signed && value > 0 ? "+" : value < 0 ? "-" : ""}${currency} ${Math.abs(value).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
   const handleSaveBalance = async (account: Account) => {
     const value = parseFloat(balanceDraft);
@@ -112,7 +124,7 @@ export default function AccountsPage() {
           <h2 style={{ fontSize: "26px", fontWeight: "700", color: "var(--text-primary)", letterSpacing: "-0.5px" }}>
             Accounts
           </h2>
-          <p style={{ color: "#a8a8c8", fontSize: "14px", marginTop: "4px" }}>
+          <p style={{ color: "var(--text-secondary)", fontSize: "14px", marginTop: "4px" }}>
             Manage your trading accounts and track equity per account
           </p>
         </div>
@@ -138,23 +150,23 @@ export default function AccountsPage() {
           background: "var(--bg-card)", border: "1px solid var(--border)",
           borderRadius: "16px", padding: "24px", marginBottom: "24px",
         }}>
-          <h3 style={{ fontSize: "15px", fontWeight: "700", color: "#f0f0ff", marginBottom: "20px" }}>
+          <h3 style={{ fontSize: "15px", fontWeight: "700", color: "var(--text-primary)", marginBottom: "20px" }}>
             {accounts.length === 0 ? "Create your first account" : "New Account"}
           </h3>
 
           {error && (
             <div style={{
-              background: "rgba(255,77,106,0.1)", border: "1px solid #ff4d6a",
+              background: "rgba(255,77,106,0.1)", border: "1px solid var(--loss)",
               borderRadius: "8px", padding: "10px 14px", marginBottom: "16px",
-              color: "#ff4d6a", fontSize: "13px",
+              color: "var(--loss)", fontSize: "13px",
             }}>
               {error}
             </div>
           )}
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: "16px" }}>
             <div>
-              <label style={{ fontSize: "12px", color: "#a8a8c8", fontWeight: "600", display: "block", marginBottom: "6px" }}>
+              <label style={{ fontSize: "12px", color: "var(--text-secondary)", fontWeight: "600", display: "block", marginBottom: "6px" }}>
                 Account Name
               </label>
               <input
@@ -166,7 +178,7 @@ export default function AccountsPage() {
             </div>
 
             <div>
-              <label style={{ fontSize: "12px", color: "#a8a8c8", fontWeight: "600", display: "block", marginBottom: "6px" }}>
+              <label style={{ fontSize: "12px", color: "var(--text-secondary)", fontWeight: "600", display: "block", marginBottom: "6px" }}>
                 Platform
               </label>
               <SelectWrapper>
@@ -177,7 +189,7 @@ export default function AccountsPage() {
             </div>
 
             <div>
-              <label style={{ fontSize: "12px", color: "#a8a8c8", fontWeight: "600", display: "block", marginBottom: "6px" }}>
+              <label style={{ fontSize: "12px", color: "var(--text-secondary)", fontWeight: "600", display: "block", marginBottom: "6px" }}>
                 Initial Balance
               </label>
               <input
@@ -189,7 +201,7 @@ export default function AccountsPage() {
             </div>
 
             <div>
-              <label style={{ fontSize: "12px", color: "#a8a8c8", fontWeight: "600", display: "block", marginBottom: "6px" }}>
+              <label style={{ fontSize: "12px", color: "var(--text-secondary)", fontWeight: "600", display: "block", marginBottom: "6px" }}>
                 Currency
               </label>
               <SelectWrapper>
@@ -221,7 +233,7 @@ export default function AccountsPage() {
                 style={{
                   padding: "10px 20px", borderRadius: "8px",
                   border: "1px solid var(--border)", background: "transparent",
-                  color: "#f0f0ff", fontSize: "13px", cursor: "pointer",
+                  color: "var(--text-primary)", fontSize: "13px", cursor: "pointer",
                 }}
               >
                 Cancel
@@ -233,18 +245,19 @@ export default function AccountsPage() {
 
       {/* Account Cards */}
       {accounts.length > 0 && (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "16px" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "16px" }}>
           {accounts.map((account: Account) => {
             const isActive = activeAccount?.id === account.id;
+            const stats = statsFor(account.id);
             return (
               <div
                 key={account.id}
-                onClick={() => setActiveAccount(account)}
                 style={{
                   background: "var(--bg-card)",
                   border: `1px solid ${isActive ? "var(--accent-green)" : "var(--border)"}`,
-                  borderRadius: "16px", padding: "20px", cursor: "pointer",
+                  borderRadius: "16px", padding: "20px",
                   transition: "all 0.15s ease", position: "relative",
+                  display: "flex", flexDirection: "column",
                 }}
               >
                 {isActive && (
@@ -264,20 +277,35 @@ export default function AccountsPage() {
                   display: "flex", alignItems: "center", justifyContent: "center",
                   marginBottom: "12px",
                 }}>
-                  <Wallet size={18} color={isActive ? "var(--accent-green)" : "#a8a8c8"} />
+                  <Wallet size={18} color={isActive ? "var(--accent-green)" : "var(--text-secondary)"} />
                 </div>
 
-                <div style={{ fontSize: "16px", fontWeight: "700", color: "#f0f0ff", marginBottom: "4px" }}>
+                <div style={{ fontSize: "16px", fontWeight: "700", color: "var(--text-primary)", marginBottom: "4px" }}>
                   {account.name}
                 </div>
-                <div style={{ fontSize: "12px", color: "#a8a8c8", marginBottom: "16px" }}>
-                  {account.platform} · {tradeCountFor(account.id)} trade{tradeCountFor(account.id) === 1 ? "" : "s"}
+                <div style={{ fontSize: "12px", color: "var(--text-secondary)", marginBottom: "14px" }}>
+                  {account.platform} · {stats.count} trade{stats.count === 1 ? "" : "s"}
                 </div>
 
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
-                  <div onClick={(e) => e.stopPropagation()}>
-                    <div style={{ fontSize: "11px", color: "#a8a8c8", marginBottom: "2px" }}>
-                      Initial Balance
+                <div style={{ display: "flex", alignItems: "baseline", gap: "8px" }}>
+                  <span style={{ fontSize: "20px", fontWeight: "800", color: "var(--text-primary)", letterSpacing: "-0.4px" }}>
+                    {fmtAmount(account.currency, stats.equity)}
+                  </span>
+                  <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>equity</span>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "4px", marginBottom: "14px" }}>
+                  <span style={{ fontSize: "12px", fontWeight: "700", color: stats.pnl >= 0 ? "var(--profit)" : "var(--loss)" }}>
+                    {fmtAmount(account.currency, stats.pnl, true)}
+                  </span>
+                  <span style={{ fontSize: "11px", color: stats.pnl >= 0 ? "var(--profit)" : "var(--loss)", opacity: 0.85 }}>
+                    {stats.pct === null ? "P&L" : `${stats.pct >= 0 ? "+" : ""}${stats.pct.toFixed(2)}%`}
+                  </span>
+                </div>
+
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginTop: "auto" }}>
+                  <div>
+                    <div style={{ fontSize: "10px", color: "var(--text-muted)", marginBottom: "2px" }}>
+                      Starting balance
                     </div>
                     {editingBalance === account.id ? (
                       <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
@@ -293,7 +321,7 @@ export default function AccountsPage() {
                           style={{
                             width: "110px", padding: "5px 8px", borderRadius: "6px",
                             border: "1px solid var(--accent-green)", background: "var(--bg-secondary)",
-                            color: "#f0f0ff", fontSize: "15px", fontWeight: "700",
+                            color: "var(--text-primary)", fontSize: "15px", fontWeight: "700",
                             fontFamily: "'DM Sans', sans-serif", boxSizing: "border-box", outline: "none",
                           }}
                         />
@@ -319,23 +347,40 @@ export default function AccountsPage() {
                           display: "flex", alignItems: "center", gap: "6px",
                         }}
                       >
-                        <span style={{ fontSize: "18px", fontWeight: "700", color: "var(--accent-green)" }}>
-                          {account.currency} {account.initialBalance.toLocaleString()}
+                        <span style={{ fontSize: "12px", color: "var(--text-secondary)" }}>
+                          {fmtAmount(account.currency, account.initialBalance)}
                         </span>
-                        <span style={{ fontSize: "10px", color: "#a8a8c8" }}>edit</span>
+                        <span style={{ fontSize: "10px", color: "var(--text-muted)", textDecoration: "underline" }}>edit</span>
                       </button>
                     )}
                   </div>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); handleDelete(account.id); }}
-                    style={{
-                      background: "rgba(255,77,106,0.1)", border: "none",
-                      borderRadius: "6px", padding: "6px", cursor: "pointer",
-                      display: "flex", alignItems: "center", justifyContent: "center",
-                    }}
-                  >
-                    <Trash2 size={13} color="#ff4d6a" />
-                  </button>
+                  <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                    {!isActive && (
+                      <button
+                        onClick={() => setActiveAccount(account)}
+                        style={{
+                          padding: "6px 10px", borderRadius: "6px", cursor: "pointer",
+                          border: "1px solid var(--border)", background: "transparent",
+                          color: "var(--text-secondary)", fontSize: "11px", fontWeight: "600",
+                          fontFamily: "'DM Sans', sans-serif",
+                        }}
+                      >
+                        Set active
+                      </button>
+                    )}
+                    <button
+                      onClick={() => handleDelete(account.id)}
+                      aria-label={`Delete ${account.name}`}
+                      title="Delete account"
+                      style={{
+                        background: "rgba(255,77,106,0.1)", border: "none",
+                        borderRadius: "6px", padding: "6px", cursor: "pointer",
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                      }}
+                    >
+                      <Trash2 size={13} color="var(--loss)" />
+                    </button>
+                  </div>
                 </div>
               </div>
             );

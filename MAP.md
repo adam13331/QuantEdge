@@ -41,17 +41,20 @@ fall back to a keyword grep in the same file — the file itself will be right.
 | CSV import format | `app/lib/parseMetaTraderCSV.ts` `QUANTEDGE_COLUMNS` (6). Must stay in sync with the `.mq5` exporter; `QUANTEDGE_HEADER` is built from it at line 14 |
 | Self-update / backup logic | `app/api/update/route.ts` (458). Keep: db backup → migrate → prune to 5. `findDatabasePath()` must cover both possible SQLite locations |
 | PDF report layout | `app/components/TradingReportPDF.tsx` (~311 default export); options wired in `ExportPDFInner.tsx` |
-| Theme / accent colour | `app/hooks/useSettings.ts` `applyAccentColor` consumer + `app/pages/SettingsPage.tsx` `applyAccentColor` (~24) + CSS vars in `app/globals.css` |
+| Theme / accent colour | `app/hooks/useSettings.ts` `applyAccentColor` (59) + CSS vars in `app/globals.css`; accent swatches in `app/pages/SettingsPage.tsx` `ACCENT_COLORS` |
 | Settings default | `app/hooks/useSettings.ts`: add a field to `Settings` (~3) and to `DEFAULTS`. localStorage-backed, merged on load |
+| Show a trade time | `formatTime(value, settings.timeFormat)` from `app/lib/time.ts` (~7) — stored times stay 24h `HH:MM`; Calendar drawer, journal stat pills and the PDF pass the setting through. Never splice `entryTime` into JSX raw |
 | Prop-firm challenge math | `app/lib/analytics.ts` `ChallengeConfig` ~710 → `challengeStatus` ~806 → `simulateChallenge` ~944; UI in `app/components/PropFirmPanel.tsx` |
-| Keyboard shortcuts | `app/page.tsx` ~120 (`d j c f p b i e`, `/` toggles modal) |
+| Keyboard shortcuts | `app/page.tsx` `SHORTCUTS` ~20 and the handler ~120 (`d c f b i e r`, `/` toggles modal); `⌘K`/`Ctrl+K` is owned by `TradeSearch.tsx`, which also listens for the sidebar's `quantedge:search` event |
+| Research layer (CI, cohorts, reviews) | `app/lib/analytics.ts` ~1365 onward: `wilsonInterval` 1379 · `cohortStats` 1449 · `compareCohorts` 1499 · `adherenceStats` 1643 · `setupVersionStats` 1708 · `weeklyReview` 1739; UI in `AnalyticsSections.tsx` `CompareTab` 1678 / `AdherencePanel` 1783 and `app/pages/ReviewPage.tsx` |
+| Add a review/market field to a trade | `prisma/schema.prisma` `Trade` → `app/lib/types.ts` → `app/components/TradePanel.tsx` (REVIEW block) or `parseMetaTraderCSV.ts` + `QuantEdgeExport.mq5` for imported fields → `serializeTrade` in `app/api/trades/route.ts` for JSON columns |
 | Change the exporter (MT5) | `scripts/QuantEdgeExport.mq5`, `OnStart()`; then mirror in `parseMetaTraderCSV.ts` |
 
 ## Symbol index
 
 Only the entries an agent actually needs. `fn` = exported function.
 
-### `app/lib/analytics.ts` (1360) — source of truth
+### `app/lib/analytics.ts` (1792) — source of truth
 `stdDev` 6 · `normalizeDate` 13 · `getDailyPnl` 21 · `sharpeRatio` 32 ·
 `sortinoRatio` 40 · `expectancy` 50 · `profitFactor` 64 · `drawdownStats` 71 ·
 `calmarRatio` 107 · `rMultiples` 116 · `R_BUCKET_ORDER` 127 · `rHistogram` 129 ·
@@ -65,24 +68,29 @@ Only the entries an agent actually needs. `fn` = exported function.
 `challengePlan` 1104 · `challengeROI` 1146 · `ReportStats` 1167 ·
 `buildReportStats` 1232
 
-### `app/lib/insights.ts` (1957) — recommendations
+Research layer (1365+): `wilsonInterval` 1379 · `bootstrapMeanCI` 1412 ·
+`riskUnit` 1434 · `rSeries` 1440 · `cohortStats` 1449 ·
+`sampleSizePerCohort` 1492 · `compareCohorts` 1499 · `mfeCaptureBuckets` 1537 ·
+`stopVsAtr` 1567 · `outcomeByIntendedRR` 1622 · `adherenceStats` 1643 ·
+`mistakeTagStats` 1678 · `setupVersionStats` 1708 · `weeklyReview` 1739
+
+### `app/lib/insights.ts` (1805) — recommendations
 `T` thresholds 109 · `MetricGuide` 177 (label, what, action, bands) · `Grade` 173 ·
-`GRADE_ORDER` 175 · `LOOK_FOR` 191 (41 reference scales + next steps) ·
-`GuideKey` 440 · `halfTrend` ~451 · `rankBy` ~473 · `overviewInsights` ~495 ·
-`riskInsights` ~684 · `timeInsights` ~880 · `heatmapInsights` ~1066 ·
-`rMultiplesInsights` ~1209 · `executionInsights` ~1329 ·
-`behaviorInsights` ~1441 · `processInsights` ~1608 · `buildInsights` 1929
+`GRADE_ORDER` 175 · `LOOK_FOR` 191 (37 reference scales + next steps) ·
+`GuideKey` 409 · `halfTrend` ~420 · `rankBy` ~442 · `overviewInsights` ~464 ·
+`riskInsights` ~653 · `timeInsights` ~849 · `heatmapInsights` ~1035 ·
+`executionInsights` ~1178 · `behaviorInsights` ~1290 ·
+`processInsights` ~1457 · `buildInsights` 1778
 Types: `InsightLevel` 18 · `SectionId` 20 · `Insight` 24 (has optional `guide`) ·
 `AnalyticsFacts` 38. **Every rule sets `guide`**; a new rule must too, or the
 reference scale under the finding disappears. Add a scale to `LOOK_FOR` when
 the rule fires on a new metric.
 
-### `app/components/AnalyticsSections.tsx` (1622) — the Analytics page
+### `app/components/AnalyticsSections.tsx` (1582) — the Analytics page
 `useAnalyticsSummary` 61 (filters by dateRange, builds `stats`, maps to
-`AnalyticsFacts`) · `OverviewMetrics` 302 · default export 440 · tab switcher
-595–602 · tab bodies 606–1460 (`overview` 606 · `risk` 719 · `time` 835 ·
-`heatmap` 902 · `rmultiples` 1056 · `execution` 1122 · `behavior` 1185 ·
-`process` 1345)
+`AnalyticsFacts`) · `OverviewMetrics` 325 · default export 463 · tab switcher
+618–629 · tab bodies 632–1582 (`overview` 632 · `risk` 745 · `time` 861 ·
+`heatmap` 928 · `execution` 1082 · `behavior` 1145 · `process` 1305)
 
 ### Everything else
 `app/lib/types.ts` 88 — `Trade` 1 · `Playbook` 41 · `Account` 56 · `Tag` 65 ·
@@ -96,8 +104,8 @@ the rule fires on a new metric.
 is the contract) · `QUANTEDGE_HEADER` 14 · `firstLine` 28 · `isMetaTraderCSV` 33 ·
 `parseMetaTraderCSV` 78
 
-`app/hooks/useSettings.ts` 140 — `GuidanceMode` 7 · `Settings` 11 · `guidance`
-  (default `"full"`, migrates the old two booleans) 35 · `useSettings` ~121
+`app/hooks/useSettings.ts` 154 — `GuidanceMode` 7 · `Settings` 11 · `guidance`
+  (default `"full"`, migrates the old two booleans) 35 · `useSettings` 133
 `app/lib/db.ts` 9 — Prisma singleton on `globalThis`
 `app/lib/svgToPng.ts` 27 — canvas SVG→PNG for the PDF logo
 `app/components/AnalyticsCards.tsx` 357 — `SectionCard` 11 · `MetricCard` 26 ·
@@ -108,29 +116,39 @@ expandable) · `BenchmarkPanel` 266 (guidance = benchmarks) · `InsightPanel` 31
 `app/components/Sidebar.tsx` 211 — `NAV_ITEMS`, account switcher
 `app/components/GlobalDateFilter.tsx` 88 — writes `dateRange` + `symbolFilter`
 to context; symbol options built from the active account's trades
-`app/components/TradePanel.tsx` 632 · `JournalToolbar.tsx` 639 (TipTap bar,
-default export 525) · `TagSelector.tsx` 241 · `PropFirmPanel.tsx` 871 (`TONE` 77, `Ring` 113,
-`Stat` 138, `RuleTile` 160, `LegendChip` 202, default `PropFirmPanel` 212 —
-verdict hero, preset chips, rule tiles, day-by-day chart, simulation) ·
+`app/components/TradePanel.tsx` 810 (`MISTAKES` 157, REVIEW block ~590) ·
+`JournalToolbar.tsx` 639 (TipTap bar, default export 525) · `TagSelector.tsx` 241 ·
+`TradeSearch.tsx` 281 (⌘K palette; `journalText` 11 flattens TipTap JSON for matching) ·
+`AnalyticsSections.tsx` 1941 (`useAnalyticsSummary` 62, `CompareTab` 1678,
+`AdherencePanel` 1783, `ExecutionResearch` 1867) ·
+`PropFirmPanel.tsx` 922 (`TONE` 77, `Ring` 113, `Stat` 138, `RuleTile` 160,
+`LegendChip` 207, default `PropFirmPanel` 217 — verdict hero, preset chips,
+rule tiles, day-by-day chart, simulation; `showPaths` toggles the per-attempt
+lines) ·
 `TradingReportPDF.tsx` 1124 (default 311) · `ExportPDFInner.tsx` 90 (the only
 PDF wrapper the app imports)
 
-Pages (default export unless noted): `Dashboard` 194 · `JournalPage` 632 ·
+Pages (default export unless noted): `Dashboard` 194 ·
 `CalendarPage` 494 · `PropFirmPage` 24 (thin shell over `PropFirmPanel`) ·
-`PlaybookPage` 858 · `ImportPage` 520 · `ExportPage` 805 ·
-`AccountsPage` 364 · `JournalEditorPage` 767 · `SettingsPage` 813
-(exported `applyAccentColor` at 24)
+`PlaybookPage` 1103 (`ExperimentsPanel` 934) · `ReviewPage` 170 ·
+`ImportPage` 520 · `ExportPage` 828 ·
+`AccountsPage` 392 · `JournalEditorPage` 767 · `SettingsPage` 858
+(`Section` 52 takes `tone`; Risk Controls and Danger zone near the end)
 
-API routes: `trades` 107 (GET/POST/PATCH/DELETE, derives `hourOfDay`, bulk
+API routes: `exporter` (serves `scripts/QuantEdgeExport.mq5` as a download) ·
+`experiments` 66 (CRUD for the research loop) ·
+`trades` 107 (GET/POST/PATCH/DELETE, derives `hourOfDay`, bulk
 upsert) · `playbook` 67 · `accounts` 59 · `templates` 58 ·
 `tags` 41 · `upload` 26 (multipart → `public/uploads/`) · `update` 434 ·
 `update/restart` 15 · `trades/clear` 11
 
-Prisma models: `Account` · `Trade` (40 fields, incl. `plannedRisk`,
+Prisma models: `Account` · `Trade` (44 fields, incl. `plannedRisk`,
 `durationMin`, `mae`/`mfe`, `exitReason`, `magic`, `legs`, `averagedDown`,
-`balanceAfter`) · `TradePlan` (kept in the schema, but the Trade Plans tab and
-`/api/plans` were removed — do not delete the model without a manual migration)
-· `Playbook` · `JournalTemplate` · `Tag`.
+`balanceAfter`, `atr`/`spread`/`dayRange`, `followedPlan`/`mistakeTags`/
+`confidence`, `setupVersion`, `isForwardTest`) · `TradePlan` (kept in the schema,
+but the Trade Plans tab and `/api/plans` were removed — do not delete the model
+without a manual migration) · `Playbook` (holds `revisions`) · `Experiment` ·
+`JournalTemplate` · `Tag`.
 SQLite via `DATABASE_URL="file:./prisma/quantedge.db"`; Prisma resolves that
 relative to `prisma/schema.prisma`, so the live file is
 `prisma/prisma/quantedge.db`. Anything touching the database on disk must find

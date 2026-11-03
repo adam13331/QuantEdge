@@ -1,11 +1,12 @@
 "use client";
 import { useState, useMemo } from "react";
 import { useApp } from "../context/AppContext";
-import { Playbook } from "../lib/types";
+import { Playbook, Experiment, PlaybookRevision } from "../lib/types";
+import { cohortStats, riskUnit, compareCohorts } from "../lib/analytics";
 import {
   Plus, X, ChevronDown, Library, TrendingUp,
   TrendingDown, Target, Edit2, Trash2, BookOpen,
-  Clock, Layers,
+  Clock, Layers, FlaskConical, GitBranch,
 } from "lucide-react";
 
 const inputStyle: React.CSSProperties = {
@@ -162,7 +163,7 @@ function PlaybookForm({ initial = {}, onSave, onCancel, saving }: PlaybookFormPr
         />
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: "14px" }}>
         <div>
           <label style={labelStyle}>TIMEFRAMES</label>
           <input
@@ -322,12 +323,12 @@ function PlaybookDetail({
 
           {/* Performance strip */}
           {tradeCount > 0 && (
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "8px" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: "8px" }}>
               {[
                 { label: "Trades",  value: String(tradeCount),                  color: "var(--text-primary)" },
-                { label: "Win Rate", value: `${winRate}%`,                      color: winRate >= 50 ? "#00e57a" : "#ff4d6a" },
-                { label: "Net P&L", value: `${totalPnl >= 0 ? "+" : ""}$${totalPnl.toFixed(0)}`, color: totalPnl >= 0 ? "#00e57a" : "#ff4d6a" },
-                { label: "Avg Win", value: `+$${avgWin.toFixed(0)}`,            color: "#00e57a" },
+                { label: "Win Rate", value: `${winRate}%`,                      color: winRate >= 50 ? "var(--profit)" : "var(--loss)" },
+                { label: "Net P&L", value: `${totalPnl >= 0 ? "+" : ""}$${totalPnl.toFixed(0)}`, color: totalPnl >= 0 ? "var(--profit)" : "var(--loss)" },
+                { label: "Avg Win", value: `+$${avgWin.toFixed(0)}`,            color: "var(--profit)" },
               ].map(({ label, value, color }) => (
                 <div key={label} style={{
                   background: "var(--bg-card)", borderRadius: "8px", padding: "8px 10px",
@@ -453,17 +454,20 @@ function PlaybookDetail({
 }
 
 function PlaybookCard({
-  entry, tradeCount, wins, totalPnl, winRate,
-  onClick, onEdit, onDelete,
+  entry, tradeCount, wins, totalPnl, winRate, expectancyR, version,
+  onClick, onEdit, onDelete, onRevise,
 }: {
   entry: Playbook;
   tradeCount: number;
   wins: number;
   totalPnl: number;
   winRate: number;
+  expectancyR: number | null;
+  version: number;
   onClick: () => void;
   onEdit: () => void;
   onDelete: () => void;
+  onRevise: () => void;
 }) {
   const rules         = Array.isArray(entry.rules) ? entry.rules as string[] : [];
   const entryTriggers = Array.isArray(entry.entryTriggers) ? entry.entryTriggers as string[] : [];
@@ -487,7 +491,7 @@ function PlaybookCard({
     >
       <div style={{
         height: "3px",
-        background: "linear-gradient(90deg, var(--accent-green), #4d9fff)",
+        background: "linear-gradient(90deg, var(--accent-green), var(--accent-blue))",
       }} />
 
       <div style={{ padding: "16px 18px" }}>
@@ -497,9 +501,24 @@ function PlaybookCard({
             {entry.name}
           </h3>
           <div
-            style={{ display: "flex", gap: "6px" }}
+            style={{ display: "flex", gap: "6px", alignItems: "center" }}
             onClick={(e) => e.stopPropagation()}
           >
+            <span style={{ fontSize: "10px", color: "var(--text-muted)", border: "1px solid var(--border)", borderRadius: "20px", padding: "1px 6px" }}>
+              v{version}
+            </span>
+            <button
+              onClick={onRevise}
+              title="Log a rule change as a new version"
+              style={{
+                background: "none", border: "none", cursor: "pointer",
+                color: "var(--text-muted)", padding: "4px", display: "flex",
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.color = "var(--accent-blue)"}
+              onMouseLeave={(e) => e.currentTarget.style.color = "var(--text-muted)"}
+            >
+              <GitBranch size={13} />
+            </button>
             <button
               onClick={onEdit}
               style={{
@@ -517,7 +536,7 @@ function PlaybookCard({
                 background: "none", border: "none", cursor: "pointer",
                 color: "var(--text-muted)", padding: "4px", display: "flex",
               }}
-              onMouseEnter={(e) => e.currentTarget.style.color = "#ff4d6a"}
+              onMouseEnter={(e) => e.currentTarget.style.color = "var(--loss)"}
               onMouseLeave={(e) => e.currentTarget.style.color = "var(--text-muted)"}
             >
               <Trash2 size={13} />
@@ -575,11 +594,17 @@ function PlaybookCard({
             </div>
             <div style={{ flex: 1, textAlign: "center" }}>
               <div style={{ fontSize: "10px", color: "var(--text-muted)", marginBottom: "2px" }}>WIN RATE</div>
-              <div style={{ fontSize: "14px", fontWeight: "700", color: winRate >= 50 ? "#00e57a" : "#ff4d6a" }}>{winRate}%</div>
+              <div style={{ fontSize: "14px", fontWeight: "700", color: winRate >= 50 ? "var(--profit)" : "var(--loss)" }}>{winRate}%</div>
+            </div>
+            <div style={{ flex: 1, textAlign: "center" }}>
+              <div style={{ fontSize: "10px", color: "var(--text-muted)", marginBottom: "2px" }}>EXPECTANCY</div>
+              <div style={{ fontSize: "14px", fontWeight: "700", color: (expectancyR ?? 0) >= 0 ? "var(--profit)" : "var(--loss)" }}>
+                {expectancyR == null ? "—" : `${expectancyR >= 0 ? "+" : ""}${expectancyR.toFixed(2)}R`}
+              </div>
             </div>
             <div style={{ flex: 1, textAlign: "center" }}>
               <div style={{ fontSize: "10px", color: "var(--text-muted)", marginBottom: "2px" }}>NET P&L</div>
-              <div style={{ fontSize: "14px", fontWeight: "700", color: totalPnl >= 0 ? "#00e57a" : "#ff4d6a" }}>
+              <div style={{ fontSize: "14px", fontWeight: "700", color: totalPnl >= 0 ? "var(--profit)" : "var(--loss)" }}>
                 {totalPnl >= 0 ? "+" : ""}${totalPnl.toFixed(0)}
               </div>
             </div>
@@ -606,18 +631,35 @@ export default function PlaybookPage() {
   const [search, setSearch]         = useState("");
 
   // Per-entry trade stats
+  // Per-entry stats. Expectancy leads instead of net P&L: ranking setups by
+  // total dollars just rewards the one traded most often.
   const statsById = useMemo(() => {
-    const map: Record<string, { count: number; wins: number; totalPnl: number; avgWin: number; avgLoss: number }> = {};
+    const linked = trades.filter((t) => t.playbookId);
+    const unit = riskUnit(linked);
+    const map: Record<string, {
+      count: number; wins: number; totalPnl: number; avgWin: number; avgLoss: number;
+      expectancyR: number | null; profitFactor: number | null; mfeCapture: number | null;
+      adherence: number | null; version: number;
+    }> = {};
     for (const entry of playbook) {
       const tagged = trades.filter((t) => t.playbookId === entry.id);
       const wins   = tagged.filter((t) => t.status === "win");
       const losses = tagged.filter((t) => t.status === "loss");
+      const stats  = cohortStats(entry.name, tagged, unit);
+      const revisions = Array.isArray(entry.revisions) ? entry.revisions : [];
       map[entry.id] = {
         count:    tagged.length,
         wins:     wins.length,
         totalPnl: parseFloat(tagged.reduce((s, t) => s + t.pnl, 0).toFixed(2)),
         avgWin:   wins.length > 0 ? wins.reduce((s, t) => s + t.pnl, 0) / wins.length : 0,
         avgLoss:  losses.length > 0 ? Math.abs(losses.reduce((s, t) => s + t.pnl, 0) / losses.length) : 0,
+        expectancyR: tagged.length >= 5 ? stats.expectancyR : null,
+        profitFactor: stats.profitFactor,
+        mfeCapture: stats.mfeCapture,
+        adherence: stats.adherence,
+        version: revisions.length > 0
+          ? Math.max(...(revisions as PlaybookRevision[]).map((r) => Number(r.version) || 1))
+          : 1,
       };
     }
     return map;
@@ -675,9 +717,31 @@ export default function PlaybookPage() {
   const totalTagged  = trades.filter((t) => t.playbookId).length;
   const bestSetup    = playbook.reduce<Playbook | null>((best, e) => {
     const s = statsById[e.id];
-    if (!best) return s.count > 0 ? e : null;
-    return (s.totalPnl > (statsById[best.id]?.totalPnl || -Infinity)) ? e : best;
+    if (!best) return s.expectancyR != null ? e : null;
+    const current = s.expectancyR ?? -Infinity;
+    const champion = statsById[best.id]?.expectancyR ?? -Infinity;
+    return current > champion ? e : best;
   }, null);
+
+  // A revision is recorded before the change is made: version, date and what
+  // changed. Trades taken afterwards carry that version, which is what makes
+  // the before/after table on the Analytics Process tab possible.
+  const handleRevise = async (entry: Playbook) => {
+    const summary = window.prompt("What changed in the rules? (one line)", "");
+    if (!summary) return;
+    const existing = (Array.isArray(entry.revisions) ? entry.revisions : []) as PlaybookRevision[];
+    const version = existing.length > 0 ? Math.max(...existing.map((r) => Number(r.version) || 1)) + 1 : 2;
+    const next = [
+      ...existing,
+      { version, effectiveDate: new Date().toISOString().slice(0, 10), summary, createdAt: new Date().toISOString() },
+    ];
+    await fetch("/api/playbook", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: entry.id, revisions: JSON.stringify(next) }),
+    });
+    await reloadPlaybook();
+  };
 
   return (
     <div>
@@ -709,7 +773,7 @@ export default function PlaybookPage() {
 
       {/* Stats strip */}
       {playbook.length > 0 && (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "12px", marginBottom: "24px" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "12px", marginBottom: "24px" }}>
           <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: "12px", padding: "16px 18px" }}>
             <div style={{ fontSize: "11px", fontWeight: "600", color: "var(--text-muted)", letterSpacing: "0.5px", marginBottom: "8px" }}>
               TOTAL SETUPS
@@ -729,9 +793,9 @@ export default function PlaybookPage() {
             <div style={{ fontSize: "16px", fontWeight: "700", color: "var(--text-primary)" }}>
               {bestSetup ? bestSetup.name : "—"}
             </div>
-            {bestSetup && statsById[bestSetup.id]?.count > 0 && (
-              <div style={{ fontSize: "11px", color: "#00e57a", marginTop: "2px" }}>
-                +${statsById[bestSetup.id].totalPnl.toFixed(0)} · {statsById[bestSetup.id].count} trades
+            {bestSetup && statsById[bestSetup.id]?.expectancyR != null && (
+              <div style={{ fontSize: "11px", color: (statsById[bestSetup.id].expectancyR ?? 0) >= 0 ? "var(--profit)" : "var(--loss)", marginTop: "2px" }}>
+                {(statsById[bestSetup.id].expectancyR ?? 0) >= 0 ? "+" : ""}{statsById[bestSetup.id].expectancyR!.toFixed(2)}R · {statsById[bestSetup.id].count} trades
               </div>
             )}
           </div>
@@ -816,7 +880,7 @@ export default function PlaybookPage() {
           ) : (
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(340px, 1fr))", gap: "16px" }}>
               {filtered.map((entry) => {
-                const s = statsById[entry.id] || { count: 0, wins: 0, totalPnl: 0, avgWin: 0, avgLoss: 0 };
+                const s = statsById[entry.id] || { count: 0, wins: 0, totalPnl: 0, avgWin: 0, avgLoss: 0, expectancyR: null, profitFactor: null, mfeCapture: null, adherence: null, version: 1 };
                 const wr = s.count > 0 ? Math.round((s.wins / s.count) * 100) : 0;
                 return (
                   <PlaybookCard
@@ -826,9 +890,12 @@ export default function PlaybookPage() {
                     wins={s.wins}
                     totalPnl={s.totalPnl}
                     winRate={wr}
+                    expectancyR={s.expectancyR}
+                    version={s.version}
                     onClick={() => setViewing(entry)}
                     onEdit={() => { setEditing(entry); setShowForm(false); setViewing(null); }}
                     onDelete={() => handleDelete(entry.id)}
+                    onRevise={() => handleRevise(entry)}
                   />
                 );
               })}
@@ -836,6 +903,8 @@ export default function PlaybookPage() {
           )}
         </>
       )}
+
+      <ExperimentsPanel />
 
       {/* Detail panel */}
       {viewing && (
@@ -852,6 +921,182 @@ export default function PlaybookPage() {
           onEdit={() => { setEditing(viewing); setViewing(null); }}
           onClose={() => setViewing(null)}
         />
+      )}
+    </div>
+  );
+}
+
+// ─── Experiments: a hypothesis and the window that tests it ──────────────
+// The point is not to store an opinion. Before and after are recomputed from
+// the trades themselves every render, so an experiment cannot disagree with
+// the journal it is meant to explain.
+
+function ExperimentsPanel() {
+  const { experiments, addExperiment, updateExperiment, deleteExperiment, playbook, trades } = useApp();
+  const [open, setOpen] = useState(false);
+  const [form, setForm] = useState({
+    name: "", hypothesis: "", change: "", expectedEffect: "",
+    startDate: new Date().toISOString().slice(0, 10), playbookId: "",
+  });
+
+  const cohort = (exp: Experiment) => {
+    const scoped = exp.playbookId ? trades.filter((t) => t.playbookId === exp.playbookId) : trades;
+    const before = scoped.filter((t) => t.date < exp.startDate);
+    const end = exp.endDate ?? null;
+    const afterCut = end
+      ? scoped.filter((t) => t.date >= exp.startDate && t.date <= end)
+      : scoped.filter((t) => t.date >= exp.startDate);
+    const unit = riskUnit([...before, ...afterCut]);
+    const a = cohortStats("Before", before, unit);
+    const b = cohortStats("After", afterCut, unit);
+    return { before, after: afterCut, a, b, verdict: compareCohorts(a, b) };
+  };
+
+  const verdictLine = (v: ReturnType<typeof compareCohorts>) =>
+    v.verdict === "a" ? "The change made expectancy worse — revert it."
+    : v.verdict === "b" ? "The change improved expectancy outside the noise — keep it."
+    : v.verdict === "indistinguishable" ? "Not distinguishable from noise yet. Keep collecting forward trades."
+    : "Both windows need at least 20 trades before this can be judged.";
+
+  const submit = async () => {
+    if (!form.name.trim() || !form.startDate) return;
+    await addExperiment({
+      ...form,
+      playbookId: form.playbookId || undefined,
+      status: "running",
+    });
+    setForm({ name: "", hypothesis: "", change: "", expectedEffect: "", startDate: new Date().toISOString().slice(0, 10), playbookId: "" });
+    setOpen(false);
+  };
+
+  return (
+    <div style={{ marginTop: "24px" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
+        <div>
+          <h3 style={{ fontSize: "16px", fontWeight: "700", color: "var(--text-primary)", display: "flex", alignItems: "center", gap: "8px" }}>
+            <FlaskConical size={15} color="var(--accent-blue)" />
+            Experiments
+          </h3>
+          <p style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "2px" }}>
+            A hypothesis, the change that tests it, and the trades either side of that date.
+          </p>
+        </div>
+        <button
+          onClick={() => setOpen((v) => !v)}
+          style={{
+            display: "flex", alignItems: "center", gap: "6px",
+            padding: "8px 12px", borderRadius: "8px", cursor: "pointer",
+            border: "1px solid var(--border)", background: "var(--bg-card)",
+            color: "var(--text-secondary)", fontSize: "12px", fontWeight: "600",
+            fontFamily: "'DM Sans', sans-serif",
+          }}
+        >
+          <Plus size={13} /> New experiment
+        </button>
+      </div>
+
+      {open && (
+        <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: "14px", padding: "18px", marginBottom: "14px" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "12px", marginBottom: "12px" }}>
+            <div>
+              <label style={labelStyle}>NAME</label>
+              <input style={inputStyle} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Drop the second entry" />
+            </div>
+            <div>
+              <label style={labelStyle}>START DATE</label>
+              <input style={inputStyle} type="date" value={form.startDate} onChange={(e) => setForm({ ...form, startDate: e.target.value })} />
+            </div>
+            <div>
+              <label style={labelStyle}>SETUP (OPTIONAL)</label>
+              <select style={inputStyle} value={form.playbookId} onChange={(e) => setForm({ ...form, playbookId: e.target.value })}>
+                <option value="">Whole book</option>
+                {playbook.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+              </select>
+            </div>
+          </div>
+          <div style={{ marginBottom: "12px" }}>
+            <label style={labelStyle}>HYPOTHESIS</label>
+            <input style={inputStyle} value={form.hypothesis} onChange={(e) => setForm({ ...form, hypothesis: e.target.value })} placeholder="Waiting for the retest gives a better entry than taking the break" />
+          </div>
+          <div style={{ marginBottom: "12px" }}>
+            <label style={labelStyle}>WHAT CHANGES</label>
+            <input style={inputStyle} value={form.change} onChange={(e) => setForm({ ...form, change: e.target.value })} placeholder="Require a retest before entry; skip the first break" />
+          </div>
+          <div style={{ marginBottom: "14px" }}>
+            <label style={labelStyle}>EXPECTED EFFECT</label>
+            <input style={inputStyle} value={form.expectedEffect} onChange={(e) => setForm({ ...form, expectedEffect: e.target.value })} placeholder="Fewer trades, higher expectancy in R" />
+          </div>
+          <div style={{ display: "flex", gap: "8px" }}>
+            <button onClick={submit} style={{ padding: "9px 16px", borderRadius: "8px", border: "none", background: "var(--accent-green)", color: "#000", fontSize: "12px", fontWeight: "700", cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>
+              Start experiment
+            </button>
+            <button onClick={() => setOpen(false)} style={{ padding: "9px 16px", borderRadius: "8px", border: "1px solid var(--border)", background: "transparent", color: "var(--text-muted)", fontSize: "12px", cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {experiments.length === 0 ? (
+        <div style={{ background: "var(--bg-card)", border: "1px dashed var(--border)", borderRadius: "14px", padding: "24px", fontSize: "12px", color: "var(--text-muted)", lineHeight: 1.7 }}>
+          No experiments yet. Write the change you are about to make before you make it — a rule edited without a
+          recorded start date can never be judged.
+        </div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+          {experiments.map((exp) => {
+            const { a, b, verdict } = cohort(exp);
+            return (
+              <div key={exp.id} style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: "14px", padding: "16px 18px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "12px" }}>
+                  <div>
+                    <div style={{ fontSize: "14px", fontWeight: "700", color: "var(--text-primary)" }}>{exp.name}</div>
+                    <div style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "2px" }}>
+                      {exp.startDate}{exp.endDate ? ` → ${exp.endDate}` : " → running"} · {exp.status}
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", gap: "6px" }}>
+                    <button
+                      onClick={() => updateExperiment(exp.id, { status: exp.status === "running" ? "concluded" : "running", endDate: exp.status === "running" ? new Date().toISOString().slice(0, 10) : null })}
+                      style={{ padding: "5px 10px", borderRadius: "6px", border: "1px solid var(--border)", background: "transparent", color: "var(--text-secondary)", fontSize: "11px", cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}
+                    >
+                      {exp.status === "running" ? "Conclude" : "Reopen"}
+                    </button>
+                    <button
+                      onClick={() => deleteExperiment(exp.id)}
+                      style={{ padding: "5px 7px", borderRadius: "6px", border: "1px solid var(--border)", background: "transparent", color: "var(--loss)", cursor: "pointer", display: "flex" }}
+                    >
+                      <Trash2 size={12} />
+                    </button>
+                  </div>
+                </div>
+
+                {exp.hypothesis && (
+                  <p style={{ fontSize: "12px", color: "var(--text-secondary)", marginTop: "8px", marginBottom: 0, lineHeight: 1.6 }}>{exp.hypothesis}</p>
+                )}
+
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginTop: "12px" }}>
+                  {[{ label: "Before", s: a }, { label: "After", s: b }].map(({ label, s }) => (
+                    <div key={label} style={{ background: "var(--bg-secondary)", borderRadius: "10px", padding: "10px 12px" }}>
+                      <div style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.4px", marginBottom: "4px" }}>{label}</div>
+                      <div style={{ fontSize: "16px", fontWeight: "800", color: s.expectancyR >= 0 ? "var(--profit)" : "var(--loss)" }}>
+                        {s.expectancyR >= 0 ? "+" : ""}{s.expectancyR.toFixed(2)}R
+                      </div>
+                      <div style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "2px" }}>
+                        {s.trades} trades · {s.winRate.toFixed(0)}% wins
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div style={{ fontSize: "11px", color: verdict.verdict === "b" ? "var(--profit)" : verdict.verdict === "a" ? "var(--loss)" : "var(--text-muted)", marginTop: "10px", lineHeight: 1.6 }}>
+                  {verdictLine(verdict)}
+                  {verdict.neededPerCohort != null && (verdict.verdict === "indistinguishable" || verdict.verdict === "insufficient") ? ` About ${verdict.neededPerCohort} per window would settle it.` : ""}
+                </div>
+              </div>
+            );
+          })}
+        </div>
       )}
     </div>
   );

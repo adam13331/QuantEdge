@@ -11,6 +11,9 @@ function serializeTrade(trade: Record<string, unknown>): any {
     imageUrls: Array.isArray(trade.imageUrls)
       ? JSON.stringify(trade.imageUrls)
       : (trade.imageUrls ?? "[]"),
+    mistakeTags: Array.isArray(trade.mistakeTags)
+      ? JSON.stringify(trade.mistakeTags)
+      : (trade.mistakeTags ?? "[]"),
   };
 }
 

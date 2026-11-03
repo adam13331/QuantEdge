@@ -38,14 +38,14 @@ const FONT_WEIGHTS = [
 ];
 
 const COLOR_PALETTE = [
-  "#00e57a", "#22c55e", "#16a34a", "#15803d", "#166534",
-  "#4d9fff", "#3b82f6", "#2563eb", "#1d4ed8", "#1e40af",
-  "#a78bfa", "#8b5cf6", "#7c3aed", "#6d28d9", "#5b21b6",
-  "#ff4d6a", "#f43f5e", "#e11d48", "#f472b6", "#ec4899",
-  "#fb923c", "#f97316", "#ea580c", "#fbbf24", "#f59e0b",
+  "var(--profit)", "#22c55e", "#16a34a", "#15803d", "#166534",
+  "var(--accent-blue)", "#3b82f6", "#2563eb", "#1d4ed8", "#1e40af",
+  "var(--violet)", "#8b5cf6", "#7c3aed", "#6d28d9", "#5b21b6",
+  "var(--loss)", "#f43f5e", "#e11d48", "#f472b6", "#ec4899",
+  "#fb923c", "#f97316", "#ea580c", "var(--warning)", "#f59e0b",
   "#22d3ee", "#06b6d4", "#0891b2", "#0e7490", "#155e75",
-  "#a8a8c8", "#6b7280", "#4b5563", "#374151", "#1f2937",
-  "#f0f0ff", "#e5e7eb", "#d1d5db", "#9ca3af", "#ffffff",
+  "var(--text-secondary)", "#6b7280", "#4b5563", "#374151", "#1f2937",
+  "var(--text-primary)", "#e5e7eb", "#d1d5db", "#9ca3af", "#ffffff",
 ];
 
 const HIGHLIGHT_PALETTE = [
@@ -311,7 +311,7 @@ function ColorPickerDropdown({
               value={hex}
               onChange={(e) => handleHexChange(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter") applyHex(); }}
-              placeholder="#00e57a"
+              placeholder="var(--profit)"
               style={{
                 flex: 1, padding: "6px 10px", borderRadius: 6,
                 border: `1px solid ${isValidHex(hex) ? "var(--accent-green)" : "var(--border)"}`,

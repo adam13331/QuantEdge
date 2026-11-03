@@ -8,9 +8,8 @@
  *   node scripts/capture-screenshots.js
  *
  * Charts are Recharts and animate in, so every capture waits for them to
- * settle rather than firing on load. Full-page height is capped so a tall
- * analytics tab doesn't produce a 6000px image that renders unreadable on
- * GitHub.
+ * settle rather than firing on load. The app scrolls inside its own container,
+ * so a full-page capture is exactly one viewport — 1600x1000 at 2x.
  */
 const { chromium } = require("playwright");
 const fs = require("fs");
@@ -24,7 +23,6 @@ const CHART_SETTLE = 1800;
 
 const SHOTS = [
   { file: "dashboard.png",        page: "Dashboard" },
-  { file: "journal.png",          page: "Journal" },
   { file: "calendar.png",         page: "Calendar" },
   { file: "prop-firm.png",        page: "Prop Firm" },
   { file: "playbook.png",         page: "Playbook" },
@@ -33,13 +31,12 @@ const SHOTS = [
   { file: "settings.png",         page: "Settings" },
 ];
 
-// Analytics is one page with eight tabs, so each is a separate capture.
+// Analytics lives on the Dashboard as tabs, so each is a separate capture.
 const ANALYTICS = [
   { file: "analytics-overview.png", tab: "Overview" },
   { file: "analytics-risk.png",     tab: "Risk" },
   { file: "analytics-time.png",     tab: "Time" },
   { file: "analytics-heatmap.png",  tab: "Heatmap" },
-  { file: "analytics-rmultiples.png", tab: "R-Multiples" },
   { file: "analytics-execution.png", tab: "Execution" },
   { file: "analytics-behavior.png", tab: "Behavior" },
   { file: "analytics-process.png",  tab: "Process" },
@@ -73,24 +70,26 @@ async function clickNav(page, label) {
   await page.goto(BASE, { waitUntil: "networkidle", timeout: 90_000 });
   await page.waitForTimeout(2000);
 
-  async function shoot(file, fullPage = true) {
+  // The Export page renders a react-pdf preview that streams web fonts; its
+  // screenshot waits on document.fonts and needs more than the default 30s.
+  async function shoot(file, fullPage = true, timeout = 30_000) {
     await page.waitForTimeout(CHART_SETTLE);
-    await page.screenshot({ path: path.join(OUT, file), fullPage });
+    await page.screenshot({ path: path.join(OUT, file), fullPage, timeout });
     console.log(`  wrote ${file}`);
   }
 
   for (const s of SHOTS) {
     try {
       await clickNav(page, s.page);
-      await shoot(s.file);
+      await shoot(s.file, true, s.page === "Export" ? 90_000 : 30_000);
     } catch (e) {
       console.log(`  SKIPPED ${s.file}: ${String(e.message).slice(0, 120)}`);
     }
   }
 
-  // Analytics tabs
+  // Analytics tabs sit on the Dashboard.
   try {
-    await clickNav(page, "Analytics");
+    await clickNav(page, "Dashboard");
     await page.waitForTimeout(1500);
     for (const t of ANALYTICS) {
       try {
@@ -102,19 +101,6 @@ async function clickNav(page, label) {
     }
   } catch (e) {
     console.log("  Analytics unreachable:", String(e.message).slice(0, 140));
-  }
-
-  // Trade panel quick view, opened from the first journal row.
-  try {
-    await clickNav(page, "Journal");
-    await page.waitForTimeout(1200);
-    const firstCard = page.locator("text=/20[0-9]{2}-[0-9]{2}-[0-9]{2}/").first();
-    if (await firstCard.count()) {
-      await firstCard.click();
-      await shoot("trade-panel.png", false);
-    }
-  } catch (e) {
-    console.log("  SKIPPED trade-panel.png:", String(e.message).slice(0, 120));
   }
 
   await browser.close();

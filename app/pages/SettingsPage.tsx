@@ -7,28 +7,26 @@ import {
   ExternalLink, Check, FileDown,
   Download, RefreshCw, Terminal, Loader, X,
   CheckCircle2, Circle, AlertCircle, MinusCircle,
-  Sun, Moon, Lightbulb,
+  Sun, Moon, Lightbulb, Shield, AlertTriangle,
 } from "lucide-react";
 
 const CURRENT_VERSION = "4.0.0";
 const GITHUB_REPO = "adam13331/QuantEdge";
 
 const ACCENT_COLORS = [
-  { label: "Green",  value: "#00e57a", dim: "rgba(0,229,122,0.12)"   },
-  { label: "Blue",   value: "#4d9fff", dim: "rgba(77,159,255,0.12)"  },
-  { label: "Purple", value: "#a78bfa", dim: "rgba(167,139,250,0.12)" },
+  { label: "Green",  value: "var(--profit)", dim: "rgba(0,229,122,0.12)"   },
+  { label: "Blue",   value: "var(--accent-blue)", dim: "rgba(77,159,255,0.12)"  },
+  { label: "Purple", value: "var(--violet)", dim: "rgba(167,139,250,0.12)" },
   { label: "Orange", value: "#fb923c", dim: "rgba(251,146,60,0.12)"  },
   { label: "Pink",   value: "#f472b6", dim: "rgba(244,114,182,0.12)" },
 ];
 
-export function applyAccentColor(value: string) {
-  const color = ACCENT_COLORS.find((c) => c.value === value);
-  if (!color) return;
-  const root = document.documentElement;
-  root.style.setProperty("--accent-green", color.value);
-  root.style.setProperty("--accent-dim", color.dim);
-  root.style.setProperty("--accent-green-dim", color.dim);
-}
+const riskInputStyle: React.CSSProperties = {
+  width: "96px", padding: "7px 10px", borderRadius: "8px",
+  border: "1px solid var(--border)", background: "var(--bg-secondary)",
+  color: "var(--text-primary)", fontSize: "12px", fontFamily: "'DM Sans', sans-serif",
+  boxSizing: "border-box", outline: "none",
+};
 
 type StepStatus = "pending" | "running" | "complete" | "error" | "skipped";
 
@@ -50,12 +48,14 @@ const STEP_DEFS = [
   { id: "migrate",   label: "Database"          },
 ];
 
-function Section({ title, icon: Icon, children }: {
-  title: string; icon: any; children: React.ReactNode;
+function Section({ title, icon: Icon, children, tone = "default" }: {
+  title: string; icon: any; children: React.ReactNode; tone?: "default" | "danger";
 }) {
+  const danger = tone === "danger";
   return (
     <div style={{
-      background: "var(--bg-card)", border: "1px solid var(--border)",
+      background: "var(--bg-card)",
+      border: `1px solid ${danger ? "rgba(255,77,106,0.35)" : "var(--border)"}`,
       borderRadius: "16px", padding: "24px", marginBottom: "16px",
     }}>
       <div style={{
@@ -65,12 +65,12 @@ function Section({ title, icon: Icon, children }: {
       }}>
         <div style={{
           width: "32px", height: "32px", borderRadius: "8px",
-          background: "var(--accent-green-dim)",
+          background: danger ? "rgba(255,77,106,0.1)" : "var(--accent-green-dim)",
           display: "flex", alignItems: "center", justifyContent: "center",
         }}>
-          <Icon size={15} color="var(--accent-green)" />
+          <Icon size={15} color={danger ? "var(--loss)" : "var(--accent-green)"} />
         </div>
-        <h3 style={{ fontSize: "14px", fontWeight: "700", color: "var(--text-primary)" }}>
+        <h3 style={{ fontSize: "14px", fontWeight: "700", color: danger ? "var(--loss)" : "var(--text-primary)" }}>
           {title}
         </h3>
       </div>
@@ -100,10 +100,10 @@ function Row({ label, description, children }: {
 
 function StepIcon({ status }: { status: StepStatus }) {
   const size = 15;
-  if (status === "running")  return <Loader size={size} color="#4d9fff" style={{ animation: "spin 1s linear infinite" }} />;
-  if (status === "complete") return <CheckCircle2 size={size} color="#00e57a" />;
-  if (status === "error")    return <AlertCircle size={size} color="#ff4d6a" />;
-  if (status === "skipped")  return <MinusCircle size={size} color="#a8a8c8" />;
+  if (status === "running")  return <Loader size={size} color="var(--accent-blue)" style={{ animation: "spin 1s linear infinite" }} />;
+  if (status === "complete") return <CheckCircle2 size={size} color="var(--profit)" />;
+  if (status === "error")    return <AlertCircle size={size} color="var(--loss)" />;
+  if (status === "skipped")  return <MinusCircle size={size} color="var(--text-secondary)" />;
   return <Circle size={size} color="#333355" />;
 }
 
@@ -128,10 +128,6 @@ export default function SettingsPage() {
   const [jsonExportDone, setJsonExportDone] = useState(false);
   const [clearConfirm, setClearConfirm]     = useState(false);
   const [cleared, setCleared]               = useState(false);
-
-  useEffect(() => {
-    if (settings.accentColor) applyAccentColor(settings.accentColor);
-  }, [settings.accentColor]);
 
   useEffect(() => {
     checkForUpdates();
@@ -394,13 +390,13 @@ export default function SettingsPage() {
           }}>
             <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
               {updatePhase === "running" && (
-                <Loader size={16} color="#4d9fff" style={{ animation: "spin 1s linear infinite" }} />
+                <Loader size={16} color="var(--accent-blue)" style={{ animation: "spin 1s linear infinite" }} />
               )}
-              {updatePhase === "restart_required" && <CheckCircle2 size={16} color="#00e57a" />}
-              {updatePhase === "error" && <AlertCircle size={16} color="#ff4d6a" />}
+              {updatePhase === "restart_required" && <CheckCircle2 size={16} color="var(--profit)" />}
+              {updatePhase === "error" && <AlertCircle size={16} color="var(--loss)" />}
               <span style={{
                 fontSize: "14px", fontWeight: "700",
-                color: updatePhase === "error" ? "#ff4d6a" : updatePhase === "restart_required" ? "#00e57a" : "#4d9fff",
+                color: updatePhase === "error" ? "var(--loss)" : updatePhase === "restart_required" ? "var(--profit)" : "var(--accent-blue)",
               }}>
                 {updatePhase === "running"          && `Installing QuantEdge v${latestVersion}...`}
                 {updatePhase === "restart_required" && `QuantEdge v${latestVersion} installed`}
@@ -435,9 +431,9 @@ export default function SettingsPage() {
                 <div style={{ flex: 1 }}>
                   <div style={{
                     fontSize: "13px", fontWeight: "600",
-                    color: step.status === "complete" ? "#00e57a"
-                      : step.status === "error"    ? "#ff4d6a"
-                      : step.status === "running"  ? "#4d9fff"
+                    color: step.status === "complete" ? "var(--profit)"
+                      : step.status === "error"    ? "var(--loss)"
+                      : step.status === "running"  ? "var(--accent-blue)"
                       : "var(--text-primary)",
                   }}>
                     {step.label}
@@ -458,7 +454,7 @@ export default function SettingsPage() {
               background: "rgba(255,77,106,0.08)", border: "1px solid rgba(255,77,106,0.2)",
               borderRadius: "8px", padding: "12px 14px",
             }}>
-              <div style={{ fontSize: "11px", color: "#ff4d6a", fontFamily: "monospace", lineHeight: "1.5" }}>
+              <div style={{ fontSize: "11px", color: "var(--loss)", fontFamily: "monospace", lineHeight: "1.5" }}>
                 {errorDetail}
               </div>
               <button
@@ -466,7 +462,7 @@ export default function SettingsPage() {
                 style={{
                   marginTop: "10px", padding: "6px 14px", borderRadius: "6px",
                   border: "1px solid rgba(255,77,106,0.3)", background: "transparent",
-                  color: "#ff4d6a", fontSize: "12px", fontWeight: "600",
+                  color: "var(--loss)", fontSize: "12px", fontWeight: "600",
                   cursor: "pointer", fontFamily: "'DM Sans', sans-serif",
                   display: "flex", alignItems: "center", gap: "6px",
                 }}
@@ -492,8 +488,8 @@ export default function SettingsPage() {
                   border: "1px solid #1e1e2e",
                   display: "flex", alignItems: "center", gap: "10px",
                 }}>
-                  <Terminal size={12} color="#a8a8c8" style={{ flexShrink: 0 }} />
-                  <span style={{ fontFamily: "monospace", fontSize: "13px", color: "#00e57a" }}>npm run dev</span>
+                  <Terminal size={12} color="var(--text-secondary)" style={{ flexShrink: 0 }} />
+                  <span style={{ fontFamily: "monospace", fontSize: "13px", color: "var(--profit)" }}>npm run dev</span>
                   <button
                     onClick={() => navigator.clipboard.writeText("npm run dev")}
                     style={{
@@ -530,7 +526,7 @@ export default function SettingsPage() {
                     <div style={{
                       padding: "9px 16px", borderRadius: "8px",
                       background: "rgba(0,229,122,0.1)", border: "1px solid rgba(0,229,122,0.3)",
-                      fontSize: "12px", color: "#00e57a", fontWeight: "600",
+                      fontSize: "12px", color: "var(--profit)", fontWeight: "600",
                       display: "flex", alignItems: "center", gap: "6px",
                     }}>
                       <Check size={13} />
@@ -571,7 +567,7 @@ export default function SettingsPage() {
       )}
 
       {/* Two-column grid */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", alignItems: "start" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: "16px", alignItems: "start" }}>
         <div>
           {/* Appearance */}
           <Section title="Appearance" icon={Palette}>
@@ -612,6 +608,27 @@ export default function SettingsPage() {
                   >
                     {t === "dark" ? <Moon size={12} /> : <Sun size={12} />}
                     {t}
+                  </button>
+                ))}
+              </div>
+            </Row>
+            <Row label="Time Format" description="How entry and exit times read across the journal, calendar and PDF report. Stored trades keep 24h.">
+              <div style={{ display: "flex", gap: "6px" }}>
+                {(["24h", "12h"] as const).map((f) => (
+                  <button
+                    key={f}
+                    onClick={() => updateSettings({ timeFormat: f })}
+                    aria-pressed={settings.timeFormat === f}
+                    style={{
+                      padding: "7px 14px", borderRadius: "8px",
+                      border: `1px solid ${settings.timeFormat === f ? "var(--accent-green)" : "var(--border)"}`,
+                      background: settings.timeFormat === f ? "var(--accent-green-dim)" : "transparent",
+                      color: settings.timeFormat === f ? "var(--accent-green)" : "var(--text-muted)",
+                      fontSize: "12px", fontWeight: "600", cursor: "pointer",
+                      fontFamily: "'DM Sans', sans-serif",
+                    }}
+                  >
+                    {f === "24h" ? "24-hour · 14:05" : "12-hour · 2:05 PM"}
                   </button>
                 ))}
               </div>
@@ -667,18 +684,44 @@ export default function SettingsPage() {
                 ))}
               </div>
             </Row>
-          <div style={{ display: "flex", justifyContent: "flex-end" }}>
-              <button
-                onClick={resetSettings}
-                style={{
-                  background: "none", border: "none", cursor: "pointer",
-                  color: "var(--text-muted)", fontSize: "12px",
-                  fontFamily: "'DM Sans', sans-serif",
-                }}
-              >
-                Reset to defaults
-              </button>
-            </div>
+          </Section>
+
+          {/* Risk Controls. These were stored but never editable, so the
+              Dashboard guard could only ever be blank. */}
+          <Section title="Risk Controls" icon={Shield}>
+            <Row
+              label="Daily loss limit"
+              description="Loss at which the Dashboard marks the day as done. 0 turns the guard off."
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                <span style={{ fontSize: "12px", color: "var(--text-muted)" }}>{settings.currencyFormat}</span>
+                <input
+                  type="number" min={0} step={50}
+                  value={settings.dailyLossLimit || ""}
+                  placeholder="Off"
+                  aria-label="Daily loss limit"
+                  onChange={(e) => updateSettings({ dailyLossLimit: Math.max(0, Number(e.target.value) || 0) })}
+                  style={riskInputStyle}
+                />
+              </div>
+            </Row>
+            <Row
+              label="Max trades per day"
+              description="Trade count that ends the session. 0 turns the guard off."
+            >
+              <input
+                type="number" min={0} step={1}
+                value={settings.maxDailyTrades || ""}
+                placeholder="Off"
+                aria-label="Max trades per day"
+                onChange={(e) => updateSettings({ maxDailyTrades: Math.max(0, Math.round(Number(e.target.value) || 0)) })}
+                style={riskInputStyle}
+              />
+            </Row>
+            <p style={{ fontSize: "11px", color: "var(--text-muted)", margin: 0, lineHeight: 1.5 }}>
+              The Dashboard shows today&apos;s loss and trade count against these limits. They are a
+              reminder, not a lock — nothing stops a trade from being imported.
+            </p>
           </Section>
         </div>
 
@@ -696,7 +739,7 @@ export default function SettingsPage() {
                   padding: "8px 16px", borderRadius: "8px",
                   border: "1px solid var(--border)",
                   background: exportDone ? "rgba(0,229,122,0.1)" : "transparent",
-                  color: exportDone ? "#00e57a" : "var(--text-primary)",
+                  color: exportDone ? "var(--profit)" : "var(--text-primary)",
                   fontSize: "12px", fontWeight: "600", cursor: "pointer",
                   fontFamily: "'DM Sans', sans-serif",
                   display: "flex", alignItems: "center", gap: "6px",
@@ -718,7 +761,7 @@ export default function SettingsPage() {
                   padding: "8px 16px", borderRadius: "8px",
                   border: "1px solid var(--border)",
                   background: jsonExportDone ? "rgba(0,229,122,0.1)" : "transparent",
-                  color: jsonExportDone ? "#00e57a" : "var(--text-primary)",
+                  color: jsonExportDone ? "var(--profit)" : "var(--text-primary)",
                   fontSize: "12px", fontWeight: "600", cursor: "pointer",
                   fontFamily: "'DM Sans', sans-serif",
                   display: "flex", alignItems: "center", gap: "6px",
@@ -745,24 +788,6 @@ export default function SettingsPage() {
               >
                 <FileDown size={13} />
                 Open Export
-              </button>
-            </Row>
-            <Row
-              label="Clear All Trades"
-              description="Permanently deletes all trades. This cannot be undone."
-            >
-              <button
-                onClick={handleClearTrades}
-                style={{
-                  padding: "8px 16px", borderRadius: "8px",
-                  border: `1px solid ${clearConfirm ? "#ff4d6a" : "var(--border)"}`,
-                  background: clearConfirm ? "rgba(255,77,106,0.1)" : "transparent",
-                  color: clearConfirm ? "#ff4d6a" : "var(--text-muted)",
-                  fontSize: "12px", fontWeight: "600", cursor: "pointer",
-                  fontFamily: "'DM Sans', sans-serif",
-                }}
-              >
-                {cleared ? "Cleared" : clearConfirm ? "Confirm — cannot be undone" : "Clear all trades"}
               </button>
             </Row>
           </Section>
@@ -810,6 +835,45 @@ export default function SettingsPage() {
           </Section>
         </div>
       </div>
+
+      {/* Kept apart from the exports above: these two discard data and should
+          not sit one row from a button a trader presses routinely. */}
+      <Section title="Danger zone" icon={AlertTriangle} tone="danger">
+        <Row
+          label="Reset settings"
+          description="Restores appearance, analytics and risk settings to defaults. Trades, accounts and journal entries are untouched."
+        >
+          <button
+            onClick={resetSettings}
+            style={{
+              padding: "8px 16px", borderRadius: "8px",
+              border: "1px solid var(--border)", background: "transparent",
+              color: "var(--text-secondary)", fontSize: "12px", fontWeight: "600",
+              cursor: "pointer", fontFamily: "'DM Sans', sans-serif",
+            }}
+          >
+            Reset to defaults
+          </button>
+        </Row>
+        <Row
+          label="Clear all trades"
+          description="Permanently deletes every trade in every account. This cannot be undone; export a JSON backup first."
+        >
+          <button
+            onClick={handleClearTrades}
+            style={{
+              padding: "8px 16px", borderRadius: "8px",
+              border: `1px solid ${clearConfirm ? "var(--loss)" : "rgba(255,77,106,0.4)"}`,
+              background: clearConfirm ? "var(--loss)" : "rgba(255,77,106,0.1)",
+              color: clearConfirm ? "#fff" : "var(--loss)",
+              fontSize: "12px", fontWeight: "600", cursor: "pointer",
+              fontFamily: "'DM Sans', sans-serif",
+            }}
+          >
+            {cleared ? "Cleared" : clearConfirm ? "Confirm — cannot be undone" : "Clear all trades"}
+          </button>
+        </Row>
+      </Section>
     </>
   );
 }

@@ -9,6 +9,7 @@ const QUANTEDGE_COLUMNS = [
   "P&L", "Status", "Entry Time", "Exit Time", "R:R", "Tags", "Journal",
   "Account ID", "Ticket", "Planned Risk", "Duration (min)", "MAE", "MFE",
   "Post Close MFE", "Exit Reason", "Magic", "Legs", "Averaged Down", "Balance After",
+  "ATR (14)", "Spread", "Day Range",
 ] as const;
 
 const QUANTEDGE_HEADER = QUANTEDGE_COLUMNS.join(",");
@@ -121,6 +122,9 @@ export function parseMetaTraderCSV(csvText: string): Trade[] {
     legs:       at("Legs"),
     avgDown:    at("Averaged Down"),
     balance:    at("Balance After"),
+    atr:        at("ATR (14)"),
+    spread:     at("Spread"),
+    dayRange:   at("Day Range"),
   };
 
   const get = (cols: string[], i: number) => (i >= 0 ? cols[i] ?? "" : "");
@@ -157,6 +161,9 @@ export function parseMetaTraderCSV(csvText: string): Trade[] {
     const legs        = get(cols, idx.legs);
     const avgDown     = get(cols, idx.avgDown);
     const balance     = get(cols, idx.balance);
+    const atrRaw      = get(cols, idx.atr);
+    const spreadRaw   = get(cols, idx.spread);
+    const dayRangeRaw = get(cols, idx.dayRange);
 
     const parsedPnl   = num(get(cols, idx.pnl));
     const parsedEntry = num(get(cols, idx.entryPrice));
@@ -170,6 +177,9 @@ export function parseMetaTraderCSV(csvText: string): Trade[] {
     const parsedMagic = magic ? parseInt(magic, 10) : undefined;
     const parsedLegs  = legs ? parseInt(legs, 10) : undefined;
     const parsedBal   = balance ? parseFloat(balance) : undefined;
+    const parsedAtr   = atrRaw ? parseFloat(atrRaw) : undefined;
+    const parsedSpread = spreadRaw ? parseFloat(spreadRaw) : undefined;
+    const parsedRange = dayRangeRaw ? parseFloat(dayRangeRaw) : undefined;
     const parsedAvgDown = avgDown.toLowerCase() === "yes";
     const normalizedDate = normalizeDate(date);
 
@@ -216,6 +226,9 @@ export function parseMetaTraderCSV(csvText: string): Trade[] {
       ...(parsedLegs !== undefined && !isNaN(parsedLegs) && { legs: parsedLegs }),
       ...(avgDown && { averagedDown: parsedAvgDown }),
       ...(parsedBal !== undefined && !isNaN(parsedBal) && { balanceAfter: parsedBal }),
+      ...(parsedAtr !== undefined && !isNaN(parsedAtr) && { atr: parsedAtr }),
+      ...(parsedSpread !== undefined && !isNaN(parsedSpread) && { spread: parsedSpread }),
+      ...(parsedRange !== undefined && !isNaN(parsedRange) && { dayRange: parsedRange }),
       tags: tags ? tags.split("|").filter(Boolean) : [],
       journalEntry: journal || "",
       ...(accountId && { accountId }),

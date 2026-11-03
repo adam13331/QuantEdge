@@ -26,18 +26,18 @@ const inputStyle: React.CSSProperties = {
   background: "var(--bg-secondary)", color: "var(--text-primary)",
   fontSize: "13px", colorScheme: "dark", fontFamily: "'DM Sans', sans-serif", outline: "none", width: "100%",
 };
-const axisStyle = { fontSize: 11, fill: "#a8a8c8" };
+const axisStyle = { fontSize: 11, fill: "var(--text-secondary)" };
 const chartTooltipStyle: React.CSSProperties = {
-  background: "#16161f", border: "1px solid #2a2a3a",
-  borderRadius: "8px", color: "#f0f0ff", fontSize: "12px",
+  background: "var(--tooltip-bg)", border: "1px solid var(--chart-grid)",
+  borderRadius: "8px", color: "var(--text-primary)", fontSize: "12px",
 };
 
 const PATH_COLORS: Record<ChallengeOutcome, string> = {
-  pass: "#00e57a",
-  daily: "#ff4d6a",
-  dd: "#ff4d6a",
-  timeout: "#a8a8c8",
-  consistency: "#fbbf24",
+  pass: "var(--profit)",
+  daily: "var(--loss)",
+  dd: "var(--loss)",
+  timeout: "var(--text-secondary)",
+  consistency: "var(--warning)",
 };
 
 const money0 = (v: number) =>
@@ -75,11 +75,11 @@ function PathTooltip({ active, payload, label }: TooltipContentProps) {
 type RuleTone = "ok" | "progress" | "watch" | "fail" | "off";
 
 const TONE: Record<RuleTone, { color: string; bg: string; border: string; word: string; Icon: LucideIcon }> = {
-  ok:       { color: "#00e57a", bg: "rgba(0,229,122,0.07)",  border: "rgba(0,229,122,0.22)",  word: "Passing",  Icon: CheckCircle2 },
-  progress: { color: "#4d9fff", bg: "rgba(77,159,255,0.07)", border: "rgba(77,159,255,0.22)", word: "In progress", Icon: Info },
-  watch:    { color: "#fbbf24", bg: "rgba(251,191,36,0.07)", border: "rgba(251,191,36,0.22)", word: "Watch",    Icon: AlertTriangle },
-  fail:     { color: "#ff4d6a", bg: "rgba(255,77,106,0.07)", border: "rgba(255,77,106,0.22)", word: "Breached", Icon: XCircle },
-  off:      { color: "#a8a8c8", bg: "var(--bg-secondary)",   border: "var(--border)",          word: "No rule",  Icon: Info },
+  ok:       { color: "var(--profit)", bg: "rgba(0,229,122,0.07)",  border: "rgba(0,229,122,0.22)",  word: "Passing",  Icon: CheckCircle2 },
+  progress: { color: "var(--accent-blue)", bg: "rgba(77,159,255,0.07)", border: "rgba(77,159,255,0.22)", word: "In progress", Icon: Info },
+  watch:    { color: "var(--warning)", bg: "rgba(251,191,36,0.07)", border: "rgba(251,191,36,0.22)", word: "Watch",    Icon: AlertTriangle },
+  fail:     { color: "var(--loss)", bg: "rgba(255,77,106,0.07)", border: "rgba(255,77,106,0.22)", word: "Breached", Icon: XCircle },
+  off:      { color: "var(--text-secondary)", bg: "var(--bg-secondary)",   border: "var(--border)",          word: "No rule",  Icon: Info },
 };
 
 function NumberField({ label, value, onChange, step = 1 }: { label: string; value: number; onChange: (v: number) => void; step?: number }) {
@@ -248,6 +248,10 @@ export default function PropFirmPanel({ trades, activeAccount }: { trades: Trade
   // line underneath carries the same information at a glance.
   const [editing, setEditing] = useState(false);
   const [notesOpen, setNotesOpen] = useState(false);
+  // Sixty faint lines behind a 320px band read as noise; the band and median
+  // answer "where do attempts end up" on their own. The spaghetti is there for
+  // the trader who wants to see the spread of individual outcomes.
+  const [showPaths, setShowPaths] = useState(false);
 
   // 5000 paths is too much work to run on every keystroke, so the simulation
   // trails the rule inputs by a beat while the cheap single replay stays live.
@@ -411,12 +415,14 @@ export default function PropFirmPanel({ trades, activeAccount }: { trades: Trade
         day: b.day, bandBase: b.bandBase, bandWidth: b.bandWidth,
         p5: b.p5, p50: b.p50, p95: b.p95,
       };
-      sim.paths.forEach((p, i) => {
-        row[`p${i}`] = p.series[Math.min(b.day, p.series.length - 1)];
-      });
+      if (showPaths) {
+        sim.paths.forEach((p, i) => {
+          row[`p${i}`] = p.series[Math.min(b.day, p.series.length - 1)];
+        });
+      }
       return row;
     });
-  }, [sim]);
+  }, [sim, showPaths]);
 
   // The last ~60 trading days is enough to see the shape without turning the
   // bars into hairlines; the worst day is called out above the chart anyway.
@@ -448,14 +454,14 @@ export default function PropFirmPanel({ trades, activeAccount }: { trades: Trade
   const passCount = sim.daysToPass.reduce((s, b) => s + b.count, 0);
 
   const outcomes = [
-    { label: "Pass",               value: sim.passRate,        color: "#00e57a" },
-    { label: "Fail — daily",       value: sim.failDaily,       color: "#ff4d6a" },
-    { label: "Fail — drawdown",    value: sim.failDrawdown,    color: "#ff4d6a" },
-    { label: "Timeout",            value: sim.timeout,         color: "#a8a8c8" },
-    { label: "Consistency breach", value: sim.consistencyFail, color: "#fbbf24" },
+    { label: "Pass",               value: sim.passRate,        color: "var(--profit)" },
+    { label: "Fail — daily",       value: sim.failDaily,       color: "var(--loss)" },
+    { label: "Fail — drawdown",    value: sim.failDrawdown,    color: "var(--loss)" },
+    { label: "Timeout",            value: sim.timeout,         color: "var(--text-secondary)" },
+    { label: "Consistency breach", value: sim.consistencyFail, color: "var(--warning)" },
   ].filter((o) => o.value > 0.0005);
 
-  const passColor = sim.runs === 0 ? "#a8a8c8" : sim.passRate >= 0.5 ? "#00e57a" : sim.passRate >= 0.3 ? "#fbbf24" : "#ff4d6a";
+  const passColor = sim.runs === 0 ? "var(--text-secondary)" : sim.passRate >= 0.5 ? "var(--profit)" : sim.passRate >= 0.3 ? "var(--warning)" : "var(--loss)";
 
   return (
     <div>
@@ -491,19 +497,19 @@ export default function PropFirmPanel({ trades, activeAccount }: { trades: Trade
             <Stat
               label="Target"
               value={pct1(status.profitProgress)}
-              color={status.targetHit ? "#00e57a" : "var(--text-primary)"}
+              color={status.targetHit ? "var(--profit)" : "var(--text-primary)"}
               sub={`${money(status.profitAmount)} / ${money(status.targetAmount)}`}
             />
             <Stat
               label="Drawdown"
               value={pct1(status.ddUsedPct)}
-              color={status.ddUsedPct >= 100 ? "#ff4d6a" : status.ddUsedPct >= 70 ? "#fbbf24" : "var(--text-primary)"}
+              color={status.ddUsedPct >= 100 ? "var(--loss)" : status.ddUsedPct >= 70 ? "var(--warning)" : "var(--text-primary)"}
               sub={`${money(status.ddUsed)} / ${money(status.ddAllowed)}`}
             />
             <Stat
               label="Worst day"
               value={config.dailyLimitPct === 0 ? "—" : pct1(status.dailyUsedPct)}
-              color={status.dailyUsedPct >= 100 ? "#ff4d6a" : status.dailyUsedPct >= 70 ? "#fbbf24" : "var(--text-primary)"}
+              color={status.dailyUsedPct >= 100 ? "var(--loss)" : status.dailyUsedPct >= 70 ? "var(--warning)" : "var(--text-primary)"}
               sub={config.dailyLimitPct === 0 ? "No daily rule" : `${money(status.worstDayPnl)} of ${money(status.dailyAllowed)}`}
             />
           </div>
@@ -622,22 +628,22 @@ export default function PropFirmPanel({ trades, activeAccount }: { trades: Trade
                 {config.dailyLimitPct > 0 && (
                   <ReferenceLine
                     y={-status.dailyAllowed}
-                    stroke="#ff4d6a"
+                    stroke="var(--loss)"
                     strokeDasharray="6 4"
-                    label={{ value: "Daily limit", position: "insideBottomRight", fill: "#ff4d6a", fontSize: 10 }}
+                    label={{ value: "Daily limit", position: "insideBottomRight", fill: "var(--loss)", fontSize: 10 }}
                   />
                 )}
                 <Bar dataKey="pnl" radius={[2, 2, 0, 0]} isAnimationActive={false}>
                   {dayBars.map((d, i) => (
-                    <Cell key={i} fill={d.pnl >= 0 ? "#00e57a" : "#ff4d6a"} fillOpacity={0.85} />
+                    <Cell key={i} fill={d.pnl >= 0 ? "var(--profit)" : "var(--loss)"} fillOpacity={0.85} />
                   ))}
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
             <div style={{ display: "flex", flexWrap: "wrap", gap: "16px", marginTop: "10px" }}>
-              <LegendChip color="#00e57a" label="Winning day" />
-              <LegendChip color="#ff4d6a" label="Losing day" />
-              {config.dailyLimitPct > 0 && <LegendChip color="#ff4d6a" label="Daily limit" value={money(status.dailyAllowed)} />}
+              <LegendChip color="var(--profit)" label="Winning day" />
+              <LegendChip color="var(--loss)" label="Losing day" />
+              {config.dailyLimitPct > 0 && <LegendChip color="var(--loss)" label="Daily limit" value={money(status.dailyAllowed)} />}
               <span style={{ marginLeft: "auto", fontSize: "11px", color: "var(--text-muted)" }}>
                 {status.days.length} trading days · {pct1(status.dailyUsedPct)} of the daily limit used at worst
               </span>
@@ -653,14 +659,14 @@ export default function PropFirmPanel({ trades, activeAccount }: { trades: Trade
       >
         {sim.scaled && (
           <div style={{ background: "rgba(77,159,255,0.08)", border: "1px solid rgba(77,159,255,0.25)", borderRadius: "10px", padding: "10px 14px", marginBottom: "16px" }}>
-            <p style={{ fontSize: "12px", color: "#4d9fff", margin: 0, lineHeight: 1.6 }}>
+            <p style={{ fontSize: "12px", color: "var(--accent-blue)", margin: 0, lineHeight: 1.6 }}>
               Trade P&amp;L is scaled ×{sim.scale.toFixed(2)} from your {money(activeAccount?.initialBalance ?? 0)} account onto the {money0(config.accountSize)} challenge.
             </p>
           </div>
         )}
         {sim.tooFew && (
           <div style={{ background: "rgba(251,191,36,0.1)", border: "1px solid rgba(251,191,36,0.3)", borderRadius: "10px", padding: "12px 14px", marginBottom: "16px" }}>
-            <p style={{ fontSize: "12px", color: "#fbbf24", margin: 0, lineHeight: 1.6 }}>
+            <p style={{ fontSize: "12px", color: "var(--warning)", margin: 0, lineHeight: 1.6 }}>
               Only {sim.sampleTrades} trades across {sim.sampleDays} days. Below ~30 trades the estimate is unstable — treat it as a direction, not a number.
             </p>
           </div>
@@ -700,9 +706,24 @@ export default function PropFirmPanel({ trades, activeAccount }: { trades: Trade
         <div style={{ marginTop: "26px", paddingTop: "20px", borderTop: "1px solid var(--border)" }}>
           <div style={{ display: "flex", alignItems: "baseline", gap: "8px", marginBottom: "4px" }}>
             <h4 style={{ fontSize: "14px", fontWeight: "700", color: "var(--text-primary)", margin: 0 }}>Possible paths to funded</h4>
-            <span style={{ fontSize: "11.5px", color: "var(--text-muted)" }}>
-              percentile fan with {sim.paths.length} sampled attempts
+            <span style={{ fontSize: "11.5px", color: "var(--text-muted)", flex: 1 }}>
+              percentile fan across {sim.runs.toLocaleString()} attempts
             </span>
+            {sim.paths.length > 0 && (
+              <button
+                onClick={() => setShowPaths((v) => !v)}
+                aria-pressed={showPaths}
+                style={{
+                  padding: "4px 9px", borderRadius: "6px", cursor: "pointer",
+                  border: "1px solid var(--border)",
+                  background: showPaths ? "rgba(77,159,255,0.14)" : "transparent",
+                  color: showPaths ? "var(--accent-blue)" : "var(--text-muted)",
+                  fontSize: "11px", fontFamily: "'DM Sans', sans-serif",
+                }}
+              >
+                {showPaths ? `Hide ${sim.paths.length} paths` : `Show ${sim.paths.length} paths`}
+              </button>
+            )}
           </div>
 
           {chartData.length === 0 ? (
@@ -710,12 +731,16 @@ export default function PropFirmPanel({ trades, activeAccount }: { trades: Trade
           ) : (
             <>
               <div style={{ display: "flex", flexWrap: "wrap", gap: "14px", margin: "12px 0 10px" }}>
-                <LegendChip color={PATH_COLORS.pass} label="Pass" />
-                <LegendChip color={PATH_COLORS.daily} label="Fail" />
-                <LegendChip color={PATH_COLORS.timeout} label="Timeout" />
-                <LegendChip color={PATH_COLORS.consistency} label="Consistency" />
+                {showPaths && (
+                  <>
+                    <LegendChip color={PATH_COLORS.pass} label="Pass" />
+                    <LegendChip color={PATH_COLORS.daily} label="Fail" />
+                    <LegendChip color={PATH_COLORS.timeout} label="Timeout" />
+                    <LegendChip color={PATH_COLORS.consistency} label="Consistency" />
+                  </>
+                )}
                 <LegendChip color="rgba(77,159,255,0.35)" label="5–95% band" />
-                <LegendChip color="#4d9fff" label="Median" />
+                <LegendChip color="var(--accent-blue)" label="Median" />
               </div>
 
               <ResponsiveContainer width="100%" height={320}>
@@ -725,8 +750,8 @@ export default function PropFirmPanel({ trades, activeAccount }: { trades: Trade
                   <YAxis domain={fanDomain} allowDataOverflow tick={axisStyle} axisLine={false} tickLine={false} tickFormatter={(x) => money0(Number(x))} width={64} />
                   <Tooltip content={PathTooltip} />
                   <Area type="monotone" dataKey="bandBase" stackId="band" stroke="none" fill="transparent" isAnimationActive={false} />
-                  <Area type="monotone" dataKey="bandWidth" stackId="band" stroke="none" fill="#4d9fff" fillOpacity={0.16} isAnimationActive={false} />
-                  {sim.paths.map((p, i) => (
+                  <Area type="monotone" dataKey="bandWidth" stackId="band" stroke="none" fill="var(--accent-blue)" fillOpacity={0.16} isAnimationActive={false} />
+                  {showPaths && sim.paths.map((p, i) => (
                     <Line
                       key={i}
                       type="monotone"
@@ -739,12 +764,12 @@ export default function PropFirmPanel({ trades, activeAccount }: { trades: Trade
                       isAnimationActive={false}
                     />
                   ))}
-                  <Line type="monotone" dataKey="p50" stroke="#4d9fff" strokeWidth={2} dot={false} activeDot={false} isAnimationActive={false} />
+                  <Line type="monotone" dataKey="p50" stroke="var(--accent-blue)" strokeWidth={2} dot={false} activeDot={false} isAnimationActive={false} />
                   <ReferenceLine
                     y={targetBalance}
-                    stroke="#00e57a"
+                    stroke="var(--profit)"
                     strokeDasharray="6 4"
-                    label={{ value: "Target", position: "insideTopRight", fill: "#00e57a", fontSize: 10 }}
+                    label={{ value: "Target", position: "insideTopRight", fill: "var(--profit)", fontSize: 10 }}
                   />
                 </ComposedChart>
               </ResponsiveContainer>
@@ -772,7 +797,7 @@ export default function PropFirmPanel({ trades, activeAccount }: { trades: Trade
       {/* ── Pace, budget and fee ───────────────────────────────────────── */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: "20px" }}>
         <SectionCard title="Time & pace" subtitle="What the target still needs at your historical average.">
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: "12px" }}>
             {[
               { icon: Clock, label: "Remaining days", value: plan.remainingDays != null ? `${plan.remainingDays}` : "No limit" },
               { icon: TrendingUp, label: "Required / day", value: plan.requiredDailyReturn != null ? money(plan.requiredDailyReturn) : "—" },
@@ -794,15 +819,15 @@ export default function PropFirmPanel({ trades, activeAccount }: { trades: Trade
         </SectionCard>
 
         <SectionCard title="Risk budget" subtitle="How much one trade can risk without an ordinary losing run ending the evaluation.">
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: "12px" }}>
             <div style={{ background: "var(--bg-secondary)", borderRadius: "10px", padding: "14px 16px" }}>
               <div style={{ ...labelStyle, marginBottom: "6px" }}>Max risk / trade</div>
-              <div style={{ fontSize: "21px", fontWeight: "800", color: "#ff4d6a", lineHeight: 1.1 }}>{money(plan.maxRiskPerTrade)}</div>
+              <div style={{ fontSize: "21px", fontWeight: "800", color: "var(--loss)", lineHeight: 1.1 }}>{money(plan.maxRiskPerTrade)}</div>
               <div style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "4px" }}>{plan.maxRiskPerTradePct.toFixed(2)}% of account</div>
             </div>
             <div style={{ background: "var(--bg-secondary)", borderRadius: "10px", padding: "14px 16px" }}>
               <div style={{ ...labelStyle, marginBottom: "6px" }}>Daily loss allowed</div>
-              <div style={{ fontSize: "21px", fontWeight: "800", color: config.dailyLimitPct === 0 ? "var(--text-muted)" : "#fbbf24", lineHeight: 1.1 }}>
+              <div style={{ fontSize: "21px", fontWeight: "800", color: config.dailyLimitPct === 0 ? "var(--text-muted)" : "var(--warning)", lineHeight: 1.1 }}>
                 {config.dailyLimitPct === 0 ? "—" : money(plan.dailyAllowed)}
               </div>
               <div style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "4px" }}>
@@ -822,7 +847,7 @@ export default function PropFirmPanel({ trades, activeAccount }: { trades: Trade
             <div style={{ ...labelStyle, marginBottom: "6px" }}>ROI on fee</div>
             <div style={{
               fontSize: "40px", fontWeight: "800", lineHeight: 1,
-              color: roi.roiPct >= 0 ? "#00e57a" : "#ff4d6a", fontVariantNumeric: "tabular-nums",
+              color: roi.roiPct >= 0 ? "var(--profit)" : "var(--loss)", fontVariantNumeric: "tabular-nums",
             }}>
               {pct1(roi.roiPct)}
             </div>
@@ -833,8 +858,8 @@ export default function PropFirmPanel({ trades, activeAccount }: { trades: Trade
 
           <div style={{ flex: "1 1 380px", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(118px, 1fr))", gap: "12px" }}>
             {[
-              { k: "Expected payout", v: money(roi.expectedPayout), c: roi.expectedPayout > 0 ? "#00e57a" : "var(--text-primary)" },
-              { k: "Net expected", v: money(roi.netExpected), c: roi.netExpected >= 0 ? "#00e57a" : "#ff4d6a" },
+              { k: "Expected payout", v: money(roi.expectedPayout), c: roi.expectedPayout > 0 ? "var(--profit)" : "var(--text-primary)" },
+              { k: "Net expected", v: money(roi.netExpected), c: roi.netExpected >= 0 ? "var(--profit)" : "var(--loss)" },
               { k: "Attempts to pass", v: roi.attemptsToPass != null ? roi.attemptsToPass.toFixed(1) : "—", c: "var(--text-primary)" },
               { k: "Cost to pass", v: roi.costToPass > 0 ? money(roi.costToPass) : "—", c: "var(--text-primary)" },
               { k: "Profit / month", v: money(roi.grossMonthlyProfit), c: "var(--text-primary)" },
@@ -885,7 +910,7 @@ export default function PropFirmPanel({ trades, activeAccount }: { trades: Trade
             ].map(({ name, formula, what }) => (
               <div key={name} style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: "12px", padding: "14px 16px" }}>
                 <div style={{ fontSize: "13px", fontWeight: "700", color: "var(--text-primary)", marginBottom: "6px" }}>{name}</div>
-                <div style={{ fontSize: "10px", fontFamily: "monospace", color: "#4d9fff", background: "rgba(77,159,255,0.08)", padding: "4px 8px", borderRadius: "4px", marginBottom: "8px", overflowX: "auto", whiteSpace: "nowrap" }}>{formula}</div>
+                <div style={{ fontSize: "10px", fontFamily: "monospace", color: "var(--accent-blue)", background: "rgba(77,159,255,0.08)", padding: "4px 8px", borderRadius: "4px", marginBottom: "8px", overflowX: "auto", whiteSpace: "nowrap" }}>{formula}</div>
                 <div style={{ fontSize: "11px", color: "var(--text-muted)", lineHeight: 1.5 }}>{what}</div>
               </div>
             ))}

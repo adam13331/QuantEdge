@@ -48,9 +48,17 @@ model Trade {
   averagedDown Boolean?  // a later entry was at a worse price than the first
   balanceAfter Float?    // account balance once this position closed
   hourOfDay    Int?
+  atr          Float?     // ATR(14) on the exporter's chart timeframe at entry
+  spread       Float?     // spread at entry, price units
+  dayRange     Float?     // high-low of the session before entry
   playbookId   String?
+  setupVersion Int?       // playbook revision live when the trade was taken
   planId       String?
   tags         String     @default("[]")
+  mistakeTags  String     @default("[]") // review: what went wrong, from a fixed vocabulary
+  followedPlan Boolean?   // review: null = not reviewed yet
+  confidence   Int?       // 1-5, recorded at entry
+  isForwardTest Boolean   @default(false) // taken after an experiment started
   journalEntry String?
   link         String?
   imageUrls    String     @default("[]")
@@ -92,9 +100,27 @@ model Playbook {
   entryTriggers String   @default("[]")
   exitRules     String?
   notes         String?
-  imageUrls     String   @default("[]")
+  imageUrls      String   @default("[]")
+  revisions     String   @default("[]") // [{ version, effectiveDate, summary, createdAt }]
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+}
+
+// A written hypothesis with a date range. Performance before and after are
+// computed from the trades themselves, so an experiment is only a claim plus
+// the boundary that makes it testable.
+model Experiment {
+  id             String   @id
+  name           String
+  hypothesis     String
+  change         String
+  expectedEffect String?
+  startDate      String
+  endDate        String?
+  playbookId     String?
+  status         String   @default("running") // running | concluded | abandoned
+  conclusion     String?
+  createdAt      DateTime @default(now())
 }
 
 model JournalTemplate {

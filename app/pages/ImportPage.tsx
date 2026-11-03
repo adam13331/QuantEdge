@@ -5,7 +5,7 @@ import { Trade } from "../lib/types";
 import { parseMetaTraderCSV, isMetaTraderCSV, firstLine } from "../lib/parseMetaTraderCSV";
 import {
   Upload, CheckCircle, AlertCircle, FileText,
-  ArrowRight, X, Database, RefreshCw, ChevronDown,
+  ArrowRight, X, Database, RefreshCw, ChevronDown, Download,
 } from "lucide-react";
 
 type ParseStatus = "idle" | "success" | "error" | "importing";
@@ -20,7 +20,7 @@ function FormatBadge() {
     <span style={{
       display: "inline-flex", alignItems: "center", gap: "5px",
       padding: "3px 10px", borderRadius: "20px", fontSize: "11px", fontWeight: "700",
-      background: "rgba(0,229,122,0.12)", color: "#00e57a", border: "1px solid rgba(0,229,122,0.3)",
+      background: "rgba(0,229,122,0.12)", color: "var(--profit)", border: "1px solid rgba(0,229,122,0.3)",
     }}>
       <Database size={10} />
       MetaTrader Export
@@ -46,7 +46,7 @@ const FORMAT_CARD = {
   desc:  "Run QuantEdgeExport.mq5 on any chart in MetaTrader 5, then drop the CSV it writes to MQL5\\Files. " +
          "Every closed trade is reconstructed from its deals — options, forex, futures and stocks — " +
          "with entry/exit times, commission, swap and net P&L already calculated.",
-  color: "#00e57a", bg: "rgba(0,229,122,0.06)", border: "rgba(0,229,122,0.2)",
+  color: "var(--profit)", bg: "rgba(0,229,122,0.06)", border: "rgba(0,229,122,0.2)",
 };
 
 export default function ImportPage() {
@@ -156,11 +156,24 @@ export default function ImportPage() {
         <h2 style={{ fontSize: "26px", fontWeight: "700", color: "var(--text-primary)", letterSpacing: "-0.5px" }}>
           Import Trades
         </h2>
-        <p style={{ color: "#a8a8c8", fontSize: "14px", marginTop: "4px" }}>
+        <p style={{ color: "var(--text-secondary)", fontSize: "14px", marginTop: "4px" }}>
           {accounts.length > 0
             ? "You'll confirm which account these trades belong to before anything is saved"
             : "No trading account yet — create one first so equity is tracked"}
         </p>
+        {accounts.length === 0 && (
+          <button
+            onClick={() => setActivePage("accounts")}
+            style={{
+              marginTop: "12px", padding: "9px 16px", borderRadius: "8px",
+              border: "1px solid var(--accent-green)", background: "var(--accent-green-dim)",
+              color: "var(--accent-green)", fontSize: "13px", fontWeight: "700",
+              cursor: "pointer", fontFamily: "'DM Sans', sans-serif",
+            }}
+          >
+            Create an account
+          </button>
+        )}
       </div>
 
       {/* Broker cards */}
@@ -171,11 +184,46 @@ export default function ImportPage() {
             borderRadius: "12px", padding: "16px",
           }}
         >
-          <div style={{ fontSize: "12px", fontWeight: "700", color: FORMAT_CARD.color, marginBottom: "6px" }}>
-            {FORMAT_CARD.label}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "16px", flexWrap: "wrap" }}>
+            <div style={{ flex: 1, minWidth: "260px" }}>
+              <div style={{ fontSize: "12px", fontWeight: "700", color: FORMAT_CARD.color, marginBottom: "6px" }}>
+                {FORMAT_CARD.label}
+              </div>
+              <div style={{ fontSize: "12px", color: "var(--text-secondary)", lineHeight: "1.5" }}>
+                {FORMAT_CARD.desc}
+              </div>
+            </div>
+            <a
+              href="/api/exporter"
+              download="QuantEdgeExport.mq5"
+              style={{
+                display: "inline-flex", alignItems: "center", gap: "7px",
+                padding: "9px 14px", borderRadius: "8px",
+                border: "1px solid var(--accent-green)",
+                background: "var(--bg-card)", color: "var(--accent-green)",
+                fontSize: "12px", fontWeight: "700", textDecoration: "none",
+                whiteSpace: "nowrap",
+              }}
+            >
+              <Download size={13} />
+              Download exporter
+            </a>
           </div>
-          <div style={{ fontSize: "12px", color: "#a8a8c8", lineHeight: "1.5" }}>
-            {FORMAT_CARD.desc}
+
+          <div style={{
+            display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+            gap: "8px 20px", marginTop: "14px", paddingTop: "12px",
+            borderTop: "1px solid var(--border)",
+          }}>
+            {[
+              "1. Download the .mq5 and save it in MQL5\\Scripts",
+              "2. Run the script on any MetaTrader 5 chart",
+              "3. Drop the CSV it writes to MQL5\\Files below",
+            ].map((step) => (
+              <div key={step} style={{ fontSize: "12px", color: "var(--text-secondary)", lineHeight: 1.45 }}>
+                {step}
+              </div>
+            ))}
           </div>
         </div>
       </div>
@@ -183,6 +231,15 @@ export default function ImportPage() {
       {/* Drop zone */}
       <div
         onClick={() => status === "idle" && fileRef.current?.click()}
+        role="button"
+        tabIndex={status === "idle" ? 0 : -1}
+        aria-label="Choose a CSV file to import"
+        onKeyDown={(e) => {
+          if (status === "idle" && (e.key === "Enter" || e.key === " ")) {
+            e.preventDefault();
+            fileRef.current?.click();
+          }
+        }}
         onDragOver={(e) => { e.preventDefault(); if (status === "idle") setDragging(true); }}
         onDragLeave={() => setDragging(false)}
         onDrop={handleDrop}
@@ -210,10 +267,10 @@ export default function ImportPage() {
             }}>
               <Upload size={24} color="var(--accent-green)" />
             </div>
-            <div style={{ fontSize: "18px", fontWeight: "700", color: "#f0f0ff", marginBottom: "8px" }}>
+            <div style={{ fontSize: "18px", fontWeight: "700", color: "var(--text-primary)", marginBottom: "8px" }}>
               Drop your CSV here
             </div>
-            <div style={{ fontSize: "14px", color: "#a8a8c8" }}>
+            <div style={{ fontSize: "14px", color: "var(--text-secondary)" }}>
               QuantEdgeExport.mq5 output — format is verified automatically
             </div>
           </>
@@ -223,12 +280,12 @@ export default function ImportPage() {
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "12px" }}>
             <CheckCircle size={36} color="var(--accent-green)" />
             <div>
-              <div style={{ fontSize: "16px", fontWeight: "700", color: "#f0f0ff", marginBottom: "8px" }}>
+              <div style={{ fontSize: "16px", fontWeight: "700", color: "var(--text-primary)", marginBottom: "8px" }}>
                 {message}
               </div>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}>
-                <FileText size={12} color="#a8a8c8" />
-                <span style={{ fontSize: "12px", color: "#a8a8c8" }}>{fileName}</span>
+                <FileText size={12} color="var(--text-secondary)" />
+                <span style={{ fontSize: "12px", color: "var(--text-secondary)" }}>{fileName}</span>
                 <FormatBadge />
               </div>
             </div>
@@ -237,15 +294,15 @@ export default function ImportPage() {
 
         {status === "error" && (
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "12px" }}>
-            <AlertCircle size={36} color="#ff4d6a" />
-            <div style={{ fontSize: "14px", color: "#ff4d6a", fontWeight: "600" }}>{message}</div>
+            <AlertCircle size={36} color="var(--loss)" />
+            <div style={{ fontSize: "14px", color: "var(--loss)", fontWeight: "600" }}>{message}</div>
             <button
               onClick={(e) => { e.stopPropagation(); reset(); }}
               style={{
                 display: "flex", alignItems: "center", gap: "6px",
                 padding: "8px 16px", borderRadius: "8px",
                 border: "1px solid var(--border)", background: "transparent",
-                color: "#a8a8c8", fontSize: "12px", cursor: "pointer",
+                color: "var(--text-secondary)", fontSize: "12px", cursor: "pointer",
                 fontFamily: "'DM Sans', sans-serif",
               }}
             >
@@ -263,7 +320,7 @@ export default function ImportPage() {
               borderTop: "3px solid var(--accent-green)",
               animation: "spin 0.8s linear infinite",
             }} />
-            <div style={{ fontSize: "14px", color: "#a8a8c8" }}>Saving trades…</div>
+            <div style={{ fontSize: "14px", color: "var(--text-secondary)" }}>Saving trades…</div>
           </div>
         )}
       </div>
@@ -276,7 +333,7 @@ export default function ImportPage() {
           background: "var(--bg-card)", border: "1px solid var(--border)",
           borderRadius: "12px",
         }}>
-          <div style={{ fontSize: "13px", color: "#a8a8c8" }}>
+          <div style={{ fontSize: "13px", color: "var(--text-secondary)" }}>
             <span style={{ color: "var(--accent-green)", fontWeight: "700" }}>{result.count} trades</span>
             {" "}ready to import — check the target account next
           </div>
@@ -287,7 +344,7 @@ export default function ImportPage() {
                 display: "flex", alignItems: "center", gap: "6px",
                 padding: "9px 16px", borderRadius: "8px",
                 border: "1px solid var(--border)", background: "transparent",
-                color: "#a8a8c8", fontSize: "13px", cursor: "pointer",
+                color: "var(--text-secondary)", fontSize: "13px", cursor: "pointer",
                 fontFamily: "'DM Sans', sans-serif",
               }}
             >
@@ -333,9 +390,9 @@ export default function ImportPage() {
             <div style={{ fontSize: "16px", fontWeight: "700", color: "var(--text-primary)", marginBottom: "6px" }}>
               Import into which account?
             </div>
-            <div style={{ fontSize: "13px", color: "#a8a8c8", lineHeight: "1.5", marginBottom: "18px" }}>
+            <div style={{ fontSize: "13px", color: "var(--text-secondary)", lineHeight: "1.5", marginBottom: "18px" }}>
               {result.count} trade{result.count !== 1 ? "s" : ""} from{" "}
-              <span style={{ color: "#f0f0ff", fontWeight: "600" }}>{fileName}</span>{" "}
+              <span style={{ color: "var(--text-primary)", fontWeight: "600" }}>{fileName}</span>{" "}
               will be saved under the account you pick here.
             </div>
 
@@ -347,7 +404,7 @@ export default function ImportPage() {
                 style={{
                   width: "100%", padding: "11px 14px", borderRadius: "8px",
                   border: "1px solid var(--accent-green)", background: "var(--bg-secondary)",
-                  color: "#f0f0ff", fontSize: "14px", fontWeight: "600",
+                  color: "var(--text-primary)", fontSize: "14px", fontWeight: "600",
                   fontFamily: "'DM Sans', sans-serif",
                   appearance: "none", WebkitAppearance: "none",
                   cursor: "pointer", paddingRight: "36px", outline: "none",
@@ -359,7 +416,7 @@ export default function ImportPage() {
                 <option value="">No account (leave unlinked)</option>
               </select>
               <ChevronDown
-                size={14} color="#a8a8c8"
+                size={14} color="var(--text-secondary)"
                 style={{
                   position: "absolute", right: "12px", top: "50%", transform: "translateY(-50%)",
                   pointerEvents: "none",
@@ -372,7 +429,7 @@ export default function ImportPage() {
                 display: "flex", gap: "8px", alignItems: "flex-start",
                 padding: "10px 12px", borderRadius: "8px", marginBottom: "14px",
                 background: "rgba(255,77,106,0.08)", border: "1px solid rgba(255,77,106,0.3)",
-                fontSize: "12px", color: "#ff4d6a", lineHeight: "1.5",
+                fontSize: "12px", color: "var(--loss)", lineHeight: "1.5",
               }}>
                 <AlertCircle size={14} style={{ flexShrink: 0, marginTop: "1px" }} />
                 <span>
@@ -399,7 +456,7 @@ export default function ImportPage() {
                 style={{
                   padding: "9px 16px", borderRadius: "8px",
                   border: "1px solid var(--border)", background: "transparent",
-                  color: "#a8a8c8", fontSize: "13px", cursor: "pointer",
+                  color: "var(--text-secondary)", fontSize: "13px", cursor: "pointer",
                   fontFamily: "'DM Sans', sans-serif",
                 }}
               >
@@ -425,7 +482,7 @@ export default function ImportPage() {
       {status === "success" && result && (
         <div style={{ marginTop: "24px" }}>
           <div style={{
-            fontSize: "12px", color: "#a8a8c8", marginBottom: "10px",
+            fontSize: "12px", color: "var(--text-secondary)", marginBottom: "10px",
             fontWeight: "600", textTransform: "uppercase", letterSpacing: "0.05em",
           }}>
             Preview — first {Math.min(result.trades.length, 10)} of {result.trades.length}
@@ -437,7 +494,7 @@ export default function ImportPage() {
                   {["Date", "Symbol", "Type", "Qty", "Entry", "Exit", "P&L", "Tags"].map((h) => (
                     <th key={h} style={{
                       padding: "10px 14px", textAlign: "left",
-                      color: "#a8a8c8", fontWeight: "600", whiteSpace: "nowrap",
+                      color: "var(--text-secondary)", fontWeight: "600", whiteSpace: "nowrap",
                     }}>
                       {h}
                     </th>
@@ -447,30 +504,30 @@ export default function ImportPage() {
               <tbody>
                 {result.trades.slice(0, 10).map((trade) => (
                   <tr key={trade.id} style={{ borderBottom: "1px solid var(--border)" }}>
-                    <td style={{ padding: "10px 14px", color: "#a8a8c8" }}>{trade.date}</td>
-                    <td style={{ padding: "10px 14px", color: "#f0f0ff", fontWeight: "700" }}>{trade.underlying}</td>
+                    <td style={{ padding: "10px 14px", color: "var(--text-secondary)" }}>{trade.date}</td>
+                    <td style={{ padding: "10px 14px", color: "var(--text-primary)", fontWeight: "700" }}>{trade.underlying}</td>
                     <td style={{ padding: "10px 14px" }}>
                       {trade.optionType ? (
                         <span style={{
                           padding: "2px 8px", borderRadius: "4px", fontSize: "10px", fontWeight: "700",
                           background: trade.optionType === "call" ? "rgba(77,159,255,0.15)" : "rgba(255,77,106,0.15)",
-                          color: trade.optionType === "call" ? "#4d9fff" : "#ff4d6a",
+                          color: trade.optionType === "call" ? "var(--accent-blue)" : "var(--loss)",
                         }}>
                           {trade.optionType.toUpperCase()} {trade.strike ? `$${trade.strike}` : ""}
                         </span>
                       ) : (
                         <span style={{
                           padding: "2px 8px", borderRadius: "4px", fontSize: "10px", fontWeight: "700",
-                          background: "rgba(255,255,255,0.06)", color: "#a8a8c8",
+                          background: "rgba(255,255,255,0.06)", color: "var(--text-secondary)",
                         }}>
                           {trade.type.toUpperCase()}
                         </span>
                       )}
                     </td>
-                    <td style={{ padding: "10px 14px", color: "#a8a8c8" }}>{trade.quantity}</td>
-                    <td style={{ padding: "10px 14px", color: "#a8a8c8" }}>${trade.entryPrice}</td>
-                    <td style={{ padding: "10px 14px", color: "#a8a8c8" }}>${trade.exitPrice}</td>
-                    <td style={{ padding: "10px 14px", fontWeight: "700", color: trade.pnl >= 0 ? "#00e57a" : "#ff4d6a" }}>
+                    <td style={{ padding: "10px 14px", color: "var(--text-secondary)" }}>{trade.quantity}</td>
+                    <td style={{ padding: "10px 14px", color: "var(--text-secondary)" }}>${trade.entryPrice}</td>
+                    <td style={{ padding: "10px 14px", color: "var(--text-secondary)" }}>${trade.exitPrice}</td>
+                    <td style={{ padding: "10px 14px", fontWeight: "700", color: trade.pnl >= 0 ? "var(--profit)" : "var(--loss)" }}>
                       {trade.pnl >= 0 ? "+" : ""}${trade.pnl.toFixed(2)}
                     </td>
                     <td style={{ padding: "10px 14px" }}>
@@ -478,7 +535,7 @@ export default function ImportPage() {
                         {(Array.isArray(trade.tags) ? trade.tags : []).slice(0, 2).map((tag: string) => (
                           <span key={tag} style={{
                             padding: "1px 6px", borderRadius: "4px", fontSize: "10px",
-                            background: "rgba(255,255,255,0.06)", color: "#a8a8c8",
+                            background: "rgba(255,255,255,0.06)", color: "var(--text-secondary)",
                           }}>
                             {tag}
                           </span>

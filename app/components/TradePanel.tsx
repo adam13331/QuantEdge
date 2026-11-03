@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { X, Clock, TrendingUp, Link, Save, Image, Trash2, ExternalLink, Library, ChevronDown, Check, AlertTriangle } from "lucide-react";
 import { Trade } from "../lib/types";
 import { useApp } from "../context/AppContext";
@@ -154,6 +154,14 @@ function formatHoldTime(minutes: number): string {
   return m === 0 ? `${h}h` : `${h}h ${m}m`;
 }
 
+// Fixed vocabulary on purpose: free text cannot be counted, and the whole
+// point of the review fields is that a tag repeated three times is visible as
+// a habit rather than buried in prose.
+const MISTAKES = [
+  "Chased entry", "Late entry", "Moved stop", "Cut winner early",
+  "Oversized", "Revenge trade", "No setup", "Ignored news",
+];
+
 export default function TradePanel({ trade, onClose, onSave }: Props) {
   const { setActivePage, setActiveTradeId, deleteTrade } = useApp();
 
@@ -165,11 +173,19 @@ export default function TradePanel({ trade, onClose, onSave }: Props) {
   const [mfe, setMfe]             = useState("");
   const [link, setLink]           = useState("");
   const [tags, setTags]           = useState<string[]>([]);
+  const [followedPlan, setFollowedPlan] = useState<"yes" | "no" | "">("");
+  const [confidence, setConfidence]     = useState("");
+  const [mistakes, setMistakes]         = useState<string[]>([]);
+  const [forwardTest, setForwardTest]   = useState(false);
+  const [setupVersion, setSetupVersion] = useState("");
   const [saving, setSaving]       = useState(false);
   const [saved, setSaved]         = useState(false);
   const [images, setImages]       = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  // Snapshot of the last saved values. Anything diverging from it is unsaved
+  // work, and the panel must not discard that on a stray click outside.
+  const savedSnapshot = useRef("");
 
   useEffect(() => {
     if (trade) {
@@ -181,14 +197,60 @@ export default function TradePanel({ trade, onClose, onSave }: Props) {
       setMfe(trade.mfe != null ? String(trade.mfe) : "");
       setLink(trade.link || "");
       setTags(Array.isArray(trade.tags) ? trade.tags as string[] : []);
+      setFollowedPlan(trade.followedPlan === true ? "yes" : trade.followedPlan === false ? "no" : "");
+      setConfidence(trade.confidence != null ? String(trade.confidence) : "");
+      setMistakes(Array.isArray(trade.mistakeTags) ? trade.mistakeTags as string[] : []);
+      setForwardTest(trade.isForwardTest === true);
+      setSetupVersion(trade.setupVersion != null ? String(trade.setupVersion) : "");
       setImages(
         typeof trade.imageUrls === "string"
           ? JSON.parse(trade.imageUrls || "[]")
           : trade.imageUrls || []
       );
       setConfirmDelete(false);
+      savedSnapshot.current = JSON.stringify({
+        entryTime: trade.entryTime || "",
+        exitTime: trade.exitTime || "",
+        rr: trade.rr || "",
+        plannedRisk: trade.plannedRisk != null ? String(trade.plannedRisk) : "",
+        mae: trade.mae != null ? String(trade.mae) : "",
+        mfe: trade.mfe != null ? String(trade.mfe) : "",
+        link: trade.link || "",
+        tags: Array.isArray(trade.tags) ? trade.tags : [],
+        followedPlan: trade.followedPlan ?? "",
+        confidence: trade.confidence ?? "",
+        mistakes: Array.isArray(trade.mistakeTags) ? trade.mistakeTags : [],
+        forwardTest: trade.isForwardTest === true,
+        setupVersion: trade.setupVersion ?? "",
+        images: typeof trade.imageUrls === "string"
+          ? JSON.parse(trade.imageUrls || "[]")
+          : trade.imageUrls || [],
+      });
     }
   }, [trade]);
+
+  const currentSnapshot = JSON.stringify({
+    entryTime, exitTime, rr, plannedRisk, mae, mfe, link, tags, images,
+    followedPlan, confidence, mistakes, forwardTest, setupVersion,
+  });
+  const dirty = Boolean(trade) && savedSnapshot.current !== "" &&
+    savedSnapshot.current !== currentSnapshot;
+
+  const requestClose = useCallback(() => {
+    if (dirty && !window.confirm("You have unsaved changes to this trade. Close and discard them?")) return;
+    onClose();
+  }, [dirty, onClose]);
+
+  useEffect(() => {
+    if (!trade) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      e.preventDefault();
+      requestClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [trade, requestClose]);
 
   if (!trade) return null;
 
@@ -223,6 +285,11 @@ export default function TradePanel({ trade, onClose, onSave }: Props) {
       mae: mae !== "" ? parseFloat(mae) : undefined,
       mfe: mfe !== "" ? parseFloat(mfe) : undefined,
       link, tags, imageUrls: images,
+      followedPlan: followedPlan === "" ? null : followedPlan === "yes",
+      confidence: confidence !== "" ? parseInt(confidence, 10) : undefined,
+      mistakeTags: mistakes,
+      isForwardTest: forwardTest,
+      setupVersion: setupVersion !== "" ? parseInt(setupVersion, 10) : undefined,
     };
     const res = await fetch("/api/trades", {
       method: "PATCH",
@@ -236,6 +303,11 @@ export default function TradePanel({ trade, onClose, onSave }: Props) {
         link,
         tags: JSON.stringify(tags),
         imageUrls: JSON.stringify(images),
+        followedPlan: followedPlan === "" ? null : followedPlan === "yes",
+        confidence: confidence !== "" ? parseInt(confidence, 10) : null,
+        mistakeTags: JSON.stringify(mistakes),
+        isForwardTest: forwardTest,
+        setupVersion: setupVersion !== "" ? parseInt(setupVersion, 10) : null,
       }),
     });
     if (res.ok) {
@@ -256,6 +328,7 @@ export default function TradePanel({ trade, onClose, onSave }: Props) {
   };
 
   const openFullJournal = () => {
+    if (dirty && !window.confirm("You have unsaved changes to this trade. Open the journal and discard them?")) return;
     setActiveTradeId(trade.id);
     setActivePage("journal-editor");
     onClose();
@@ -273,7 +346,7 @@ export default function TradePanel({ trade, onClose, onSave }: Props) {
 
   return (
     <>
-      <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 40 }} />
+      <div onClick={requestClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 40 }} />
 
       <div style={{
         position: "fixed", top: 0, right: 0,
@@ -303,7 +376,7 @@ export default function TradePanel({ trade, onClose, onSave }: Props) {
               <span style={{
                 padding: "2px 8px", borderRadius: "4px", fontSize: "11px", fontWeight: "600",
                 background: trade.status === "win" ? "rgba(0,229,122,0.12)" : "rgba(255,77,106,0.12)",
-                color: trade.status === "win" ? "#00e57a" : "#ff4d6a",
+                color: trade.status === "win" ? "var(--profit)" : "var(--loss)",
               }}>
                 {trade.status.toUpperCase()}
               </span>
@@ -312,14 +385,15 @@ export default function TradePanel({ trade, onClose, onSave }: Props) {
               <span style={{ fontSize: "13px", color: "var(--text-muted)" }}>{trade.date}</span>
               <span style={{
                 fontSize: "13px", fontWeight: "700",
-                color: isWin ? "#00e57a" : "#ff4d6a",
+                color: isWin ? "var(--profit)" : "var(--loss)",
               }}>
                 {isWin ? "+" : ""}${trade.pnl}
               </span>
             </div>
           </div>
           <button
-            onClick={onClose}
+            onClick={requestClose}
+            aria-label="Close trade panel"
             style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)", padding: "4px" }}
           >
             <X size={20} />
@@ -467,7 +541,7 @@ export default function TradePanel({ trade, onClose, onSave }: Props) {
                 <div style={{ fontSize: "10px", color: "var(--text-muted)", marginBottom: "4px" }}>Held for</div>
                 <div style={{
                   padding: "8px 10px", borderRadius: "6px", fontSize: "13px",
-                  background: "var(--bg-secondary)", border: "1px solid var(--border)", color: "#f0f0ff",
+                  background: "var(--bg-secondary)", border: "1px solid var(--border)", color: "var(--text-primary)",
                 }}>
                   {trade.durationMin != null ? formatHoldTime(trade.durationMin) : "—"}
                 </div>
@@ -477,7 +551,7 @@ export default function TradePanel({ trade, onClose, onSave }: Props) {
               <div style={{ fontSize: "10px", color: "var(--text-muted)", marginTop: "6px" }}>
                 This trade closed at{" "}
                 <span style={{
-                  color: (trade.pnl / trade.plannedRisk) >= 0 ? "#00e57a" : "#ff4d6a",
+                  color: (trade.pnl / trade.plannedRisk) >= 0 ? "var(--profit)" : "var(--loss)",
                   fontWeight: "700",
                 }}>
                   {(trade.pnl / trade.plannedRisk).toFixed(2)}R
@@ -515,6 +589,110 @@ export default function TradePanel({ trade, onClose, onSave }: Props) {
               TAGS
             </label>
             <TagSelector selected={tags} onChange={setTags} maxHeight={200} />
+          </div>
+
+          {/* Review. Recorded after the fact; this is what makes adherence and
+              mistake statistics possible at all. */}
+          <div style={{ marginBottom: "18px", paddingTop: "16px", borderTop: "1px solid var(--border)" }}>
+            <label style={{
+              fontSize: "11px", color: "var(--text-muted)", fontWeight: "600",
+              display: "block", marginBottom: "8px", letterSpacing: "0.4px",
+            }}>
+              REVIEW
+            </label>
+
+            <div style={{ fontSize: "10px", color: "var(--text-muted)", marginBottom: "5px" }}>Did this trade follow the plan?</div>
+            <div style={{ display: "flex", gap: "6px", marginBottom: "12px" }}>
+              {([["yes", "Followed"], ["no", "Broke it"]] as const).map(([value, label]) => {
+                const active = followedPlan === value;
+                return (
+                  <button
+                    key={value}
+                    onClick={() => setFollowedPlan(active ? "" : value)}
+                    aria-pressed={active}
+                    style={{
+                      flex: 1, padding: "7px 10px", borderRadius: "7px", cursor: "pointer",
+                      border: `1px solid ${active ? (value === "yes" ? "var(--profit)" : "var(--loss)") : "var(--border)"}`,
+                      background: active
+                        ? (value === "yes" ? "rgba(0,229,122,0.12)" : "rgba(255,77,106,0.12)")
+                        : "transparent",
+                      color: active ? (value === "yes" ? "var(--profit)" : "var(--loss)") : "var(--text-secondary)",
+                      fontSize: "12px", fontWeight: "600", fontFamily: "'DM Sans', sans-serif",
+                    }}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
+
+            <div style={{ fontSize: "10px", color: "var(--text-muted)", marginBottom: "5px" }}>What went wrong (optional, multi-select)</div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", marginBottom: "12px" }}>
+              {MISTAKES.map((tag) => {
+                const active = mistakes.includes(tag);
+                return (
+                  <button
+                    key={tag}
+                    onClick={() => setMistakes((prev) => active ? prev.filter((m) => m !== tag) : [...prev, tag])}
+                    aria-pressed={active}
+                    style={{
+                      padding: "4px 9px", borderRadius: "20px", cursor: "pointer",
+                      border: `1px solid ${active ? "rgba(255,77,106,0.5)" : "var(--border)"}`,
+                      background: active ? "rgba(255,77,106,0.12)" : "transparent",
+                      color: active ? "var(--loss)" : "var(--text-muted)",
+                      fontSize: "11px", fontFamily: "'DM Sans', sans-serif",
+                    }}
+                  >
+                    {tag}
+                  </button>
+                );
+              })}
+            </div>
+
+            <div style={{ display: "flex", gap: "8px", marginBottom: "12px" }}>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: "10px", color: "var(--text-muted)", marginBottom: "4px" }}>Confidence at entry</div>
+                <div style={{ display: "flex", gap: "4px" }}>
+                  {[1, 2, 3, 4, 5].map((n) => {
+                    const active = confidence === String(n);
+                    return (
+                      <button
+                        key={n}
+                        onClick={() => setConfidence(active ? "" : String(n))}
+                        aria-pressed={active}
+                        style={{
+                          flex: 1, padding: "6px 0", borderRadius: "6px", cursor: "pointer",
+                          border: `1px solid ${active ? "var(--accent-blue)" : "var(--border)"}`,
+                          background: active ? "rgba(77,159,255,0.12)" : "transparent",
+                          color: active ? "var(--accent-blue)" : "var(--text-muted)",
+                          fontSize: "11px", fontWeight: "600", fontFamily: "'DM Sans', sans-serif",
+                        }}
+                      >
+                        {n}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <div style={{ width: "110px" }}>
+                <div style={{ fontSize: "10px", color: "var(--text-muted)", marginBottom: "4px" }}>Setup version</div>
+                <input
+                  type="number" min={1} step={1} value={setupVersion}
+                  onChange={(e) => setSetupVersion(e.target.value)}
+                  placeholder="—"
+                  style={fieldInput}
+                />
+              </div>
+            </div>
+
+            <label style={{ display: "flex", alignItems: "center", gap: "8px", cursor: "pointer", fontSize: "12px", color: "var(--text-secondary)" }}>
+              <input
+                type="checkbox"
+                checked={forwardTest}
+                onChange={(e) => setForwardTest(e.target.checked)}
+              />
+              Taken after a rule change (forward test)
+            </label>
           </div>
 
           {/* Chart link */}
@@ -601,9 +779,9 @@ export default function TradePanel({ trade, onClose, onSave }: Props) {
             onClick={handleDelete}
             style={{
               width: "100%", padding: "10px", borderRadius: "8px",
-              border: `1px solid ${confirmDelete ? "#ff4d6a" : "var(--border)"}`,
+              border: `1px solid ${confirmDelete ? "var(--loss)" : "var(--border)"}`,
               background: confirmDelete ? "rgba(255,77,106,0.1)" : "transparent",
-              color: confirmDelete ? "#ff4d6a" : "var(--text-muted)",
+              color: confirmDelete ? "var(--loss)" : "var(--text-muted)",
               fontSize: "13px", fontWeight: confirmDelete ? "700" : "400",
               cursor: "pointer", fontFamily: "'DM Sans', sans-serif",
               display: "flex", alignItems: "center", justifyContent: "center", gap: "7px",
@@ -611,8 +789,8 @@ export default function TradePanel({ trade, onClose, onSave }: Props) {
             }}
             onMouseEnter={(e) => {
               if (!confirmDelete) {
-                e.currentTarget.style.borderColor = "#ff4d6a";
-                e.currentTarget.style.color = "#ff4d6a";
+                e.currentTarget.style.borderColor = "var(--loss)";
+                e.currentTarget.style.color = "var(--loss)";
               }
             }}
             onMouseLeave={(e) => {

@@ -13,13 +13,20 @@ import Placeholder from "@tiptap/extension-placeholder";
 import FontFamily from "@tiptap/extension-font-family";
 import TextAlign from "@tiptap/extension-text-align";
 import { useApp } from "../context/AppContext";
+import { normalizeDate } from "../lib/analytics";
+import { formatTime } from "../lib/time";
+import { useSettings } from "../hooks/useSettings";
 import { Trade, JournalTemplate } from "../lib/types";
 import JournalToolbar from "../components/JournalToolbar";
 import TagSelector from "../components/TagSelector";
 import {
   ArrowLeft, FileText, Check, Loader, LayoutTemplate, X, Trash2,
-  Library, ChevronDown,
+  Library, ChevronDown, ChevronLeft, ChevronRight,
 } from "lucide-react";
+
+// The day the editor came from, so returning to the calendar reopens the same
+// drawer instead of dropping the user at the top of the month.
+const CALENDAR_RETURN_DAY = "quantedge_calendar_return_day";
 
 const ExtendedTextStyle = TextStyle.extend({
   addAttributes() {
@@ -243,7 +250,7 @@ function TemplatePicker({
                     onClick={() => onDelete(t.id)}
                     style={{
                       padding: 6, borderRadius: 6, border: "none",
-                      background: "rgba(255,77,106,0.1)", cursor: "pointer", color: "#ff4d6a",
+                      background: "rgba(255,77,106,0.1)", cursor: "pointer", color: "var(--loss)",
                       display: "flex", alignItems: "center",
                     }}
                   >
@@ -398,7 +405,8 @@ function SaveTemplateModal({ onSave, onClose }: {
 type SaveState = "idle" | "saving" | "saved";
 
 export default function JournalEditorPage() {
-  const { trades, activeTradeId, setActivePage, updateTradeInMemory } = useApp();
+  const { trades, activeTradeId, setActiveTradeId, setActivePage, updateTradeInMemory } = useApp();
+  const { settings } = useSettings();
   const trade: Trade | null = trades.find((t) => t.id === activeTradeId) ?? null;
 
   const [currentTags, setCurrentTags]           = useState<string[]>([]);
@@ -455,10 +463,13 @@ export default function JournalEditorPage() {
   useEffect(() => {
     if (!trade || !editor || editor.isDestroyed) return;
     const parsed = parseContent(trade.journalEntry);
+    // emitUpdate:false — loading a trade must not look like an edit, or an
+    // empty trade is autosaved as an empty doc just by opening the editor.
     editor.commands.setContent(
       typeof parsed === "object"
         ? parsed
-        : parsed ? buildTipTapDoc(parsed as string) : ""
+        : parsed ? buildTipTapDoc(parsed as string) : "",
+      { emitUpdate: false }
     );
     setCurrentTags(Array.isArray(trade.tags) ? trade.tags as string[] : []);
     checkAutoApplyTemplate(trade);
@@ -564,6 +575,38 @@ export default function JournalEditorPage() {
     setTemplates((prev) => prev.filter((t) => t.id !== id));
   };
 
+  // Flush the debounced autosave before changing trades or leaving, otherwise
+  // the last keystrokes can be overwritten by the next editor mount.
+  const flushJournal = useCallback(() => {
+    if (!trade || !editor) return;
+    if (saveTimer.current) {
+      clearTimeout(saveTimer.current);
+      saveTimer.current = null;
+    }
+    // Opening and leaving an unjournalled trade must not create an empty
+    // document; only an actual edit (or clearing an existing entry) is saved.
+    if (!editor.getText().trim() && !(trade.journalEntry || "").trim()) return;
+    const journalEntry = JSON.stringify(editor.getJSON());
+    fetch("/api/trades", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: trade.id, journalEntry }),
+    })
+      .then(() => updateTradeInMemory(trade.id, { journalEntry }))
+      .catch(() => {});
+  }, [trade, editor, updateTradeInMemory]);
+
+  const backToCalendar = () => {
+    if (trade) sessionStorage.setItem(CALENDAR_RETURN_DAY, normalizeDate(trade.date));
+    flushJournal();
+    setActivePage("calendar");
+  };
+
+  const navigateToTrade = (id: string) => {
+    flushJournal();
+    setActiveTradeId(id);
+  };
+
   if (!trade) {
     return (
       <div style={{
@@ -572,7 +615,7 @@ export default function JournalEditorPage() {
       }}>
         <div style={{ fontSize: 14, color: "var(--text-muted)" }}>No trade selected.</div>
         <button
-          onClick={() => setActivePage("journal")}
+          onClick={backToCalendar}
           style={{
             padding: "10px 20px", borderRadius: 8, border: "none",
             background: "var(--accent-green)", color: "#000",
@@ -580,7 +623,7 @@ export default function JournalEditorPage() {
             fontFamily: "'DM Sans', sans-serif",
           }}
         >
-          Back to Journal
+          Back to Calendar
         </button>
       </div>
     );
@@ -588,12 +631,22 @@ export default function JournalEditorPage() {
 
   const isWin = trade.pnl >= 0;
 
+  // Date order, then id so equal days are stable between renders. Navigation
+  // is chronological even though the calendar supplied the entry point.
+  const orderedTrades = [...trades].sort((a, b) =>
+    normalizeDate(a.date).localeCompare(normalizeDate(b.date)) || a.id.localeCompare(b.id)
+  );
+  const tradeIndex = orderedTrades.findIndex((t) => t.id === trade.id);
+  const previousTrade = tradeIndex > 0 ? orderedTrades[tradeIndex - 1] : null;
+  const nextTrade = tradeIndex >= 0 && tradeIndex < orderedTrades.length - 1
+    ? orderedTrades[tradeIndex + 1] : null;
+
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%", gap: 0 }}>
       {/* Top bar */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20, flexShrink: 0 }}>
         <button
-          onClick={() => setActivePage("journal")}
+          onClick={backToCalendar}
           style={{
             display: "flex", alignItems: "center", gap: 8,
             background: "none", border: "none", cursor: "pointer",
@@ -604,10 +657,48 @@ export default function JournalEditorPage() {
           onMouseLeave={(e) => e.currentTarget.style.color = "var(--text-muted)"}
         >
           <ArrowLeft size={15} />
-          Back to Journal
+          Back to Calendar
         </button>
 
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
+            <button
+              onClick={() => previousTrade && navigateToTrade(previousTrade.id)}
+              disabled={!previousTrade}
+              aria-label="Previous trade"
+              title="Previous trade"
+              style={{
+                display: "flex", alignItems: "center", justifyContent: "center",
+                width: "28px", height: "28px", borderRadius: "7px",
+                border: "1px solid var(--border)", background: "transparent",
+                color: previousTrade ? "var(--text-secondary)" : "var(--text-muted)",
+                cursor: previousTrade ? "pointer" : "not-allowed",
+                opacity: previousTrade ? 1 : 0.4,
+              }}
+            >
+              <ChevronLeft size={14} />
+            </button>
+            <span style={{ fontSize: 11, color: "var(--text-muted)", minWidth: 46, textAlign: "center" }}>
+              {tradeIndex >= 0 ? tradeIndex + 1 : 1} / {orderedTrades.length}
+            </span>
+            <button
+              onClick={() => nextTrade && navigateToTrade(nextTrade.id)}
+              disabled={!nextTrade}
+              aria-label="Next trade"
+              title="Next trade"
+              style={{
+                display: "flex", alignItems: "center", justifyContent: "center",
+                width: "28px", height: "28px", borderRadius: "7px",
+                border: "1px solid var(--border)", background: "transparent",
+                color: nextTrade ? "var(--text-secondary)" : "var(--text-muted)",
+                cursor: nextTrade ? "pointer" : "not-allowed",
+                opacity: nextTrade ? 1 : 0.4,
+              }}
+            >
+              <ChevronRight size={14} />
+            </button>
+          </div>
+
           <div style={{
             display: "flex", alignItems: "center", gap: 6, fontSize: 12, minWidth: 70,
             color: saveState === "saved" ? "var(--accent-green)" : "var(--text-muted)",
@@ -665,7 +756,7 @@ export default function JournalEditorPage() {
               <span style={{
                 padding: "3px 10px", borderRadius: 6, fontSize: 13, fontWeight: 700,
                 background: trade.optionType === "call" ? "rgba(77,159,255,0.12)" : "rgba(255,77,106,0.12)",
-                color: trade.optionType === "call" ? "#4d9fff" : "#ff4d6a",
+                color: trade.optionType === "call" ? "var(--accent-blue)" : "var(--loss)",
               }}>
                 {trade.optionType.toUpperCase()}
               </span>
@@ -673,12 +764,12 @@ export default function JournalEditorPage() {
             <span style={{
               padding: "3px 10px", borderRadius: 6, fontSize: 13, fontWeight: 700,
               background: isWin ? "var(--accent-green-dim)" : "rgba(255,77,106,0.12)",
-              color: isWin ? "var(--accent-green)" : "#ff4d6a",
+              color: isWin ? "var(--accent-green)" : "var(--loss)",
             }}>
               {trade.status.toUpperCase()}
             </span>
           </div>
-          <div style={{ fontSize: 26, fontWeight: 800, color: isWin ? "var(--accent-green)" : "#ff4d6a" }}>
+          <div style={{ fontSize: 26, fontWeight: 800, color: isWin ? "var(--accent-green)" : "var(--loss)" }}>
             {isWin ? "+" : ""}${trade.pnl.toFixed(2)}
           </div>
         </div>
@@ -692,8 +783,8 @@ export default function JournalEditorPage() {
           {trade.strike    && <StatPill label="STRIKE"     value={`$${trade.strike}`} />}
           {trade.expiry    && <StatPill label="EXPIRY"     value={trade.expiry} />}
           {trade.rr        && <StatPill label="R:R"        value={trade.rr} />}
-          {trade.entryTime && <StatPill label="ENTRY TIME" value={trade.entryTime} color="var(--text-secondary)" />}
-          {trade.exitTime  && <StatPill label="EXIT TIME"  value={trade.exitTime}  color="var(--text-secondary)" />}
+          {trade.entryTime && <StatPill label="ENTRY TIME" value={formatTime(trade.entryTime, settings.timeFormat)} color="var(--text-secondary)" />}
+          {trade.exitTime  && <StatPill label="EXIT TIME"  value={formatTime(trade.exitTime, settings.timeFormat)}  color="var(--text-secondary)" />}
         </div>
 
         {/* Tags + Playbook — side by side */}

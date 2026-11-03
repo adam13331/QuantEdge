@@ -512,11 +512,14 @@ function LivePreview({ stats, options, challenge }: { stats: ReportStats; option
 
 // Main Export Page
 export default function ExportPage() {
-  const { trades, activeAccount } = useApp();
+  const { trades, activeAccount, dateRange } = useApp();
   const { settings } = useSettings();
 
+  // Start from the period the Dashboard is scoped to. The page mounts on
+  // navigation, after AppContext has restored the stored range, so this is the
+  // range the trader was just looking at rather than an empty report.
   const [options, setOptions] = useState<ReportOptions>({
-    dateFrom: "", dateTo: "",
+    dateFrom: dateRange.from, dateTo: dateRange.to,
     tickers: [], tags: [],
     status: "all",
     includeCover: true,
@@ -614,7 +617,27 @@ export default function ExportPage() {
         {/* ── Filters ── */}
         <SectionHeading icon={Filter} label="Filters" />
 
-        {/* Date range */}
+        {/* Date range. Seeded from the dashboard, and re-appliable here so a
+            report can follow the period without retyping both dates. */}
+        {(dateRange.from || dateRange.to) &&
+         (options.dateFrom !== dateRange.from || options.dateTo !== dateRange.to) && (
+          <button
+            onClick={() => setOptions((prev) => ({ ...prev, dateFrom: dateRange.from, dateTo: dateRange.to }))}
+            style={{
+              display: "flex", alignItems: "center", gap: "6px", marginBottom: "10px",
+              padding: "6px 10px", borderRadius: "7px", cursor: "pointer",
+              border: "1px solid var(--border)", background: "var(--bg-card)",
+              color: "var(--text-secondary)", fontSize: "11px",
+              fontFamily: "'DM Sans', sans-serif",
+            }}
+          >
+            Use dashboard period
+            <span style={{ color: "var(--text-muted)" }}>
+              {dateRange.from || "start"} → {dateRange.to || "today"}
+            </span>
+          </button>
+        )}
+
         <div style={{ display: "flex", gap: "8px", marginBottom: "12px" }}>
           <div style={{ flex: 1 }}>
             <label style={{ fontSize: "11px", color: "var(--text-muted)", display: "block", marginBottom: "4px" }}>
@@ -765,6 +788,7 @@ export default function ExportPage() {
           account={activeAccount}
           challenge={challenge}
           weekStart={settings.weekStart}
+          timeFormat={settings.timeFormat}
           options={options}
           filename={filename}
         />

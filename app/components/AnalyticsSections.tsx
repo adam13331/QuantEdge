@@ -14,11 +14,13 @@ import {
 import {
   stdDev, normalizeDate, getDailyPnl, sharpeRatio, sortinoRatio, expectancy,
   profitFactor as profitFactorOf,
-  calmarRatio, drawdownStats, rMultiples, rHistogram, rollingWinRate,
+  calmarRatio, drawdownStats, rMultiples, rollingWinRate,
   byDayOfWeek, byHourOfDay, streaks,
   byDuration, byReEntryGap, byDirection, costProfile, recoveryFactor,
   rRiskProfile, stopQuality, byExitReason, byMagic, legStats, externalCashFlow,
   revengeSequences,
+  cohortStats, compareCohorts, riskUnit, adherenceStats, mistakeTagStats,
+  setupVersionStats, mfeCaptureBuckets, stopVsAtr, outcomeByIntendedRR,
 } from "../lib/analytics";
 import { buildInsights, type SectionId } from "../lib/insights";
 import { SectionCard, MetricCard, InsightPanel } from "./AnalyticsCards";
@@ -30,10 +32,10 @@ function tooltipStyleUnused() {}
 
 
 const tooltipStyle = {
-  background: "#16161f", border: "1px solid #2a2a3a",
-  borderRadius: "8px", color: "#f0f0ff", fontSize: "12px",
+  background: "var(--tooltip-bg)", border: "1px solid var(--chart-grid)",
+  borderRadius: "8px", color: "var(--text-primary)", fontSize: "12px",
 };
-const axisStyle = { fontSize: 12, fill: "#a8a8c8" };
+const axisStyle = { fontSize: 12, fill: "var(--text-secondary)" };
 
 function Tab({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
   return (
@@ -52,7 +54,7 @@ function Tab({ label, active, onClick }: { label: string; active: boolean; onCli
   );
 }
 
-type TabId = "overview" | "risk" | "time" | "heatmap" | "rmultiples" | "execution" | "behavior" | "process";
+type TabId = "overview" | "risk" | "time" | "heatmap" | "execution" | "behavior" | "process" | "compare";
 
 // The period-scoped trade slice and every derived figure, as one hook. It is
 // exported so the Dashboard can render the headline metric cards and the tabbed
@@ -301,6 +303,13 @@ export function useAnalyticsSummary() {
     const legData       = legStats(trades);
     const cashFlow      = externalCashFlow(trades);
 
+    // Research layer. These read the review fields and the market context the
+    // exporter now records, so a book with none of it still renders — just
+    // with empty adherence panels instead of fabricated ones.
+    const adherence     = adherenceStats(trades);
+    const mistakes      = mistakeTagStats(trades);
+    const versions      = setupVersionStats(trades);
+
     return {
       wins, losses, totalPnl, winRate, avgWin, avgLoss, profitFactor,
       equityCurve, equityDomain, initBal, daily, sharpe, sortino, calmar, exp,
@@ -313,6 +322,7 @@ export function useAnalyticsSummary() {
       overtradingDays, revengeCount: revenge.count, revengePnl: revenge.revengePnl, revengeOtherPnl: revenge.otherPnl, disciplineScore, meanDailyTrades, maxDayTrades, sdDailyTrades,
       durationData, gapData, directionData, costs, recFactor, rRisk, stop,
       exitReasons, magicData, legData, cashFlow,
+      adherence, mistakes, versions,
     };
   }, [trades, allTrades, activeAccount, settings.weekStart]);
 
@@ -337,7 +347,7 @@ export function OverviewMetrics({ stats }: {
   const pfLabel = stats.profitFactor >= 99 ? "∞" : stats.profitFactor.toFixed(2);
 
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "16px", marginBottom: "32px" }}>
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: "16px", marginBottom: "32px" }}>
       <MetricCard
         label="Net P&L"
         value={`${stats.totalPnl >= 0 ? "+" : ""}$${stats.totalPnl.toFixed(2)}`}
@@ -423,7 +433,7 @@ function HoldVsProfitScatter({ trades }: { trades: Trade[] }) {
     <SectionCard title="Hold Time vs P&L" subtitle="Each dot is one trade. Longer holds should justify the time — if not, you are cut early or the runner is not there.">
       <ResponsiveContainer width="100%" height={300}>
         <ScatterChart margin={{ top: 8, right: 16, bottom: 24, left: 8 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#2a2a3a" />
+          <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" />
           <XAxis
             type="number"
             dataKey="x"
@@ -432,7 +442,7 @@ function HoldVsProfitScatter({ trades }: { trades: Trade[] }) {
             tickLine={false}
             tickCount={7}
             tickFormatter={(v: number) => formatHoldMinutes(v)}
-            label={{ value: "Hold time", position: "insideBottom", offset: -12, fill: "#a8a8c8", fontSize: 12 }}
+            label={{ value: "Hold time", position: "insideBottom", offset: -12, fill: "var(--text-secondary)", fontSize: 12 }}
           />
           <YAxis
             type="number"
@@ -449,9 +459,9 @@ function HoldVsProfitScatter({ trades }: { trades: Trade[] }) {
             formatter={(v) => [`$${Number(v).toFixed(2)}`, "P&L"]}
             labelFormatter={(v) => `Hold ${formatHoldMinutes(Number(v))}`}
           />
-          <ReferenceLine y={0} stroke="#a8a8c8" strokeDasharray="4 4" strokeWidth={1} />
-          <Scatter name="Winning" fill="#00e57a" data={points.filter((p) => p.win)} />
-          <Scatter name="Losing" fill="#ff4d6a" data={points.filter((p) => !p.win)} />
+          <ReferenceLine y={0} stroke="var(--text-secondary)" strokeDasharray="4 4" strokeWidth={1} />
+          <Scatter name="Winning" fill="var(--profit)" data={points.filter((p) => p.win)} />
+          <Scatter name="Losing" fill="var(--loss)" data={points.filter((p) => !p.win)} />
         </ScatterChart>
       </ResponsiveContainer>
     </SectionCard>
@@ -461,7 +471,7 @@ function HoldVsProfitScatter({ trades }: { trades: Trade[] }) {
 // The Analytics body. It renders below the Dashboard cards rather than on its
 // own page, so it deliberately carries no page header of its own.
 export default function AnalyticsSections() {
-  const { trades, allTrades, stats, hasRange, dateFrom, dateTo, clearDateRange } = useAnalyticsSummary();
+  const { trades, allTrades, stats, hasRange, dateFrom, dateTo, symbolFilter, clearDateRange } = useAnalyticsSummary();
   const { settings } = useSettings();
   const [activeTab, setActiveTab] = useState<TabId>("overview");
   const [riskPct, setRiskPct]     = useState(2);
@@ -523,10 +533,6 @@ export default function AnalyticsSections() {
       symbolData: stats.symbolData,
       tagData: stats.tagData,
 
-      avgR: stats.avgR,
-      rUnit: stats.rUnit,
-      rHistogram: stats.rHistogram,
-
       hasMaeMfe: stats.hasMaeMfe,
       maeFdCount: stats.maeFdCount,
       avgMae: stats.avgMae,
@@ -555,6 +561,10 @@ export default function AnalyticsSections() {
       magicData: stats.magicData,
       legData: stats.legData,
       cashFlow: stats.cashFlow,
+
+      adherence: stats.adherence,
+      mistakes: stats.mistakes,
+      versions: stats.versions,
     });
   }, [stats, trades, rorData, riskPct]);
 
@@ -605,30 +615,32 @@ export default function AnalyticsSections() {
   if (!stats) return null;
 
   const rorColor = rorData
-    ? rorData.ror < 5 ? "#00e57a" : rorData.ror < 20 ? "#fbbf24" : "#ff4d6a"
-    : "#a8a8c8";
+    ? rorData.ror < 5 ? "var(--profit)" : rorData.ror < 20 ? "var(--warning)" : "var(--loss)"
+    : "var(--text-secondary)";
 
   return (
     <div>
-      {/* Scope line: which slice of the journal every figure below describes. */}
-      <p style={{ color: "var(--text-muted)", fontSize: "12px", marginBottom: "4px" }}>
-        Process, risk and behaviour across every tab
-      </p>
+      {/* Scope line: which slice of the journal every tab below describes. */}
       <p style={{ color: "var(--text-muted)", fontSize: "12px", marginBottom: "16px" }}>
-        {trades.length} trade{trades.length !== 1 ? "s" : ""} · {stats.tradingDays} trading days
-        {hasRange && allTrades.length !== trades.length && ` (filtered from ${allTrades.length})`}
+        Showing <strong style={{ color: "var(--text-secondary)" }}>{trades.length}</strong>
+        {allTrades.length !== trades.length ? ` of ${allTrades.length}` : ""} trade
+        {trades.length !== 1 ? "s" : ""} · {stats.tradingDays} trading days
+        {symbolFilter ? ` · ${symbolFilter}` : ""}
+        {hasRange && (dateFrom || dateTo) ? ` · ${dateFrom || "start"} to ${dateTo || "today"}` : ""}
       </p>
 
       {/* Tabs */}
-      <div style={{ display: "flex", gap: "4px", marginBottom: "24px", background: "var(--bg-card)", borderRadius: "10px", padding: "4px", border: "1px solid var(--border)", width: "fit-content", flexWrap: "wrap" }}>
+      {/* Sticky so switching tabs does not require scrolling back to the top
+          of a long analytics body. */}
+      <div style={{ position: "sticky", top: 0, zIndex: 20, display: "flex", gap: "4px", marginBottom: "24px", background: "var(--bg-card)", borderRadius: "10px", padding: "4px", border: "1px solid var(--border)", width: "fit-content", flexWrap: "wrap" }}>
         <Tab label="Overview"    active={activeTab === "overview"}    onClick={() => setActiveTab("overview")} />
         <Tab label="Risk"        active={activeTab === "risk"}        onClick={() => setActiveTab("risk")} />
         <Tab label="Time"        active={activeTab === "time"}        onClick={() => setActiveTab("time")} />
         <Tab label="Heatmap"     active={activeTab === "heatmap"}     onClick={() => setActiveTab("heatmap")} />
-        <Tab label="R-Multiples" active={activeTab === "rmultiples"}  onClick={() => setActiveTab("rmultiples")} />
         <Tab label="Execution"   active={activeTab === "execution"}   onClick={() => setActiveTab("execution")} />
         <Tab label="Behavior"    active={activeTab === "behavior"}    onClick={() => setActiveTab("behavior")} />
         <Tab label="Process"     active={activeTab === "process"}     onClick={() => setActiveTab("process")} />
+        <Tab label="Compare"     active={activeTab === "compare"}     onClick={() => setActiveTab("compare")} />
       </div>
 
       {/* Overview */}
@@ -640,11 +652,11 @@ export default function AnalyticsSections() {
               <AreaChart data={stats.equityCurve}>
                 <defs>
                   <linearGradient id="equityGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#00e57a" stopOpacity={0.15} />
-                    <stop offset="95%" stopColor="#00e57a" stopOpacity={0} />
+                    <stop offset="5%" stopColor="var(--profit)" stopOpacity={0.15} />
+                    <stop offset="95%" stopColor="var(--profit)" stopOpacity={0} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#2a2a3a" vertical={false} />
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" vertical={false} />
                 <XAxis dataKey="date" tick={axisStyle} axisLine={false} tickLine={false} />
                 <YAxis
                   tick={axisStyle}
@@ -656,27 +668,27 @@ export default function AnalyticsSections() {
                 />
                 <ReferenceLine
                   y={stats.initBal}
-                  stroke="#a8a8c8"
+                  stroke="var(--text-secondary)"
                   strokeDasharray="4 4"
                   strokeWidth={1}
-                  label={{ value: "Start", position: "insideTopLeft", fill: "#a8a8c8", fontSize: 12 }}
+                  label={{ value: "Start", position: "insideTopLeft", fill: "var(--text-secondary)", fontSize: 12 }}
                 />
                 <Tooltip contentStyle={tooltipStyle} formatter={((v: any) => [`$${v.toFixed(2)}`, "Equity"]) as any} />
-                <Area type="monotone" dataKey="equity" stroke="#00e57a" strokeWidth={2} fill="url(#equityGrad)" dot={false} activeDot={{ r: 4, fill: "#00e57a" }} />
+                <Area type="monotone" dataKey="equity" stroke="var(--profit)" strokeWidth={2} fill="url(#equityGrad)" dot={false} activeDot={{ r: 4, fill: "var(--profit)" }} />
               </AreaChart>
             </ResponsiveContainer>
           </SectionCard>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: "20px" }}>
             <SectionCard title="P&L by Symbol">
               <ResponsiveContainer width="100%" height={200}>
                 <BarChart data={stats.symbolData.slice(0, 10)}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#2a2a3a" vertical={false} />
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" vertical={false} />
                   <XAxis dataKey="symbol" tick={axisStyle} axisLine={false} tickLine={false} />
                   <YAxis tick={axisStyle} axisLine={false} tickLine={false} />
                   <Tooltip contentStyle={tooltipStyle} formatter={((v: any) => [`$${v.toFixed(2)}`, "P&L"]) as any} />
                   <Bar dataKey="pnl" radius={[4, 4, 0, 0]}>
-                    {stats.symbolData.map((e) => <Cell key={e.symbol} fill={e.pnl >= 0 ? "#00e57a" : "#ff4d6a"} />)}
+                    {stats.symbolData.map((e) => <Cell key={e.symbol} fill={e.pnl >= 0 ? "var(--profit)" : "var(--loss)"} />)}
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>
@@ -686,12 +698,12 @@ export default function AnalyticsSections() {
               <SectionCard title="P&L by Tag">
                 <ResponsiveContainer width="100%" height={200}>
                   <BarChart data={stats.tagData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#2a2a3a" vertical={false} />
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" vertical={false} />
                     <XAxis dataKey="tag" tick={axisStyle} axisLine={false} tickLine={false} />
                     <YAxis tick={axisStyle} axisLine={false} tickLine={false} />
                     <Tooltip contentStyle={tooltipStyle} formatter={((v: any) => [`$${v.toFixed(2)}`, "P&L"]) as any} />
                     <Bar dataKey="pnl" radius={[4, 4, 0, 0]}>
-                      {stats.tagData.map((e) => <Cell key={e.tag} fill={e.pnl >= 0 ? "#00e57a" : "#ff4d6a"} />)}
+                      {stats.tagData.map((e) => <Cell key={e.tag} fill={e.pnl >= 0 ? "var(--profit)" : "var(--loss)"} />)}
                     </Bar>
                   </BarChart>
                 </ResponsiveContainer>
@@ -703,22 +715,22 @@ export default function AnalyticsSections() {
                     <PieChart>
                       <Pie data={[{ name: "Wins", value: stats.wins.length }, { name: "Losses", value: stats.losses.length }]}
                         cx="50%" cy="50%" innerRadius={50} outerRadius={80} dataKey="value">
-                        <Cell fill="#00e57a" />
-                        <Cell fill="#ff4d6a" />
+                        <Cell fill="var(--profit)" />
+                        <Cell fill="var(--loss)" />
                       </Pie>
                       <Tooltip contentStyle={tooltipStyle} />
                     </PieChart>
                   </ResponsiveContainer>
                   <div style={{ flex: 1 }}>
                     <div style={{ marginBottom: "16px" }}>
-                      <div style={{ fontSize: "11px", color: "#a8a8c8", marginBottom: "4px" }}>Wins</div>
-                      <div style={{ fontSize: "26px", fontWeight: "800", color: "#00e57a" }}>{stats.wins.length}</div>
-                      <div style={{ fontSize: "11px", color: "#a8a8c8" }}>Avg +${stats.avgWin.toFixed(2)}</div>
+                      <div style={{ fontSize: "11px", color: "var(--text-secondary)", marginBottom: "4px" }}>Wins</div>
+                      <div style={{ fontSize: "26px", fontWeight: "800", color: "var(--profit)" }}>{stats.wins.length}</div>
+                      <div style={{ fontSize: "11px", color: "var(--text-secondary)" }}>Avg +${stats.avgWin.toFixed(2)}</div>
                     </div>
                     <div>
-                      <div style={{ fontSize: "11px", color: "#a8a8c8", marginBottom: "4px" }}>Losses</div>
-                      <div style={{ fontSize: "26px", fontWeight: "800", color: "#ff4d6a" }}>{stats.losses.length}</div>
-                      <div style={{ fontSize: "11px", color: "#a8a8c8" }}>Avg -${stats.avgLoss.toFixed(2)}</div>
+                      <div style={{ fontSize: "11px", color: "var(--text-secondary)", marginBottom: "4px" }}>Losses</div>
+                      <div style={{ fontSize: "26px", fontWeight: "800", color: "var(--loss)" }}>{stats.losses.length}</div>
+                      <div style={{ fontSize: "11px", color: "var(--text-secondary)" }}>Avg -${stats.avgLoss.toFixed(2)}</div>
                     </div>
                   </div>
                 </div>
@@ -728,7 +740,7 @@ export default function AnalyticsSections() {
 
           <HoldVsProfitScatter trades={trades} />
 
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "12px", marginTop: "20px" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: "12px", marginTop: "20px" }}>
             <MetricCard label="Max Win Streak"  value={`${stats.streak.maxWinStreak}`} positive neutral={stats.streak.maxWinStreak === 0} icon={TrendingUp} sub="Consecutive wins" />
             <MetricCard label="Max Loss Streak" value={`${stats.streak.maxLossStreak}`} positive={stats.streak.maxLossStreak <= 2} icon={TrendingDown} sub="Consecutive losses" />
             <MetricCard
@@ -748,14 +760,14 @@ export default function AnalyticsSections() {
       {activeTab === "risk" && (
         <>
           {sectionInsights("risk")}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "12px", marginBottom: "20px" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "12px", marginBottom: "20px" }}>
             <MetricCard label="Sharpe Ratio"  value={stats.sharpe.toFixed(2)}  positive={stats.sharpe > 1}  neutral={stats.sharpe === 0}  icon={Activity}
               sub={stats.sharpe > 2 ? "Excellent" : stats.sharpe > 1 ? "Good" : stats.sharpe > 0 ? "Below avg" : "N/A (<5 days)"} />
             <MetricCard label="Sortino Ratio" value={stats.sortino.toFixed(2)} positive={stats.sortino > 1} neutral={stats.sortino === 0} icon={TrendingUp}
               sub={stats.sortino > 2 ? "Strong downside protection" : stats.sortino > 1 ? "Acceptable" : "Review loss management"} />
             <MetricCard label="Calmar Ratio"  value={stats.calmar === 0 ? "N/A" : stats.calmar.toFixed(2)} positive={stats.calmar > 1} neutral={stats.calmar === 0} icon={Zap} sub="Annualized return / Max DD" />
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "12px", marginBottom: "20px" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "12px", marginBottom: "20px" }}>
             <MetricCard label="Max Drawdown"       value={`$${Math.abs(stats.maxDd).toFixed(2)}`} positive={false} neutral={stats.maxDd === 0} icon={TrendingDown}
               sub={stats.maxDdPct !== 0 ? `${stats.maxDdPct.toFixed(2)}% from peak` : "No drawdown"} />
             <MetricCard label="Max DD Duration"    value={stats.longestDdDays === 0 ? "0 days" : `${stats.longestDdDays}d`} positive={stats.longestDdDays < 7} neutral={stats.longestDdDays === 0} icon={Calendar} sub="Longest peak → recovery" />
@@ -765,7 +777,7 @@ export default function AnalyticsSections() {
 
           {stats.riskCoverage > 0 ? (
             <>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "12px", marginBottom: "20px" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: "12px", marginBottom: "20px" }}>
                 <MetricCard label="Planned Risk"   value={`$${stats.avgRisk.toFixed(2)}`} neutral={false} positive={stats.riskPctAvg <= 2} icon={Shield}
                   sub={`${stats.riskPctAvg.toFixed(2)}% of balance per trade`} />
                 <MetricCard label="Risk Range"     value={`$${stats.minRisk.toFixed(0)} – $${stats.maxRisk.toFixed(0)}`} neutral icon={SlidersHorizontal}
@@ -781,15 +793,15 @@ export default function AnalyticsSections() {
                   <AreaChart data={stats.riskPctVals.map((pct, i) => ({ i, pct }))}>
                     <defs>
                       <linearGradient id="riskGrad" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#4d9fff" stopOpacity={0.2} />
-                        <stop offset="95%" stopColor="#4d9fff" stopOpacity={0} />
+                        <stop offset="5%" stopColor="var(--accent-blue)" stopOpacity={0.2} />
+                        <stop offset="95%" stopColor="var(--accent-blue)" stopOpacity={0} />
                       </linearGradient>
                     </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#2a2a3a" vertical={false} />
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" vertical={false} />
                     <XAxis dataKey="i" tick={axisStyle} axisLine={false} tickLine={false} />
                     <YAxis tick={axisStyle} axisLine={false} tickLine={false} unit="%" width={56} />
                     <Tooltip contentStyle={tooltipStyle} formatter={(v) => [`${Number(v).toFixed(2)}%`, "Risk"]} />
-                    <Area type="stepAfter" dataKey="pct" stroke="#4d9fff" strokeWidth={2} fill="url(#riskGrad)" dot={false} />
+                    <Area type="stepAfter" dataKey="pct" stroke="var(--accent-blue)" strokeWidth={2} fill="url(#riskGrad)" dot={false} />
                   </AreaChart>
                 </ResponsiveContainer>
               </SectionCard>
@@ -797,7 +809,7 @@ export default function AnalyticsSections() {
           ) : (
             <SectionCard title="Planned Risk">
               <div style={{ textAlign: "center", padding: "24px 16px" }}>
-                <Shield size={22} color="#a8a8c8" style={{ marginBottom: "10px" }} />
+                <Shield size={22} color="var(--text-secondary)" style={{ marginBottom: "10px" }} />
                 <p style={{ fontSize: "13px", color: "var(--text-muted)", maxWidth: "440px", margin: "0 auto" }}>
                   None of these trades have a stop loss recorded. Set a stop on your MetaTrader
                   positions and re-run QuantEdgeExport.mq5 to unlock risk sizing, risk
@@ -812,16 +824,16 @@ export default function AnalyticsSections() {
               <AreaChart data={stats.ddCurve}>
                 <defs>
                   <linearGradient id="ddGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#ff4d6a" stopOpacity={0.2} />
-                    <stop offset="95%" stopColor="#ff4d6a" stopOpacity={0} />
+                    <stop offset="5%" stopColor="var(--loss)" stopOpacity={0.2} />
+                    <stop offset="95%" stopColor="var(--loss)" stopOpacity={0} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#2a2a3a" vertical={false} />
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" vertical={false} />
                 <XAxis dataKey="date" tick={axisStyle} axisLine={false} tickLine={false} />
                 <YAxis tick={axisStyle} axisLine={false} tickLine={false} />
                 <Tooltip contentStyle={tooltipStyle} formatter={((v: any) => [`${v.toFixed(2)}%`, "Drawdown"]) as any} />
-                <ReferenceLine y={0} stroke="#00e57a" strokeDasharray="4 4" strokeWidth={1} />
-                <Area type="monotone" dataKey="dd" stroke="#ff4d6a" strokeWidth={2} fill="url(#ddGrad)" dot={false} />
+                <ReferenceLine y={0} stroke="var(--profit)" strokeDasharray="4 4" strokeWidth={1} />
+                <Area type="monotone" dataKey="dd" stroke="var(--loss)" strokeWidth={2} fill="url(#ddGrad)" dot={false} />
               </AreaChart>
             </ResponsiveContainer>
           </SectionCard>
@@ -830,19 +842,19 @@ export default function AnalyticsSections() {
             <SectionCard title="Rolling 20-Trade Win Rate" subtitle="Win rate over a sliding window of 20 trades. Reveals consistency trends.">
               <ResponsiveContainer width="100%" height={200}>
                 <LineChart data={stats.rolling}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#2a2a3a" vertical={false} />
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" vertical={false} />
                   <XAxis dataKey="trade" tick={axisStyle} axisLine={false} tickLine={false} />
                   <YAxis domain={[0, 100]} tick={axisStyle} axisLine={false} tickLine={false} unit="%" />
                   <Tooltip contentStyle={tooltipStyle} formatter={((v: any) => [`${v}%`, "Win Rate"]) as any} />
-                  <ReferenceLine y={50} stroke="#a8a8c8" strokeDasharray="4 4" strokeWidth={1} />
-                  <Line type="monotone" dataKey="wr" stroke="#4d9fff" strokeWidth={2} dot={false} activeDot={{ r: 4 }} />
+                  <ReferenceLine y={50} stroke="var(--text-secondary)" strokeDasharray="4 4" strokeWidth={1} />
+                  <Line type="monotone" dataKey="wr" stroke="var(--accent-blue)" strokeWidth={2} dot={false} activeDot={{ r: 4 }} />
                 </LineChart>
               </ResponsiveContainer>
             </SectionCard>
           )}
 
           <SectionCard title="Metric Definitions">
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: "16px" }}>
               {[
                 { name: "Sharpe Ratio",  formula: "(Mean Daily P&L / Std Dev Daily P&L) × √252", what: "Risk-adjusted return per unit of total volatility. >1 = good, >2 = excellent." },
                 { name: "Sortino Ratio", formula: "(Mean Daily P&L / Downside Std Dev) × √252",  what: "Like Sharpe but only penalises downside volatility. More relevant for traders." },
@@ -851,7 +863,7 @@ export default function AnalyticsSections() {
               ].map(({ name, formula, what }) => (
                 <div key={name} style={{ background: "var(--bg-secondary)", borderRadius: "10px", padding: "14px 16px" }}>
                   <div style={{ fontSize: "13px", fontWeight: "700", color: "var(--text-primary)", marginBottom: "6px" }}>{name}</div>
-                  <div style={{ fontSize: "10px", fontFamily: "monospace", color: "#4d9fff", background: "rgba(77,159,255,0.08)", padding: "4px 8px", borderRadius: "4px", marginBottom: "8px", overflowX: "auto", whiteSpace: "nowrap" }}>{formula}</div>
+                  <div style={{ fontSize: "10px", fontFamily: "monospace", color: "var(--accent-blue)", background: "rgba(77,159,255,0.08)", padding: "4px 8px", borderRadius: "4px", marginBottom: "8px", overflowX: "auto", whiteSpace: "nowrap" }}>{formula}</div>
                   <div style={{ fontSize: "11px", color: "var(--text-muted)", lineHeight: 1.5 }}>{what}</div>
                 </div>
               ))}
@@ -867,9 +879,9 @@ export default function AnalyticsSections() {
           <SectionCard title="P&L by Day of Week" subtitle="Which days are most profitable.">
             <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: "12px", marginBottom: "24px" }}>
               {stats.dowData.map(({ day, pnl, count, wr }) => (
-                <div key={day} style={{ background: "var(--bg-secondary)", borderRadius: "12px", padding: "16px", borderTop: `3px solid ${pnl >= 0 ? "#00e57a" : "#ff4d6a"}`, textAlign: "center" }}>
+                <div key={day} style={{ background: "var(--bg-secondary)", borderRadius: "12px", padding: "16px", borderTop: `3px solid ${pnl >= 0 ? "var(--profit)" : "var(--loss)"}`, textAlign: "center" }}>
                   <div style={{ fontSize: "13px", fontWeight: "700", color: "var(--text-muted)", marginBottom: "8px" }}>{day}</div>
-                  <div style={{ fontSize: "20px", fontWeight: "800", color: pnl >= 0 ? "#00e57a" : "#ff4d6a", marginBottom: "4px" }}>
+                  <div style={{ fontSize: "20px", fontWeight: "800", color: pnl >= 0 ? "var(--profit)" : "var(--loss)", marginBottom: "4px" }}>
                     {pnl >= 0 ? "+" : ""}${pnl.toFixed(0)}
                   </div>
                   <div style={{ fontSize: "10px", color: "var(--text-muted)" }}>{count} trades · {wr}% WR</div>
@@ -878,13 +890,13 @@ export default function AnalyticsSections() {
             </div>
             <ResponsiveContainer width="100%" height={180}>
               <BarChart data={stats.dowData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#2a2a3a" vertical={false} />
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" vertical={false} />
                 <XAxis dataKey="day" tick={axisStyle} axisLine={false} tickLine={false} />
                 <YAxis tick={axisStyle} axisLine={false} tickLine={false} />
                 <Tooltip contentStyle={tooltipStyle} formatter={((v: any) => [`$${v.toFixed(2)}`, "Total P&L"]) as any} />
-                <ReferenceLine y={0} stroke="#a8a8c8" strokeWidth={1} />
+                <ReferenceLine y={0} stroke="var(--text-secondary)" strokeWidth={1} />
                 <Bar dataKey="pnl" radius={[4, 4, 0, 0]}>
-                  {stats.dowData.map((e) => <Cell key={e.day} fill={e.pnl >= 0 ? "#00e57a" : "#ff4d6a"} />)}
+                  {stats.dowData.map((e) => <Cell key={e.day} fill={e.pnl >= 0 ? "var(--profit)" : "var(--loss)"} />)}
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
@@ -893,13 +905,13 @@ export default function AnalyticsSections() {
           <SectionCard title="Daily P&L Distribution" subtitle="Each bar = one trading day. Reveals consistency vs spike dependency.">
             <ResponsiveContainer width="100%" height={200}>
               <BarChart data={stats.daily}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#2a2a3a" vertical={false} />
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" vertical={false} />
                 <XAxis dataKey="date" tick={axisStyle} axisLine={false} tickLine={false} />
                 <YAxis tick={axisStyle} axisLine={false} tickLine={false} />
                 <Tooltip contentStyle={tooltipStyle} formatter={((v: any) => [`$${v.toFixed(2)}`, "Daily P&L"]) as any} />
-                <ReferenceLine y={0} stroke="#a8a8c8" strokeWidth={1} />
+                <ReferenceLine y={0} stroke="var(--text-secondary)" strokeWidth={1} />
                 <Bar dataKey="pnl" radius={[3, 3, 0, 0]}>
-                  {stats.daily.map((e, i) => <Cell key={i} fill={e.pnl >= 0 ? "#00e57a" : "#ff4d6a"} />)}
+                  {stats.daily.map((e, i) => <Cell key={i} fill={e.pnl >= 0 ? "var(--profit)" : "var(--loss)"} />)}
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
@@ -912,11 +924,11 @@ export default function AnalyticsSections() {
                   <div key={tag} style={{ display: "flex", alignItems: "center", gap: "12px" }}>
                     <div style={{ width: "80px", fontSize: "12px", fontWeight: "600", color: "var(--text-primary)", flexShrink: 0 }}>{tag}</div>
                     <div style={{ flex: 1, background: "var(--bg-secondary)", borderRadius: "4px", height: "8px", overflow: "hidden" }}>
-                      <div style={{ width: `${wr}%`, height: "100%", background: wr >= 60 ? "#00e57a" : wr >= 40 ? "#4d9fff" : "#ff4d6a", borderRadius: "4px", transition: "width 0.3s ease" }} />
+                      <div style={{ width: `${wr}%`, height: "100%", background: wr >= 60 ? "var(--profit)" : wr >= 40 ? "var(--accent-blue)" : "var(--loss)", borderRadius: "4px", transition: "width 0.3s ease" }} />
                     </div>
-                    <div style={{ fontSize: "12px", fontWeight: "700", color: wr >= 50 ? "#00e57a" : "#ff4d6a", width: "36px", textAlign: "right" }}>{wr}%</div>
+                    <div style={{ fontSize: "12px", fontWeight: "700", color: wr >= 50 ? "var(--profit)" : "var(--loss)", width: "36px", textAlign: "right" }}>{wr}%</div>
                     <div style={{ fontSize: "11px", color: "var(--text-muted)", width: "70px", textAlign: "right" }}>{count} trades</div>
-                    <div style={{ fontSize: "11px", fontWeight: "600", color: pnl >= 0 ? "#00e57a" : "#ff4d6a", width: "70px", textAlign: "right" }}>
+                    <div style={{ fontSize: "11px", fontWeight: "600", color: pnl >= 0 ? "var(--profit)" : "var(--loss)", width: "70px", textAlign: "right" }}>
                       {pnl >= 0 ? "+" : ""}${pnl.toFixed(2)}
                     </div>
                   </div>
@@ -960,7 +972,7 @@ export default function AnalyticsSections() {
                 const busiest = stats.hourData.reduce((b, h) => h.count > b.count ? h : b, stats.hourData[0]);
                 const withTime = trades.filter((t) => t.hourOfDay != null).length;
                 return (
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "12px", marginBottom: "24px" }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: "12px", marginBottom: "24px" }}>
                     <MetricCard label="Hours Tracked"  value={String(stats.hourData.length)}     neutral icon={Clock}       sub={`${withTime} of ${trades.length} trades`} />
                     <MetricCard label="Best Hour"      value={best.label}                         positive icon={TrendingUp}  sub={`+$${best.totalPnl.toFixed(0)} · ${best.winRate}% WR`} />
                     <MetricCard label="Worst Hour"     value={worst.label}                        positive={false} icon={TrendingDown} sub={`$${worst.totalPnl.toFixed(0)} · ${worst.winRate}% WR`} />
@@ -1006,7 +1018,7 @@ export default function AnalyticsSections() {
               >
                 <ResponsiveContainer width="100%" height={260}>
                   <BarChart data={stats.hourData} margin={{ bottom: 8 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#2a2a3a" vertical={false} />
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" vertical={false} />
                     <XAxis dataKey="label" tick={axisStyle} axisLine={false} tickLine={false} />
                     <YAxis tick={axisStyle} axisLine={false} tickLine={false}
                       unit={heatmapMetric === "winrate" ? "%" : heatmapMetric === "pnl" ? "" : ""}
@@ -1023,16 +1035,16 @@ export default function AnalyticsSections() {
                         return [v, `$${h.totalPnl.toFixed(0)} · ${h.winRate}% WR`];
                       }) as any}
                     />
-                    {heatmapMetric === "pnl" && <ReferenceLine y={0} stroke="#a8a8c8" strokeWidth={1} />}
+                    {heatmapMetric === "pnl" && <ReferenceLine y={0} stroke="var(--text-secondary)" strokeWidth={1} />}
                     <Bar
                       dataKey={heatmapMetric === "pnl" ? "totalPnl" : heatmapMetric === "winrate" ? "winRate" : "count"}
                       radius={[4, 4, 0, 0]}
                     >
                       {stats.hourData.map((h) => {
                         let fill: string;
-                        if (heatmapMetric === "pnl")     fill = h.totalPnl >= 0 ? "#00e57a" : "#ff4d6a";
-                        else if (heatmapMetric === "winrate") fill = h.winRate >= 60 ? "#00e57a" : h.winRate >= 40 ? "#fbbf24" : "#ff4d6a";
-                        else fill = "#4d9fff";
+                        if (heatmapMetric === "pnl")     fill = h.totalPnl >= 0 ? "var(--profit)" : "var(--loss)";
+                        else if (heatmapMetric === "winrate") fill = h.winRate >= 60 ? "var(--profit)" : h.winRate >= 40 ? "var(--warning)" : "var(--loss)";
+                        else fill = "var(--accent-blue)";
                         return <Cell key={h.hour} fill={fill} />;
                       })}
                     </Bar>
@@ -1058,15 +1070,15 @@ export default function AnalyticsSections() {
                           <div style={{
                             width: `${Math.min(100, Math.abs(h.totalPnl) / Math.max(...stats.hourData.map((x) => Math.abs(x.totalPnl))) * 100)}%`,
                             height: "100%",
-                            background: h.totalPnl >= 0 ? "#00e57a" : "#ff4d6a",
+                            background: h.totalPnl >= 0 ? "var(--profit)" : "var(--loss)",
                             borderRadius: "4px",
                           }} />
                         </div>
-                        <div style={{ fontSize: "12px", fontWeight: "700", color: h.totalPnl >= 0 ? "#00e57a" : "#ff4d6a", width: "72px", textAlign: "right", flexShrink: 0 }}>
+                        <div style={{ fontSize: "12px", fontWeight: "700", color: h.totalPnl >= 0 ? "var(--profit)" : "var(--loss)", width: "72px", textAlign: "right", flexShrink: 0 }}>
                           {h.totalPnl >= 0 ? "+" : ""}${h.totalPnl.toFixed(0)}
                         </div>
                       </div>
-                      <div style={{ fontSize: "12px", fontWeight: "600", color: h.winRate >= 50 ? "#00e57a" : "#ff4d6a", width: "44px", textAlign: "center", flexShrink: 0 }}>
+                      <div style={{ fontSize: "12px", fontWeight: "600", color: h.winRate >= 50 ? "var(--profit)" : "var(--loss)", width: "44px", textAlign: "center", flexShrink: 0 }}>
                         {h.winRate}% WR
                       </div>
                       <div style={{ fontSize: "11px", color: "var(--text-muted)", width: "60px", textAlign: "right", flexShrink: 0 }}>
@@ -1077,72 +1089,6 @@ export default function AnalyticsSections() {
                 </div>
               </SectionCard>
             </>
-          )}
-        </>
-      )}
-
-      {/* R-Multiples */}
-      {activeTab === "rmultiples" && (
-        <>
-          {sectionInsights("rmultiples")}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "12px", marginBottom: "20px" }}>
-            <MetricCard label="Avg R-Multiple" value={stats.avgR >= 0 ? `+${stats.avgR.toFixed(2)}R` : `${stats.avgR.toFixed(2)}R`} positive={stats.avgR > 0} icon={Activity} sub="Mean outcome in R-units" />
-            <MetricCard
-              label={stats.riskCoverage > 0 ? "1R = Planned Risk" : "1R = Avg Loss"}
-              value={stats.riskCoverage > 0 ? `$${stats.avgRisk.toFixed(2)}` : `$${stats.avgLoss.toFixed(2)}`}
-              neutral icon={Target}
-              sub={stats.riskCoverage > 0
-                ? `From your stop loss · ${stats.riskCoverage}/${stats.riskCoverage + stats.riskMissing} trades`
-                : "Risk proxy (avg loss amount)"}
-            />
-            <MetricCard
-              label="Expectancy"
-              value={`${stats.exp >= 0 ? "+" : ""}${(stats.rUnit > 0 ? stats.exp / stats.rUnit : 0).toFixed(2)}R`}
-              positive={stats.exp >= 0} icon={Zap} sub="Expected R per trade"
-            />
-          </div>
-
-          {stats.rHistogram.length > 0 ? (
-            <SectionCard title="R-Multiple Distribution" subtitle={stats.riskCoverage > 0
-              ? "Distribution of outcomes in R-units, measured against the risk you accepted at entry. Positive skew = good system."
-              : "Distribution of outcomes in R-units. 1R = your average loss. Positive skew = good system."}>
-              <ResponsiveContainer width="100%" height={240}>
-                <BarChart data={stats.rHistogram}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#2a2a3a" vertical={false} />
-                  <XAxis dataKey="bucket" tick={axisStyle} axisLine={false} tickLine={false} />
-                  <YAxis tick={axisStyle} axisLine={false} tickLine={false} />
-                  <Tooltip contentStyle={tooltipStyle} formatter={((v: any) => [v, "Trades"]) as any} />
-                  <ReferenceLine x="+0R" stroke="#a8a8c8" strokeDasharray="4 4" />
-                  <Bar dataKey="count" radius={[4, 4, 0, 0]}>
-                    {stats.rHistogram.map((e) => <Cell key={e.bucket} fill={e.positive ? "#00e57a" : "#ff4d6a"} />)}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </SectionCard>
-          ) : (
-            <div style={{ padding: "48px", textAlign: "center", color: "var(--text-muted)", fontSize: "14px", background: "var(--bg-card)", borderRadius: "16px", border: "1px solid var(--border)" }}>
-              R-multiple distribution requires at least one losing trade to compute 1R.
-            </div>
-          )}
-
-          {stats.symbolData.length > 0 && (
-            <SectionCard title="Symbol Breakdown" subtitle="P&L, trade count, and win rate per underlying.">
-              <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-                {stats.symbolData.map(({ symbol, pnl, count, wr }) => (
-                  <div key={symbol} style={{ display: "flex", alignItems: "center", gap: "12px", padding: "12px 14px", background: "var(--bg-secondary)", borderRadius: "10px", border: "1px solid var(--border)" }}>
-                    <div style={{ width: "60px", fontSize: "13px", fontWeight: "700", color: "var(--text-primary)" }}>{symbol}</div>
-                    <div style={{ flex: 1, background: "var(--bg-card)", borderRadius: "4px", height: "6px", overflow: "hidden" }}>
-                      <div style={{ width: `${wr}%`, height: "100%", background: wr >= 50 ? "#00e57a" : "#ff4d6a", borderRadius: "4px" }} />
-                    </div>
-                    <div style={{ fontSize: "12px", color: "var(--text-muted)", width: "60px", textAlign: "center" }}>{count} trades</div>
-                    <div style={{ fontSize: "12px", fontWeight: "700", color: wr >= 50 ? "#00e57a" : "#ff4d6a", width: "44px", textAlign: "center" }}>{wr}% WR</div>
-                    <div style={{ fontSize: "13px", fontWeight: "800", color: pnl >= 0 ? "#00e57a" : "#ff4d6a", width: "80px", textAlign: "right" }}>
-                      {pnl >= 0 ? "+" : ""}${pnl.toFixed(2)}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </SectionCard>
           )}
         </>
       )}
@@ -1166,7 +1112,7 @@ export default function AnalyticsSections() {
               <div style={{ marginBottom: "12px", fontSize: "12px", color: "var(--text-muted)" }}>
                 {stats.maeFdCount} of {trades.length} trades have MAE/MFE logged
               </div>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "12px", marginBottom: "20px" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: "12px", marginBottom: "20px" }}>
                 <MetricCard label="Avg MAE"          value={`$${stats.avgMae.toFixed(2)}`}    positive={false} icon={TrendingDown} sub="Avg worst excursion" />
                 <MetricCard label="Avg MFE"          value={`$${stats.avgMfe.toFixed(2)}`}    positive icon={TrendingUp} sub="Avg best excursion" />
                 <MetricCard label="Entry Efficiency" value={`${stats.entryEff.toFixed(1)}%`}  positive={stats.entryEff >= 60} icon={Target} sub="MFE / (MFE + MAE) — higher is better" />
@@ -1176,21 +1122,21 @@ export default function AnalyticsSections() {
               <SectionCard title="MAE vs MFE Per Trade" subtitle="Each bar pair shows how far the trade went against you (MAE) vs in your favor (MFE).">
                 <ResponsiveContainer width="100%" height={260}>
                   <BarChart data={stats.maeMfeChart} barGap={2}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#2a2a3a" vertical={false} />
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" vertical={false} />
                     <XAxis dataKey="trade" tick={axisStyle} axisLine={false} tickLine={false} />
                     <YAxis tick={axisStyle} axisLine={false} tickLine={false} />
                     <Tooltip
                       contentStyle={tooltipStyle}
                       formatter={((v: any, name: any) => [`$${v}`, name === "mfe" ? "MFE" : "MAE"]) as any}
                     />
-                    <Bar dataKey="mfe" fill="#00e57a" radius={[4, 4, 0, 0]} name="mfe" />
-                    <Bar dataKey="mae" fill="#ff4d6a" radius={[4, 4, 0, 0]} name="mae" />
+                    <Bar dataKey="mfe" fill="var(--profit)" radius={[4, 4, 0, 0]} name="mfe" />
+                    <Bar dataKey="mae" fill="var(--loss)" radius={[4, 4, 0, 0]} name="mae" />
                   </BarChart>
                 </ResponsiveContainer>
               </SectionCard>
 
               <SectionCard title="How to Use These Numbers">
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: "16px" }}>
                   {[
                     { name: "Entry Efficiency", formula: "MFE / (MFE + MAE) × 100",        what: "Measures how close to the optimal entry price you got. 100% = entered at the exact low for a long. Below 50% means MAE is dominating." },
                     { name: "Exit Efficiency",  formula: "PnL / MFE × 100 (winning trades)", what: "How much of the maximum available gain you captured. Below 60% means leaving money on the table consistently." },
@@ -1199,7 +1145,7 @@ export default function AnalyticsSections() {
                   ].map(({ name, formula, what }) => (
                     <div key={name} style={{ background: "var(--bg-secondary)", borderRadius: "10px", padding: "14px 16px" }}>
                       <div style={{ fontSize: "13px", fontWeight: "700", color: "var(--text-primary)", marginBottom: "6px" }}>{name}</div>
-                      <div style={{ fontSize: "10px", fontFamily: "monospace", color: "#4d9fff", background: "rgba(77,159,255,0.08)", padding: "4px 8px", borderRadius: "4px", marginBottom: "8px", overflowX: "auto", whiteSpace: "nowrap" }}>{formula}</div>
+                      <div style={{ fontSize: "10px", fontFamily: "monospace", color: "var(--accent-blue)", background: "rgba(77,159,255,0.08)", padding: "4px 8px", borderRadius: "4px", marginBottom: "8px", overflowX: "auto", whiteSpace: "nowrap" }}>{formula}</div>
                       <div style={{ fontSize: "11px", color: "var(--text-muted)", lineHeight: 1.5 }}>{what}</div>
                     </div>
                   ))}
@@ -1207,6 +1153,8 @@ export default function AnalyticsSections() {
               </SectionCard>
             </>
           )}
+
+          <ExecutionResearch trades={trades} />
         </>
       )}
 
@@ -1221,7 +1169,7 @@ export default function AnalyticsSections() {
             </p>
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "12px", marginBottom: "20px" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: "12px", marginBottom: "20px" }}>
             <MetricCard label="Discipline Score" value={`${stats.disciplineScore}/100`} positive={stats.disciplineScore >= 70} neutral={stats.disciplineScore === 100} icon={Brain}
               sub={stats.disciplineScore >= 80 ? "Consistent" : stats.disciplineScore >= 60 ? "Some red flags" : "Needs review"} />
             <MetricCard label="Flagged Days"    value={String(stats.overtradingDays.length)} positive={stats.overtradingDays.length === 0} neutral={stats.overtradingDays.length === 0} icon={AlertTriangle}
@@ -1249,7 +1197,7 @@ export default function AnalyticsSections() {
                         {Math.round(((count - stats.meanDailyTrades) / stats.meanDailyTrades) * 100)}% above your average
                       </div>
                     </div>
-                    <div style={{ fontSize: "20px", fontWeight: "800", color: "#ff4d6a", background: "rgba(255,77,106,0.1)", padding: "4px 12px", borderRadius: "8px" }}>
+                    <div style={{ fontSize: "20px", fontWeight: "800", color: "var(--loss)", background: "rgba(255,77,106,0.1)", padding: "4px 12px", borderRadius: "8px" }}>
                       {count} trades
                     </div>
                   </div>
@@ -1280,7 +1228,7 @@ export default function AnalyticsSections() {
             </p>
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px", marginBottom: "20px" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: "20px", marginBottom: "20px" }}>
             <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: "16px", padding: "24px" }}>
               <h4 style={{ fontSize: "14px", fontWeight: "700", color: "var(--text-primary)", marginBottom: "16px" }}>Inputs</h4>
               <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
@@ -1332,11 +1280,11 @@ export default function AnalyticsSections() {
                       {rorData.ror < 1 ? "Low risk" : rorData.ror < 5 ? "Acceptable" : rorData.ror < 20 ? "Elevated — consider reducing size" : "High — reduce position size"}
                     </div>
                     <div style={{ marginTop: "12px", background: "var(--bg-card)", borderRadius: "6px", height: "8px", overflow: "hidden" }}>
-                      <div style={{ width: `${Math.min(100, rorData.ror)}%`, height: "100%", background: `linear-gradient(90deg, #00e57a, ${rorColor})`, borderRadius: "6px", transition: "width 0.3s ease" }} />
+                      <div style={{ width: `${Math.min(100, rorData.ror)}%`, height: "100%", background: `linear-gradient(90deg, var(--profit), ${rorColor})`, borderRadius: "6px", transition: "width 0.3s ease" }} />
                     </div>
                   </div>
                   {[
-                    { label: "Kelly Criterion",      value: `${rorData.kelly.toFixed(1)}%`,  sub: "Theoretically optimal risk fraction",    color: rorData.kelly > 0 ? "#4d9fff" : "#ff4d6a" },
+                    { label: "Kelly Criterion",      value: `${rorData.kelly.toFixed(1)}%`,  sub: "Theoretically optimal risk fraction",    color: rorData.kelly > 0 ? "var(--accent-blue)" : "var(--loss)" },
                     { label: "Recommended Max Risk", value: `${rorData.maxSafeRisk.toFixed(1)}%`, sub: "Half-Kelly — balances growth and safety", color: "var(--accent-green)" },
                     {
                       label: "Current vs Kelly",
@@ -1344,7 +1292,7 @@ export default function AnalyticsSections() {
                         ? `${((riskPct / rorData.kelly - 1) * 100).toFixed(0)}% above Kelly`
                         : rorData.kelly > 0 ? `${((1 - riskPct / rorData.kelly) * 100).toFixed(0)}% below Kelly` : "—",
                       sub: riskPct > rorData.kelly && rorData.kelly > 0 ? "Over-leveraged relative to your edge" : "Within safe range",
-                      color: riskPct > rorData.kelly && rorData.kelly > 0 ? "#ff4d6a" : "#00e57a",
+                      color: riskPct > rorData.kelly && rorData.kelly > 0 ? "var(--loss)" : "var(--profit)",
                     },
                   ].map(({ label, value, sub, color }) => (
                     <div key={label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 14px", background: "var(--bg-secondary)", borderRadius: "8px" }}>
@@ -1374,7 +1322,7 @@ export default function AnalyticsSections() {
       {activeTab === "process" && (
         <>
           {sectionInsights("process")}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "12px", marginBottom: "20px" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: "12px", marginBottom: "20px" }}>
             <MetricCard label="Recovery Factor" value={stats.recFactor === 0 ? "—" : stats.recFactor.toFixed(2)}
               positive={stats.recFactor >= 3} neutral={stats.recFactor === 0} icon={Activity}
               sub={stats.recFactor >= 3 ? "Earns its drawdown back well" : stats.recFactor >= 1 ? "Just ahead of its drawdown" : "Has not earned back its drawdown"} />
@@ -1391,28 +1339,28 @@ export default function AnalyticsSections() {
           <SectionCard title="Outcome by Hold Time" subtitle="Do your fastest trades pay, or bleed? For a scalper this is often the single most actionable number in the journal.">
             <ResponsiveContainer width="100%" height={220}>
               <BarChart data={stats.durationData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#2a2a3a" vertical={false} />
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" vertical={false} />
                 <XAxis dataKey="bucket" tick={axisStyle} axisLine={false} tickLine={false} />
                 <YAxis tick={axisStyle} axisLine={false} tickLine={false} />
                 <Tooltip contentStyle={tooltipStyle}
                   formatter={((v: any, _n: any, p: any) =>
                     [`$${v} · ${p.payload.trades} trades · ${p.payload.winRate}% win`, "Net"]) as any} />
-                <ReferenceLine y={0} stroke="#a8a8c8" strokeWidth={1} />
+                <ReferenceLine y={0} stroke="var(--text-secondary)" strokeWidth={1} />
                 <Bar dataKey="pnl" radius={[4, 4, 0, 0]}>
                   {stats.durationData.map((d, i) => (
-                    <Cell key={i} fill={d.pnl >= 0 ? "#00e57a" : "#ff4d6a"} />
+                    <Cell key={i} fill={d.pnl >= 0 ? "var(--profit)" : "var(--loss)"} />
                   ))}
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "12px", marginTop: "16px" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: "12px", marginTop: "16px" }}>
               {stats.durationData.map((d) => (
                 <div key={d.bucket} style={{ background: "var(--bg-secondary)", borderRadius: "10px", padding: "12px 14px" }}>
                   <div style={{ fontSize: "11px", fontWeight: "600", color: "var(--text-muted)", marginBottom: "6px" }}>{d.bucket}</div>
                   <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", color: "var(--text-muted)" }}>
                     <span>{d.trades} trades</span><span>{d.winRate}% win</span>
                   </div>
-                  <div style={{ fontSize: "14px", fontWeight: "700", marginTop: "6px", color: d.pnl >= 0 ? "#00e57a" : "#ff4d6a" }}>
+                  <div style={{ fontSize: "14px", fontWeight: "700", marginTop: "6px", color: d.pnl >= 0 ? "var(--profit)" : "var(--loss)" }}>
                     {d.pnl >= 0 ? "+" : ""}${d.pnl.toFixed(2)}
                   </div>
                   <div style={{ fontSize: "10px", color: "var(--text-muted)", marginTop: "2px" }}>{d.avgPnl >= 0 ? "+" : ""}${d.avgPnl.toFixed(2)} avg</div>
@@ -1439,7 +1387,7 @@ export default function AnalyticsSections() {
                       ) : (
                         <>
                           <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>{c.trades} · {c.winRate}%W</span>
-                          <span style={{ fontSize: "12px", fontWeight: "700", color: c.pnl >= 0 ? "#00e57a" : "#ff4d6a" }}>
+                          <span style={{ fontSize: "12px", fontWeight: "700", color: c.pnl >= 0 ? "var(--profit)" : "var(--loss)" }}>
                             {c.pnl >= 0 ? "+" : ""}${c.pnl.toFixed(2)}
                           </span>
                         </>
@@ -1468,8 +1416,8 @@ export default function AnalyticsSections() {
                   </div>
                   {[
                     { k: "Win rate",      v: `${d.winRate}%`,                              c: "var(--text-primary)" },
-                    { k: "Net",           v: `${d.pnl >= 0 ? "+" : ""}$${d.pnl.toFixed(2)}`,    c: d.pnl >= 0 ? "#00e57a" : "#ff4d6a" },
-                    { k: "Avg per trade", v: `${d.avgPnl >= 0 ? "+" : ""}$${d.avgPnl.toFixed(2)}`, c: d.avgPnl >= 0 ? "#00e57a" : "#ff4d6a" },
+                    { k: "Net",           v: `${d.pnl >= 0 ? "+" : ""}$${d.pnl.toFixed(2)}`,    c: d.pnl >= 0 ? "var(--profit)" : "var(--loss)" },
+                    { k: "Avg per trade", v: `${d.avgPnl >= 0 ? "+" : ""}$${d.avgPnl.toFixed(2)}`, c: d.avgPnl >= 0 ? "var(--profit)" : "var(--loss)" },
                   ].map((row) => (
                     <div key={row.k} style={{ display: "flex", justifyContent: "space-between", marginTop: "6px" }}>
                       <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>{row.k}</span>
@@ -1483,7 +1431,7 @@ export default function AnalyticsSections() {
 
           {stats.stop.coverage > 0 && (
             <SectionCard title="Stop Quality" subtitle="How your stop loss actually behaves, from the worst price each trade saw (MAE) against the risk you planned.">
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "12px", marginBottom: "16px" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "12px", marginBottom: "16px" }}>
                 <MetricCard label="Avg Excursion" value={`${stats.stop.avgRatio.toFixed(2)}R`} neutral icon={Target}
                   sub="Worst price vs planned risk" />
                 <MetricCard label="Winners Go Against" value={`${stats.stop.winnerRatio.toFixed(2)}R`}
@@ -1511,16 +1459,16 @@ export default function AnalyticsSections() {
             <SectionCard title="How Trades Ended" subtitle="Why each position closed, straight from MetaTrader's deal reasons. The split between a stop doing its job and a hand closing the trade is the honest measure of how systematic your exits are.">
               <ResponsiveContainer width="100%" height={220}>
                 <BarChart data={stats.exitReasons}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#2a2a3a" vertical={false} />
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" vertical={false} />
                   <XAxis dataKey="bucket" tick={axisStyle} axisLine={false} tickLine={false} />
                   <YAxis tick={axisStyle} axisLine={false} tickLine={false} />
                   <Tooltip contentStyle={tooltipStyle}
                     formatter={((v: any, _n: any, p: any) =>
                       [`$${v} · ${p.payload.trades} trades · ${p.payload.winRate}% win`, "Net"]) as any} />
-                  <ReferenceLine y={0} stroke="#a8a8c8" strokeWidth={1} />
+                  <ReferenceLine y={0} stroke="var(--text-secondary)" strokeWidth={1} />
                   <Bar dataKey="pnl" radius={[4, 4, 0, 0]}>
                     {stats.exitReasons.map((d, i) => (
-                      <Cell key={i} fill={d.pnl >= 0 ? "#00e57a" : "#ff4d6a"} />
+                      <Cell key={i} fill={d.pnl >= 0 ? "var(--profit)" : "var(--loss)"} />
                     ))}
                   </Bar>
                 </BarChart>
@@ -1532,7 +1480,7 @@ export default function AnalyticsSections() {
                     <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", color: "var(--text-muted)" }}>
                       <span>{d.trades} trades</span><span>{d.winRate}% win</span>
                     </div>
-                    <div style={{ fontSize: "14px", fontWeight: "700", marginTop: "6px", color: d.pnl >= 0 ? "#00e57a" : "#ff4d6a" }}>
+                    <div style={{ fontSize: "14px", fontWeight: "700", marginTop: "6px", color: d.pnl >= 0 ? "var(--profit)" : "var(--loss)" }}>
                       {d.pnl >= 0 ? "+" : ""}${d.pnl.toFixed(2)}
                     </div>
                   </div>
@@ -1552,8 +1500,8 @@ export default function AnalyticsSections() {
                     </div>
                     {[
                       { k: "Win rate",      v: `${d.winRate}%`,                              c: "var(--text-primary)" },
-                      { k: "Net",           v: `${d.pnl >= 0 ? "+" : ""}$${d.pnl.toFixed(2)}`,    c: d.pnl >= 0 ? "#00e57a" : "#ff4d6a" },
-                      { k: "Avg per trade", v: `${d.avgPnl >= 0 ? "+" : ""}$${d.avgPnl.toFixed(2)}`, c: d.avgPnl >= 0 ? "#00e57a" : "#ff4d6a" },
+                      { k: "Net",           v: `${d.pnl >= 0 ? "+" : ""}$${d.pnl.toFixed(2)}`,    c: d.pnl >= 0 ? "var(--profit)" : "var(--loss)" },
+                      { k: "Avg per trade", v: `${d.avgPnl >= 0 ? "+" : ""}$${d.avgPnl.toFixed(2)}`, c: d.avgPnl >= 0 ? "var(--profit)" : "var(--loss)" },
                     ].map((row) => (
                       <div key={row.k} style={{ display: "flex", justifyContent: "space-between", marginTop: "6px" }}>
                         <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>{row.k}</span>
@@ -1568,14 +1516,14 @@ export default function AnalyticsSections() {
 
           {stats.legData.coverage > 0 && (
             <SectionCard title="Position Building" subtitle="How each position was assembled, from MetaTrader's entry-deal count. One entry is a plan executed; several are a plan changed mid-flight.">
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "12px", marginBottom: "16px" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "12px", marginBottom: "16px" }}>
                 {[stats.legData.singleLeg, stats.legData.multiLeg, stats.legData.averagedDown].map((d) => (
                   <div key={d.bucket} style={{ background: "var(--bg-secondary)", borderRadius: "12px", padding: "16px 18px" }}>
                     <div style={{ fontSize: "12px", fontWeight: "700", color: "var(--text-primary)", marginBottom: "10px" }}>{d.bucket}</div>
                     <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", color: "var(--text-muted)" }}>
                       <span>{d.trades} trade{d.trades !== 1 ? "s" : ""}</span><span>{d.winRate}% win</span>
                     </div>
-                    <div style={{ fontSize: "16px", fontWeight: "700", marginTop: "8px", color: d.trades === 0 ? "var(--text-muted)" : d.pnl >= 0 ? "#00e57a" : "#ff4d6a" }}>
+                    <div style={{ fontSize: "16px", fontWeight: "700", marginTop: "8px", color: d.trades === 0 ? "var(--text-muted)" : d.pnl >= 0 ? "var(--profit)" : "var(--loss)" }}>
                       {d.trades === 0 ? "—" : `${d.pnl >= 0 ? "+" : ""}$${d.pnl.toFixed(2)}`}
                     </div>
                   </div>
@@ -1594,7 +1542,7 @@ export default function AnalyticsSections() {
 
           {stats.cashFlow.coverage >= 2 && (
             <SectionCard title="Account Reconciliation" subtitle="The exporter records the account balance after every trade. Comparing that to each trade's own P&L shows whether deposits or withdrawals are flattering the equity curve.">
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "12px", marginBottom: "16px" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "12px", marginBottom: "16px" }}>
                 <MetricCard label="Net Cash Flow" value={`${stats.cashFlow.netFlow >= 0 ? "+" : ""}$${stats.cashFlow.netFlow.toFixed(2)}`}
                   positive={false} neutral={stats.cashFlow.netFlow === 0} icon={Activity}
                   sub={stats.cashFlow.netFlow === 0 ? "No external cash detected" : "Deposits minus withdrawals"} />
@@ -1612,7 +1560,7 @@ export default function AnalyticsSections() {
                     {stats.cashFlow.points.map((p, i) => (
                       <div key={i} style={{ display: "flex", justifyContent: "space-between", fontSize: "12px" }}>
                         <span style={{ color: "var(--text-muted)" }}>{p.date}</span>
-                        <span style={{ fontWeight: "700", color: p.flow >= 0 ? "#00e57a" : "#ff4d6a" }}>
+                        <span style={{ fontWeight: "700", color: p.flow >= 0 ? "var(--profit)" : "var(--loss)" }}>
                           {p.flow >= 0 ? "+" : ""}${p.flow.toFixed(2)}
                         </span>
                       </div>
@@ -1624,7 +1572,7 @@ export default function AnalyticsSections() {
           )}
 
           <SectionCard title="Reading These Numbers">
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: "16px" }}>
               {[
                 { name: "Recovery Factor", formula: "Net Profit / |Max Drawdown|", what: "How many times over the account has earned back its worst decline. Above 3 is healthy; below 1 means the drawdown was never recovered by net profit." },
                 { name: "R Std Dev",       formula: "σ of R multiples",            what: "How wide your outcomes scatter around the average R. With fixed sizing this dispersion, not the mean, is what determines survival." },
@@ -1637,15 +1585,354 @@ export default function AnalyticsSections() {
               ].map(({ name, formula, what }) => (
                 <div key={name} style={{ background: "var(--bg-secondary)", borderRadius: "10px", padding: "14px 16px" }}>
                   <div style={{ fontSize: "13px", fontWeight: "700", color: "var(--text-primary)", marginBottom: "6px" }}>{name}</div>
-                  <div style={{ fontSize: "10px", fontFamily: "monospace", color: "#4d9fff", background: "rgba(77,159,255,0.08)", padding: "4px 8px", borderRadius: "4px", marginBottom: "8px", overflowX: "auto", whiteSpace: "nowrap" }}>{formula}</div>
+                  <div style={{ fontSize: "10px", fontFamily: "monospace", color: "var(--accent-blue)", background: "rgba(77,159,255,0.08)", padding: "4px 8px", borderRadius: "4px", marginBottom: "8px", overflowX: "auto", whiteSpace: "nowrap" }}>{formula}</div>
                   <div style={{ fontSize: "11px", color: "var(--text-muted)", lineHeight: 1.5 }}>{what}</div>
                 </div>
               ))}
             </div>
           </SectionCard>
+
+          <AdherencePanel stats={stats} />
         </>
       )}
 
+      {activeTab === "compare" && <CompareTab trades={trades} />}
+
       </div>
+  );
+}
+
+// ─── Compare: two cohorts against each other ────────────────────────────
+// Every other tab slices one book. Strategy decisions need the opposite
+// shape: two specific cohorts, the same unit of risk, and an honest answer
+// about whether the gap clears the noise.
+
+type CohortRule =
+  | { kind: "all" }
+  | { kind: "tag"; value: string }
+  | { kind: "direction"; value: string }
+  | { kind: "plan"; value: "followed" | "broke" }
+  | { kind: "forward" }
+  | { kind: "version"; value: number };
+
+function applyRule(trades: Trade[], rule: CohortRule): Trade[] {
+  switch (rule.kind) {
+    case "all":    return trades;
+    case "tag":    return trades.filter((t) => (Array.isArray(t.tags) ? t.tags : []).includes(rule.value));
+    case "direction": return trades.filter((t) => (t.direction || "").toLowerCase() === rule.value);
+    case "plan":   return trades.filter((t) => t.followedPlan === (rule.value === "followed"));
+    case "forward": return trades.filter((t) => t.isForwardTest === true);
+    case "version": return trades.filter((t) => t.setupVersion === rule.value);
+    default:       return trades;
+  }
+}
+
+function useCohortOptions(trades: Trade[]) {
+  return useMemo(() => {
+    const options: { key: string; label: string; rule: CohortRule }[] = [
+      { key: "all", label: "All trades", rule: { kind: "all" } },
+    ];
+    const tags = new Set<string>();
+    for (const t of trades) for (const tag of (Array.isArray(t.tags) ? t.tags : [])) tags.add(tag);
+    for (const tag of [...tags].sort()) {
+      options.push({ key: `tag:${tag}`, label: `Tag · ${tag}`, rule: { kind: "tag", value: tag } });
+    }
+    if (trades.some((t) => (t.direction || "").toLowerCase() === "long")) {
+      options.push({ key: "dir:long", label: "Direction · Long", rule: { kind: "direction", value: "long" } });
+    }
+    if (trades.some((t) => (t.direction || "").toLowerCase() === "short")) {
+      options.push({ key: "dir:short", label: "Direction · Short", rule: { kind: "direction", value: "short" } });
+    }
+    if (trades.some((t) => t.followedPlan === true)) {
+      options.push({ key: "plan:followed", label: "Reviewed · Followed the plan", rule: { kind: "plan", value: "followed" } });
+    }
+    if (trades.some((t) => t.followedPlan === false)) {
+      options.push({ key: "plan:broke", label: "Reviewed · Broke the plan", rule: { kind: "plan", value: "broke" } });
+    }
+    if (trades.some((t) => t.isForwardTest === true)) {
+      options.push({ key: "forward", label: "Forward test trades", rule: { kind: "forward" } });
+    }
+    const versions = [...new Set(trades.map((t) => t.setupVersion).filter((v): v is number => v != null))].sort((a, b) => a - b);
+    for (const v of versions) {
+      options.push({ key: `v:${v}`, label: `Setup version ${v}`, rule: { kind: "version", value: v } });
+    }
+    return options;
+  }, [trades]);
+}
+
+function CompareRow({ label, a, b, hint }: { label: string; a: string; b: string; hint?: string }) {
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr 1fr", gap: "10px", padding: "9px 0", borderBottom: "1px solid var(--border)" }}>
+      <div>
+        <div style={{ fontSize: "12px", color: "var(--text-secondary)" }}>{label}</div>
+        {hint && <div style={{ fontSize: "10px", color: "var(--text-muted)", marginTop: "1px" }}>{hint}</div>}
+      </div>
+      <div style={{ fontSize: "13px", fontWeight: "600", color: "var(--text-primary)", textAlign: "right" }}>{a}</div>
+      <div style={{ fontSize: "13px", fontWeight: "600", color: "var(--text-primary)", textAlign: "right" }}>{b}</div>
+    </div>
+  );
+}
+
+function CompareTab({ trades }: { trades: Trade[] }) {
+  const options = useCohortOptions(trades);
+  const firstTag = options.find((o) => o.key.startsWith("tag:"))?.key;
+  const [aKey, setAKey] = useState<string>(firstTag ?? "all");
+  const [bKey, setBKey] = useState<string>("all");
+
+  const { A, B, verdict } = useMemo(() => {
+    const aRule = options.find((o) => o.key === aKey)?.rule ?? ({ kind: "all" } as CohortRule);
+    const bRule = options.find((o) => o.key === bKey)?.rule ?? ({ kind: "all" } as CohortRule);
+    const aTrades = applyRule(trades, aRule);
+    const bTrades = applyRule(trades, bRule);
+    // One shared 1R unit, or "expectancy in R" would mean two different things.
+    const unit = riskUnit([...aTrades, ...bTrades]);
+    const a = cohortStats(options.find((o) => o.key === aKey)?.label ?? "A", aTrades, unit);
+    const b = cohortStats(options.find((o) => o.key === bKey)?.label ?? "B", bTrades, unit);
+    return { A: a, B: b, verdict: compareCohorts(a, b) };
+  }, [trades, aKey, bKey, options]);
+
+  const pctText = (v: number) => `${v.toFixed(1)}%`;
+  const ciText = (ci: { low: number; high: number } | null, unit = "%") =>
+    ci ? `${ci.low.toFixed(1)}–${ci.high.toFixed(1)}${unit}` : "—";
+
+  const verdictStyle =
+    verdict.verdict === "a" ? { color: "var(--profit)", bg: "rgba(0,229,122,0.10)", border: "rgba(0,229,122,0.35)" }
+    : verdict.verdict === "b" ? { color: "var(--warning)", bg: "rgba(251,191,36,0.10)", border: "rgba(251,191,36,0.35)" }
+    : { color: "var(--text-secondary)", bg: "var(--bg-secondary)", border: "var(--border)" };
+
+  const verdictText =
+    verdict.verdict === "a"
+      ? `${A.label} carries the higher expectancy, and the intervals do not overlap.`
+      : verdict.verdict === "b"
+        ? `${B.label} carries the higher expectancy, and the intervals do not overlap.`
+        : verdict.verdict === "indistinguishable"
+          ? `A ${Math.abs(verdict.gapR).toFixed(2)}R gap, but the two intervals overlap — this is not a difference you can act on yet.`
+          : `Not enough trades on both sides to compare. Each cohort needs at least 20.`;
+
+  const selectStyle: React.CSSProperties = {
+    width: "100%", padding: "8px 10px", borderRadius: "8px",
+    border: "1px solid var(--border)", background: "var(--bg-secondary)",
+    color: "var(--text-primary)", fontSize: "12px",
+    fontFamily: "'DM Sans', sans-serif",
+  };
+
+  return (
+    <>
+      <SectionCard
+        title="Cohort comparison"
+        subtitle="Pick two slices of the same book. Both are measured in the same 1R unit, and the verdict only separates them when the bootstrap intervals do not overlap."
+      >
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginBottom: "16px" }}>
+          <div>
+            <label style={{ fontSize: "11px", color: "var(--text-muted)", display: "block", marginBottom: "4px" }}>Cohort A</label>
+            <select value={aKey} onChange={(e) => setAKey(e.target.value)} style={selectStyle}>
+              {options.map((o) => <option key={o.key} value={o.key}>{o.label}</option>)}
+            </select>
+          </div>
+          <div>
+            <label style={{ fontSize: "11px", color: "var(--text-muted)", display: "block", marginBottom: "4px" }}>Cohort B</label>
+            <select value={bKey} onChange={(e) => setBKey(e.target.value)} style={selectStyle}>
+              {options.map((o) => <option key={o.key} value={o.key}>{o.label}</option>)}
+            </select>
+          </div>
+        </div>
+
+        <div style={{ background: verdictStyle.bg, border: `1px solid ${verdictStyle.border}`, borderRadius: "10px", padding: "12px 14px", marginBottom: "16px" }}>
+          <div style={{ fontSize: "13px", fontWeight: "700", color: verdictStyle.color }}>{verdictText}</div>
+          {verdict.neededPerCohort != null && verdict.verdict !== "a" && verdict.verdict !== "b" && (
+            <div style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "4px" }}>
+              About {verdict.neededPerCohort} trades per cohort would settle it at this effect size.
+            </div>
+          )}
+        </div>
+
+        <CompareRow label="Trades" a={String(A.trades)} b={String(B.trades)} />
+        <CompareRow label="Win rate" a={pctText(A.winRate)} b={pctText(B.winRate)} hint={`A 95% ${ciText(A.winRateCI)} · B ${ciText(B.winRateCI)}`} />
+        <CompareRow label="Expectancy" a={`${A.expectancyR >= 0 ? "+" : ""}${A.expectancyR.toFixed(2)}R`} b={`${B.expectancyR >= 0 ? "+" : ""}${B.expectancyR.toFixed(2)}R`} hint={`A 95% ${ciText(A.expectancyCI, "R")} · B ${ciText(B.expectancyCI, "R")}`} />
+        <CompareRow label="Net P&L" a={`${A.totalPnl >= 0 ? "+" : ""}$${A.totalPnl.toFixed(0)}`} b={`${B.totalPnl >= 0 ? "+" : ""}$${B.totalPnl.toFixed(0)}`} />
+        <CompareRow label="Profit factor" a={A.profitFactor == null ? "—" : A.profitFactor.toFixed(2)} b={B.profitFactor == null ? "—" : B.profitFactor.toFixed(2)} />
+        <CompareRow label="MFE capture" a={A.mfeCapture == null ? "—" : `${A.mfeCapture.toFixed(0)}%`} b={B.mfeCapture == null ? "—" : `${B.mfeCapture.toFixed(0)}%`} hint="Share of the favourable move kept on winners" />
+        <CompareRow label="Plan adherence" a={A.adherence == null ? "—" : `${A.adherence.toFixed(0)}%`} b={B.adherence == null ? "—" : `${B.adherence.toFixed(0)}%`} hint={A.reviewed + B.reviewed > 0 ? `${A.reviewed + B.reviewed} reviewed trades` : "Review trades to populate"} />
+      </SectionCard>
+
+      <SectionCard title="Reading a comparison" subtitle="What the numbers can and cannot tell you at this sample size.">
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: "14px" }}>
+          {[
+            { name: "Shared 1R unit", what: "Both cohorts divide P&L by the same risk unit, so R means the same thing on both sides. Comparing raw expectancy in dollars across different position sizes would just measure size." },
+            { name: "Bootstrap interval", what: "Each expectancy is resampled 2,000 times to show how much it could move on another run of similar trades. Non-overlapping intervals are the minimum bar for a difference." },
+            { name: "Trades needed", what: "An estimate of the sample required to detect this gap with 80% power. If it is larger than your journal, the honest move is to collect more trades rather than change the rules." },
+          ].map(({ name, what }) => (
+            <div key={name} style={{ background: "var(--bg-secondary)", borderRadius: "10px", padding: "14px 16px" }}>
+              <div style={{ fontSize: "13px", fontWeight: "700", color: "var(--text-primary)", marginBottom: "6px" }}>{name}</div>
+              <div style={{ fontSize: "11px", color: "var(--text-muted)", lineHeight: 1.6 }}>{what}</div>
+            </div>
+          ))}
+        </div>
+      </SectionCard>
+    </>
+  );
+}
+
+// ─── Adherence: did the trader do what the plan said? ───────────────────
+// Same trader, same market, two behaviours. This is the most actionable
+// comparison in the app because nothing about the instrument changes.
+
+function AdherencePanel({ stats }: {
+  stats: NonNullable<ReturnType<typeof useAnalyticsSummary>["stats"]>;
+}) {
+  const a = stats.adherence;
+  const mistakes = stats.mistakes;
+  const versions = stats.versions;
+
+  const cell: React.CSSProperties = { fontSize: "12px", padding: "7px 8px", textAlign: "right" };
+  const head: React.CSSProperties = { fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.4px", padding: "0 8px 6px", textAlign: "right" };
+
+  if (a.reviewed === 0 && versions.length === 0 && mistakes.length === 0) {
+    return (
+      <SectionCard title="Plan adherence" subtitle="The gap between following your rules and breaking them, measured in R.">
+        <p style={{ fontSize: "12px", color: "var(--text-muted)", lineHeight: 1.7, margin: 0 }}>
+          No trade has been reviewed yet. Open a trade from the Calendar or Dashboard and record whether it
+          followed the plan in the quick view panel — until then this comparison (the cheapest edge most books have)
+          cannot be measured.
+        </p>
+      </SectionCard>
+    );
+  }
+
+  return (
+    <>
+      <SectionCard title="Plan adherence" subtitle="Trades you reviewed, split by whether you did what the plan said. Both sides use the same 1R unit.">
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: "12px", marginBottom: "16px" }}>
+          <MetricCard label="Reviewed" value={`${a.reviewed}`} neutral icon={Shield} sub={`${a.followed} on plan · ${a.broke} off plan`} />
+          <MetricCard label="On-plan expectancy" value={a.followedExpectancyR == null ? "—" : `${a.followedExpectancyR >= 0 ? "+" : ""}${a.followedExpectancyR.toFixed(2)}R`} positive={(a.followedExpectancyR ?? 0) >= 0} icon={Target} sub="Average per trade" />
+          <MetricCard label="Off-plan expectancy" value={a.brokeExpectancyR == null ? "—" : `${a.brokeExpectancyR >= 0 ? "+" : ""}${a.brokeExpectancyR.toFixed(2)}R`} positive={(a.brokeExpectancyR ?? 0) >= 0} icon={AlertTriangle} sub="Average per trade" />
+          <MetricCard label="Cost per break" value={a.costPerBreak == null ? "—" : `${a.costPerBreak <= 0 ? "-" : "+"}$${Math.abs(a.costPerBreak).toFixed(0)}`} positive={a.costPerBreak != null && a.costPerBreak >= 0} icon={TrendingDown} sub="Against the on-plan baseline" />
+        </div>
+        <p style={{ fontSize: "12px", color: "var(--text-muted)", lineHeight: 1.7, margin: 0 }}>
+          {a.reviewed < 10
+            ? `Only ${a.reviewed} reviewed trades so far — treat this as a direction, not a verdict. Ten is the floor before the gap means anything.`
+            : `Across ${a.reviewed} reviewed trades, on-plan work earned ${a.followedPnl >= 0 ? "+" : ""}$${a.followedPnl.toFixed(0)} and breaks ${a.brokePnl >= 0 ? "+" : ""}$${a.brokePnl.toFixed(0)}.`}
+        </p>
+      </SectionCard>
+
+      {mistakes.length > 0 && (
+        <SectionCard title="Logged mistakes" subtitle="Worst first, by expectancy. A tag repeated three times is a habit, not an accident.">
+          <div style={{ overflowX: "auto" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "2fr 80px 90px 110px 110px", minWidth: "480px" }}>
+              <div style={{ ...head, textAlign: "left" }}>Mistake</div>
+              <div style={head}>Trades</div>
+              <div style={head}>Win rate</div>
+              <div style={head}>Expectancy</div>
+              <div style={head}>Net P&L</div>
+              {mistakes.map((m) => (
+                <Fragment key={m.tag}>
+                  <div style={{ ...cell, textAlign: "left", color: "var(--text-primary)", fontWeight: "600" }}>{m.tag}</div>
+                  <div style={{ ...cell, color: "var(--text-secondary)" }}>{m.count}</div>
+                  <div style={{ ...cell, color: "var(--text-secondary)" }}>{m.winRate.toFixed(0)}%</div>
+                  <div style={{ ...cell, color: m.expectancyR >= 0 ? "var(--profit)" : "var(--loss)", fontWeight: "700" }}>{m.expectancyR >= 0 ? "+" : ""}{m.expectancyR.toFixed(2)}R</div>
+                  <div style={{ ...cell, color: m.pnl >= 0 ? "var(--profit)" : "var(--loss)" }}>{m.pnl >= 0 ? "+" : "-"}${Math.abs(m.pnl).toFixed(0)}</div>
+                </Fragment>
+              ))}
+            </div>
+          </div>
+        </SectionCard>
+      )}
+
+      {versions.length > 0 && (
+        <SectionCard title="Setup revisions" subtitle="The same rules before and after each change. Judge a revision on this table, not on how it felt.">
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: "12px" }}>
+            {versions.map((v) => (
+              <div key={v.version} style={{ background: "var(--bg-secondary)", borderRadius: "10px", padding: "12px 14px" }}>
+                <div style={{ fontSize: "11px", color: "var(--text-muted)", marginBottom: "4px" }}>Version {v.version}</div>
+                <div style={{ fontSize: "18px", fontWeight: "800", color: v.expectancyR >= 0 ? "var(--profit)" : "var(--loss)" }}>
+                  {v.expectancyR >= 0 ? "+" : ""}{v.expectancyR.toFixed(2)}R
+                </div>
+                <div style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "4px" }}>
+                  {v.count} trade{v.count !== 1 ? "s" : ""} · {v.winRate.toFixed(0)}% wins · {v.pnl >= 0 ? "+" : "-"}${Math.abs(v.pnl).toFixed(0)}
+                </div>
+              </div>
+            ))}
+          </div>
+        </SectionCard>
+      )}
+    </>
+  );
+}
+
+// ─── Execution research: exits, stops and the reward the plan asked for ──
+
+function ExecutionResearch({ trades }: { trades: Trade[] }) {
+  const capture = useMemo(() => mfeCaptureBuckets(trades), [trades]);
+  const atr = useMemo(() => stopVsAtr(trades), [trades]);
+  const rr = useMemo(() => outcomeByIntendedRR(trades), [trades]);
+
+  const hasCapture = capture.some((b) => b.count > 0);
+  const hasAtr = atr.some((b) => b.count > 0);
+  const hasRr = rr.some((b) => b.count > 0);
+  if (!hasCapture && !hasAtr && !hasRr) return null;
+
+  const cell: React.CSSProperties = { fontSize: "12px", padding: "7px 8px", textAlign: "right", color: "var(--text-secondary)" };
+  const head: React.CSSProperties = { fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.4px", padding: "0 8px 6px", textAlign: "right" };
+
+  return (
+    <>
+      {hasCapture && (
+        <SectionCard title="How much of the move you keep" subtitle="Winners bucketed by P&L as a share of the best excursion the trade reached. A cluster at the left is an exit problem, not an entry problem.">
+          <div style={{ display: "grid", gridTemplateColumns: `repeat(${capture.length}, 1fr)`, gap: "10px" }}>
+            {capture.map((b) => (
+              <div key={b.label} style={{ background: "var(--bg-secondary)", borderRadius: "10px", padding: "12px 10px", textAlign: "center" }}>
+                <div style={{ fontSize: "11px", color: "var(--text-muted)", marginBottom: "6px" }}>{b.label}</div>
+                <div style={{ fontSize: "20px", fontWeight: "800", color: "var(--text-primary)" }}>{b.count}</div>
+                <div style={{ fontSize: "10px", color: "var(--text-muted)", marginTop: "4px" }}>
+                  {b.count > 0 ? `avg ${b.avgCapture.toFixed(0)}%` : "—"}
+                </div>
+              </div>
+            ))}
+          </div>
+        </SectionCard>
+      )}
+
+      {hasAtr && (
+        <SectionCard title="Stop distance in ATR" subtitle="Planned risk per unit divided by ATR(14) at entry. Stops inside half an ATR are inside the noise of the instrument.">
+          <div style={{ display: "grid", gridTemplateColumns: "2fr 90px 100px 120px", minWidth: "420px" }}>
+            <div style={{ ...head, textAlign: "left" }}>Stop band</div>
+            <div style={head}>Trades</div>
+            <div style={head}>Win rate</div>
+            <div style={head}>Expectancy</div>
+            {atr.map((b) => (
+              <Fragment key={b.label}>
+                <div style={{ ...cell, textAlign: "left", color: "var(--text-primary)" }}>{b.label}</div>
+                <div style={cell}>{b.count}</div>
+                <div style={cell}>{b.count > 0 ? `${b.winRate.toFixed(0)}%` : "—"}</div>
+                <div style={{ ...cell, fontWeight: "700", color: b.count === 0 ? "var(--text-muted)" : b.expectancyR >= 0 ? "var(--profit)" : "var(--loss)" }}>
+                  {b.count > 0 ? `${b.expectancyR >= 0 ? "+" : ""}${b.expectancyR.toFixed(2)}R` : "—"}
+                </div>
+              </Fragment>
+            ))}
+          </div>
+        </SectionCard>
+      )}
+
+      {hasRr && (
+        <SectionCard title="Outcome by intended R:R" subtitle="The reward the plan asked for against what the trades actually produced something in.">
+          <div style={{ display: "grid", gridTemplateColumns: "2fr 90px 100px 120px", minWidth: "420px" }}>
+            <div style={{ ...head, textAlign: "left" }}>Planned R:R</div>
+            <div style={head}>Trades</div>
+            <div style={head}>Win rate</div>
+            <div style={head}>Expectancy</div>
+            {rr.map((b) => (
+              <Fragment key={b.label}>
+                <div style={{ ...cell, textAlign: "left", color: "var(--text-primary)" }}>{b.label}</div>
+                <div style={cell}>{b.count}</div>
+                <div style={cell}>{b.count > 0 ? `${b.winRate.toFixed(0)}%` : "—"}</div>
+                <div style={{ ...cell, fontWeight: "700", color: b.count === 0 ? "var(--text-muted)" : b.expectancyR >= 0 ? "var(--profit)" : "var(--loss)" }}>
+                  {b.count > 0 ? `${b.expectancyR >= 0 ? "+" : ""}${b.expectancyR.toFixed(2)}R` : "—"}
+                </div>
+              </Fragment>
+            ))}
+          </div>
+        </SectionCard>
+      )}
+    </>
   );
 }

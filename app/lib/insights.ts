@@ -11,6 +11,7 @@ import type { Trade } from "./types";
 import type {
   HourBucket, ProcessBucket, GapBucket, CostProfile, RRiskProfile,
   StopQuality, LegStats, CashFlowReport,
+  AdherenceStats, MistakeStat, VersionStat,
 } from "./analytics";
 
 // ─── Shape ──────────────────────────────────────────────────────────────
@@ -19,7 +20,7 @@ export type InsightLevel = "good" | "warn" | "bad" | "info";
 
 export type SectionId =
   | "overview" | "risk" | "time" | "heatmap"
-  | "rmultiples" | "execution" | "behavior" | "process";
+  | "execution" | "behavior" | "process";
 
 export interface Insight {
   level: InsightLevel;
@@ -68,10 +69,6 @@ export interface AnalyticsFacts {
   symbolData: { symbol: string; pnl: number; count: number; wr: number }[];
   tagData: { tag: string; pnl: number; count: number; wr: number }[];
 
-  avgR: number;
-  rUnit: number;
-  rHistogram: { bucket: string; count: number; positive: boolean }[];
-
   hasMaeMfe: boolean;
   maeFdCount: number;
   avgMae: number;
@@ -100,6 +97,12 @@ export interface AnalyticsFacts {
   magicData: ProcessBucket[];
   legData: LegStats;
   cashFlow: CashFlowReport;
+
+  // Phase 1 inputs. Absent until trades are reviewed, which is why every rule
+  // below checks the reviewed count before it says anything.
+  adherence: AdherenceStats;
+  mistakes: MistakeStat[];
+  versions: VersionStat[];
 }
 
 // ─── Thresholds ─────────────────────────────────────────────────────────
@@ -157,9 +160,11 @@ const T = {
   ruinWarn: 0.05,
   ruinBad: 0.1,
 
-  leftTailBad: 0.15,        // share of trades closing beyond -2R
-  scratchWarn: 0.2,         // share of trades closing at roughly 0R
-  earlyExitWarn: 0.7,       // share of R-winners that never reach +2R
+  adherenceMinReviewed: 10, // reviews before plan-vs-break is worth a claim
+  adherenceGapR: 0.2,       // R of expectancy gap that justifies a finding
+  mistakeMinCount: 3,
+  versionMinCount: 10,
+
   rStrong: 0.3,
 } as const;
 
@@ -189,6 +194,12 @@ const n1 = (v: number) => v.toFixed(1);
 const n2 = (v: number) => v.toFixed(2);
 
 export const LOOK_FOR = {
+  adherence: {
+    label: "Plan adherence",
+    what: "Share of reviewed trades where you did what the plan said. It matters only because of what the breaks cost.",
+    action: "Pick the single rule you break most and make it a hard gate next month.",
+    bands: bands("95%+", "85%+", "70%+", "50–70%", "< 50%"),
+  },
   profitFactor: {
     label: "Profit factor",
     what: "Gross wins divided by gross losses: how many dollars each dollar lost is covered by.",
@@ -314,30 +325,6 @@ export const LOOK_FOR = {
     what: "Difference in win rate between your best and worst well-sampled hour. Wide means time-of-day is a real variable.",
     action: "Restrict entries to your best-tested hours.",
     bands: bands("< 10 pts", "10–20 pts", "20–35 pts", "35–50 pts", "> 50 pts"),
-  },
-  leftTail: {
-    label: "Trades worse than −2R",
-    what: "Share of trades that lost more than twice the planned risk. The tail that makes a fixed-size book fragile.",
-    action: "Move stops to where the setup is actually invalidated.",
-    bands: bands("0%", "< 5%", "< 10%", `10–${T.leftTailBad * 100}%`, `≥ ${T.leftTailBad * 100}%`),
-  },
-  earlyExit: {
-    label: "Winners capped at +1R",
-    what: "Share of R-winners that never get past +1R. High here means targets or patience is the constraint.",
-    action: "Let winners reach the planned target before closing.",
-    bands: bands("< 30%", "30–50%", `50–${T.earlyExitWarn * 100}%`, `${T.earlyExitWarn * 100}–85%`, "≥ 85%"),
-  },
-  scratchShare: {
-    label: "Scratch trades (≈0R)",
-    what: "Share of trades closed around breakeven. Noise in the distribution unless they share a cause.",
-    action: "Define entry criteria so uncertain trades are skipped.",
-    bands: bands("< 5%", "< 10%", `< ${T.scratchWarn * 100}%`, `${T.scratchWarn * 100}–30%`, "> 30%"),
-  },
-  rWinShare: {
-    label: "Trades closing at +1R or better",
-    what: "Share of trades that reach at least one unit of reward. Read it against the payoff ratio, never alone.",
-    action: "Hold winners to at least 2R when the setup allows.",
-    bands: bands("50%+", "40–50%", "30–40%", "20–30%", "< 20%"),
   },
   entryEff: {
     label: "Entry efficiency",
@@ -1204,126 +1191,6 @@ function heatmapInsights(f: AnalyticsFacts): Insight[] {
   return out;
 }
 
-// ─── R-multiples ────────────────────────────────────────────────────────
-
-function rMultiplesInsights(f: AnalyticsFacts): Insight[] {
-  const out: Insight[] = [];
-  const total = sum(f.rHistogram.map((b) => b.count));
-
-  if (total === 0) {
-    out.push({
-      level: "info",
-      guide: "dataCoverage",
-      title: "No R-multiples to read",
-      detail: "R needs at least one losing trade to define the unit. Either this period has no losers yet, or no stops were recorded.",
-    });
-    return out;
-  }
-
-  if (f.riskCoverage === 0) {
-    out.push({
-      level: "info",
-      guide: "dataCoverage",
-      title: "1R is an estimate, not your actual risk",
-      detail: `Every multiple on this tab uses the average loss ($${f.rUnit.toFixed(2)}) as 1R. Set a stop on each position so the distribution is measured against the risk you actually accepted.`,
-      metric: `$${f.rUnit.toFixed(2)}/R`,
-    });
-  }
-
-  if (f.avgR < 0) {
-    out.push({
-      level: "bad",
-      guide: "expectancyR",
-      title: "The average trade loses money in R",
-      detail: `${f.avgR.toFixed(2)}R per trade. In R terms the book is negative regardless of position size, so this has to be fixed at the setup level.`,
-      metric: `${f.avgR.toFixed(2)}R`,
-    });
-  } else if (f.avgR >= T.rStrong) {
-    out.push({
-      level: "good",
-      guide: "expectancyR",
-      title: "Outcomes are genuinely skewed to the right",
-      detail: `${f.avgR.toFixed(2)}R per trade. Winners are paying for the losers with room to spare, which is the shape that survives a long sample.`,
-      metric: `${f.avgR.toFixed(2)}R`,
-    });
-  } else {
-    out.push({
-      level: "warn",
-      guide: "expectancyR",
-      title: "Average R is positive but thin",
-      detail: `${f.avgR.toFixed(2)}R per trade. Small enough that one bad session erases a long stretch — the fix is cutting the losses below -1R, not adding trades.`,
-      metric: `${f.avgR.toFixed(2)}R`,
-    });
-  }
-
-  // "-2R" is the histogram bin for [-2R, -1R) — it is not beyond -2R, so it
-  // must not be counted in the left tail. The bins below it are (-3R, -2R) and
-  // ≤-3R, which is exactly the "worse than twice the planned risk" set.
-  const tailBuckets = ["-3R", "≤-3R"];
-  const tail = sum(f.rHistogram.filter((b) => tailBuckets.includes(b.bucket)).map((b) => b.count));
-  const tailShare = share(tail, total);
-  if (tailShare >= T.leftTailBad * 100) {
-    out.push({
-      level: "bad",
-      guide: "leftTail",
-      title: "A chunk of trades close far beyond -1R",
-      detail: `${tail} of ${total} trades (${pct(tailShare, 0)}) finish worse than twice the planned risk. Stops are being widened or ignored on exactly the trades that most needed them.`,
-      metric: pct(tailShare, 0),
-    });
-  } else if (tailShare === 0 && f.riskCoverage > 0) {
-    out.push({
-      level: "good",
-      guide: "leftTail",
-      title: "No trade exceeded -2R",
-      detail: "Every loss respected its planned risk. That is the single cheapest form of risk control and it is holding.",
-      metric: "0 trades",
-    });
-  }
-
-  const positive = f.rHistogram.filter((b) => b.positive);
-  const positiveTotal = sum(positive.map((b) => b.count));
-  if (positiveTotal >= 5) {
-    const early = positive.filter((b) => b.bucket === "+1R").reduce((s, b) => s + b.count, 0);
-    const earlyShare = share(early, positiveTotal);
-    if (earlyShare >= T.earlyExitWarn) {
-      out.push({
-        level: "warn",
-        guide: "earlyExit",
-        title: "Winners are being closed before they run",
-        detail: `${pct(earlyShare, 0)} of R-winners finish at +1R and almost nothing reaches +2R. Cutting winners early is the most common way a positive win rate still loses money — check whether targets or patience is the constraint.`,
-        metric: pct(earlyShare, 0),
-      });
-    }
-  }
-
-  const scratch = f.rHistogram.find((b) => b.bucket === "+0R")?.count ?? 0;
-  const scratchShare = share(scratch, total);
-  if (scratchShare >= T.scratchWarn * 100) {
-    out.push({
-      level: "info",
-      guide: "scratchShare",
-      title: `${pct(scratchShare, 0)} of trades end around 0R`,
-      detail: "Scratches are noise in the distribution. If they share a feature — the same session, the same setup, the same hesitation — filtering them out is a free expectancy gain.",
-      metric: pct(scratchShare, 0),
-    });
-  }
-
-  const lossBucketCount = f.rHistogram.filter((b) => !b.positive).reduce((s, b) => s + b.count, 0);
-  const winBucketCount = positiveTotal;
-  if (lossBucketCount > 0 && winBucketCount > 0) {
-    const winRateFromR = (winBucketCount / (winBucketCount + lossBucketCount)) * 100;
-    out.push({
-      level: "info",
-      guide: "rWinShare",
-      title: `${pct(winRateFromR, 0)} of trades close at +1R or better`,
-      detail: `${winBucketCount} trades closed at +1R or better and ${lossBucketCount} did not. Compare against the break-even rate the payoff on this tab implies — a lower rate is fine when the payoff is high, and not fine when it is not.`,
-      metric: pct(winRateFromR, 0),
-    });
-  }
-
-  return out;
-}
-
 // ─── Execution ──────────────────────────────────────────────────────────
 
 function executionInsights(f: AnalyticsFacts): Insight[] {
@@ -1921,6 +1788,77 @@ function processInsights(f: AnalyticsFacts): Insight[] {
     }
   }
 
+  // Plan adherence. This is the only comparison on the tab where both sides
+  // are the same trader in the same market, so a gap here is behaviour rather
+  // than instrument or regime.
+  if (f.adherence.reviewed >= T.adherenceMinReviewed) {
+    const a = f.adherence;
+    const gap = a.followedExpectancyR != null && a.brokeExpectancyR != null
+      ? a.followedExpectancyR - a.brokeExpectancyR
+      : null;
+
+    if (gap != null && a.broke > 0 && a.followed > 0 && gap >= T.adherenceGapR) {
+      out.push({
+        level: "bad",
+        guide: "adherence",
+        title: `Trades that broke the plan gave up ${gap.toFixed(2)}R each`,
+        detail: `On-plan trades averaged ${a.followedExpectancyR!.toFixed(2)}R across ${a.followed}; breaks averaged ${a.brokeExpectancyR!.toFixed(2)}R across ${a.broke}. ${a.costPerBreak != null ? `That is ${money(a.costPerBreak, 2)} per break against the on-plan baseline.` : ""} The rule you overrode is worth more than any new setup.`,
+        metric: `${gap.toFixed(2)}R`,
+      });
+    } else if (gap != null && a.broke > 0 && a.followed > 0 && gap <= -T.adherenceGapR) {
+      out.push({
+        level: "info",
+        guide: "adherence",
+        title: "Your discretionary breaks are outperforming the plan",
+        detail: `Breaks averaged ${a.brokeExpectancyR!.toFixed(2)}R against ${a.followedExpectancyR!.toFixed(2)}R on-plan across ${a.broke + a.followed} reviewed trades. Before treating that as a green light, check whether the plan is too rigid — a rule that keeps losing to discretion is a rule to rewrite, not to keep breaking.`,
+        metric: `${Math.abs(gap).toFixed(2)}R`,
+      });
+    } else {
+      out.push({
+        level: "good",
+        guide: "adherence",
+        title: "Following the plan is not costing you anything",
+        detail: `${a.reviewed} reviews recorded, ${a.followed} on-plan. Expectancy is within ${T.adherenceGapR}R either way, so execution is not the leak on this book — the selection is.`,
+        metric: `${a.reviewed} reviewed`,
+      });
+    }
+  }
+
+  if (f.mistakes.length > 0) {
+    const worst = [...f.mistakes].filter((m) => m.count >= T.mistakeMinCount).sort((x, y) => x.expectancyR - y.expectancyR)[0];
+    if (worst && worst.expectancyR < 0) {
+      out.push({
+        level: "warn",
+        guide: "adherence",
+        title: `"${worst.tag}" is the most expensive mistake you log`,
+        detail: `${worst.count} trades marked "${worst.tag}" returned ${money(worst.pnl, 0)} at ${worst.expectancyR.toFixed(2)}R per trade and a ${worst.winRate.toFixed(0)}% win rate. Cutting this one behaviour is a measurable change you can verify next month.`,
+        metric: money(worst.pnl, 0),
+      });
+    }
+  }
+
+  // A revision only counts once both sides have a sample; otherwise this is a
+  // restatement of two anecdotes.
+  if (f.versions.length >= 2) {
+    const sorted = [...f.versions].sort((x, y) => x.version - y.version);
+    const latest = sorted[sorted.length - 1];
+    const previous = sorted[sorted.length - 2];
+    if (latest.count >= T.versionMinCount && previous.count >= T.versionMinCount) {
+      const delta = latest.expectancyR - previous.expectancyR;
+      out.push({
+        level: delta >= T.adherenceGapR ? "good" : delta <= -T.adherenceGapR ? "bad" : "info",
+        guide: "expectancyR",
+        title: delta >= T.adherenceGapR
+          ? `Revision ${latest.version} improved expectancy by ${delta.toFixed(2)}R`
+          : delta <= -T.adherenceGapR
+            ? `Revision ${latest.version} made expectancy worse by ${Math.abs(delta).toFixed(2)}R`
+            : `Revision ${latest.version} has not changed expectancy yet`,
+        detail: `Version ${latest.version}: ${latest.expectancyR.toFixed(2)}R over ${latest.count} trades. Version ${previous.version}: ${previous.expectancyR.toFixed(2)}R over ${previous.count}. ${Math.abs(delta) >= T.adherenceGapR ? "Keep or revert on this number, not on how the new rules feel." : "The gap is inside the noise — give it more trades before deciding."}`,
+        metric: `${delta >= 0 ? "+" : ""}${delta.toFixed(2)}R`,
+      });
+    }
+  }
+
   return out;
 }
 
@@ -1932,7 +1870,6 @@ export function buildInsights(f: AnalyticsFacts): Record<SectionId, Insight[]> {
     risk: ranked(riskInsights(f)),
     time: ranked(timeInsights(f)),
     heatmap: ranked(heatmapInsights(f)),
-    rmultiples: ranked(rMultiplesInsights(f)),
     execution: ranked(executionInsights(f)),
     behavior: ranked(behaviorInsights(f)),
     process: ranked(processInsights(f)),

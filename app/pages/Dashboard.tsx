@@ -64,7 +64,7 @@ function DailyRiskStrip({ trades }: { trades: Trade[] }) {
     : "rgba(0,229,122,0.04)";
 
   const StatusIcon  = anyBreached ? ShieldAlert : ShieldCheck;
-  const statusColor = anyBreached ? "#ff4d6a" : anyWarning ? "#fbbf24" : "#00e57a";
+  const statusColor = anyBreached ? "var(--loss)" : anyWarning ? "var(--warning)" : "var(--profit)";
 
   return (
     <div style={{
@@ -89,7 +89,7 @@ function DailyRiskStrip({ trades }: { trades: Trade[] }) {
             </span>
             <span style={{
               fontSize: "11px", fontWeight: "700",
-              color: lossBreached ? "#ff4d6a" : lossWarning ? "#fbbf24" : "var(--text-muted)",
+              color: lossBreached ? "var(--loss)" : lossWarning ? "var(--warning)" : "var(--text-muted)",
             }}>
               ${Math.abs(todayLoss).toFixed(2)} / ${dailyLossLimit.toFixed(2)}
             </span>
@@ -97,7 +97,7 @@ function DailyRiskStrip({ trades }: { trades: Trade[] }) {
           <div style={{ height: "6px", background: "rgba(255,255,255,0.08)", borderRadius: "4px", overflow: "hidden" }}>
             <div style={{
               height: "100%", width: `${lossUsedPct}%`,
-              background: lossBreached ? "#ff4d6a" : lossWarning ? "#fbbf24" : "#00e57a",
+              background: lossBreached ? "var(--loss)" : lossWarning ? "var(--warning)" : "var(--profit)",
               borderRadius: "4px", transition: "width 0.3s ease",
             }} />
           </div>
@@ -112,7 +112,7 @@ function DailyRiskStrip({ trades }: { trades: Trade[] }) {
             </span>
             <span style={{
               fontSize: "11px", fontWeight: "700",
-              color: tradeBreached ? "#ff4d6a" : tradeWarning ? "#fbbf24" : "var(--text-muted)",
+              color: tradeBreached ? "var(--loss)" : tradeWarning ? "var(--warning)" : "var(--text-muted)",
             }}>
               {todayCount} / {maxDailyTrades}
             </span>
@@ -120,7 +120,7 @@ function DailyRiskStrip({ trades }: { trades: Trade[] }) {
           <div style={{ height: "6px", background: "rgba(255,255,255,0.08)", borderRadius: "4px", overflow: "hidden" }}>
             <div style={{
               height: "100%", width: `${tradeUsedPct}%`,
-              background: tradeBreached ? "#ff4d6a" : tradeWarning ? "#fbbf24" : "#00e57a",
+              background: tradeBreached ? "var(--loss)" : tradeWarning ? "var(--warning)" : "var(--profit)",
               borderRadius: "4px", transition: "width 0.3s ease",
             }} />
           </div>
@@ -129,7 +129,7 @@ function DailyRiskStrip({ trades }: { trades: Trade[] }) {
 
       <div style={{ flexShrink: 0, textAlign: "right" }}>
         <div style={{ fontSize: "10px", color: "var(--text-muted)", marginBottom: "2px" }}>TODAY</div>
-        <div style={{ fontSize: "16px", fontWeight: "800", color: todayPnl >= 0 ? "#00e57a" : "#ff4d6a" }}>
+        <div style={{ fontSize: "16px", fontWeight: "800", color: todayPnl >= 0 ? "var(--profit)" : "var(--loss)" }}>
           {todayPnl >= 0 ? "+" : ""}${todayPnl.toFixed(2)}
         </div>
       </div>
@@ -145,6 +145,15 @@ export default function Dashboard() {
 
   return (
     <>
+      <div style={{ marginBottom: "24px" }}>
+        <h2 style={{ fontSize: "26px", fontWeight: "700", color: "var(--text-primary)", letterSpacing: "-0.5px" }}>
+          Dashboard
+        </h2>
+        <p style={{ color: "var(--text-muted)", fontSize: "14px", marginTop: "4px" }}>
+          Your edge, risk and process for the selected market and period
+        </p>
+      </div>
+
       {/* Headline figures are period-scoped and only exist once there is a
           period to describe; the import prompt below stands in otherwise. */}
       {summary && <OverviewMetrics stats={summary} />}

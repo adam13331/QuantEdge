@@ -2,9 +2,8 @@
 import {
   Document, Page, Text, View, StyleSheet, Image,
 } from "@react-pdf/renderer";
-import { Trade, Account } from "../lib/types";
-import {
-  buildReportStats,
+import { Trade, Account } from "../lib/types";import { formatTime } from "../lib/time";
+import { buildReportStats,
   durationMinutes, byDuration, byReEntryGap, byDirection, costProfile,
   recoveryFactor, rRiskProfile, stopQuality,
   byExitReason, byMagic, legStats, externalCashFlow,
@@ -292,6 +291,7 @@ interface Props {
   logoUrl?: string;
   challenge?: ChallengeConfig | null;
   weekStart?: "sunday" | "monday";
+  timeFormat?: "24h" | "12h";
   options?: {
     includeCover?: boolean;
     includeStats?: boolean;
@@ -308,7 +308,7 @@ interface Props {
   };
 }
 
-export default function TradingReportPDF({ trades, account, dateRange, logoUrl, challenge, weekStart = "monday", options = {} }: Props) {
+export default function TradingReportPDF({ trades, account, dateRange, logoUrl, challenge, weekStart = "monday", timeFormat = "24h", options = {} }: Props) {
   const {
     includeCover = true,
     includeStats = true,
@@ -1093,7 +1093,7 @@ export default function TradingReportPDF({ trades, account, dateRange, logoUrl, 
                   </View>
 
                   <Text style={styles.journalMeta}>
-                    {t.date}{t.entryTime ? ` · Entry ${t.entryTime}` : ""}{t.exitTime ? ` · Exit ${t.exitTime}` : ""}{t.rr ? ` · R:R ${t.rr}` : ""}
+                    {t.date}{t.entryTime ? ` · Entry ${formatTime(t.entryTime, timeFormat)}` : ""}{t.exitTime ? ` · Exit ${formatTime(t.exitTime, timeFormat)}` : ""}{t.rr ? ` · R:R ${t.rr}` : ""}
                   </Text>
 
                   {tags.length > 0 && (

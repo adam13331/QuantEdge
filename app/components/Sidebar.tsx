@@ -1,20 +1,21 @@
 "use client";
 import {
-  LayoutDashboard, BookOpen, Calendar,
+  LayoutDashboard, Calendar,
   Upload, PlusCircle, Settings, Wallet, ChevronDown,
-  FileDown, Library, Shield,
+  FileDown, Library, Shield, HelpCircle, Search, CalendarCheck,
 } from "lucide-react";
 import Image from "next/image";
 import { useApp } from "../context/AppContext";
+import { useSettings } from "../hooks/useSettings";
 import { PageId, Account } from "../lib/types";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 const NAV_ITEMS: { icon: any; label: string; id: PageId }[] = [
   { icon: LayoutDashboard,   label: "Dashboard",    id: "dashboard"      },
-  { icon: BookOpen,          label: "Journal",       id: "journal"        },
   { icon: Calendar,          label: "Calendar",      id: "calendar"       },
   { icon: Shield,            label: "Prop Firm",     id: "propfirm"       },
   { icon: Library,           label: "Playbook",      id: "playbook"       },
+  { icon: CalendarCheck,     label: "Review",        id: "review"         },
   { icon: Wallet,            label: "Accounts",      id: "accounts"       },
   { icon: Upload,            label: "Import Trades", id: "import"         },
   { icon: FileDown,          label: "Export",        id: "export"         },
@@ -22,36 +23,62 @@ const NAV_ITEMS: { icon: any; label: string; id: PageId }[] = [
 
 export default function Sidebar() {
   const { activePage, setActivePage, accounts, activeAccount, setActiveAccount } = useApp();
+  const { settings } = useSettings();
   const [showAccountMenu, setShowAccountMenu] = useState(false);
+  // Below ~1100px the fixed 220px rail leaves too little room for the headline
+  // grids. Collapse to icons and keep every control reachable.
+  const [compact, setCompact] = useState(false);
+
+  useEffect(() => {
+    const query = window.matchMedia("(max-width: 1100px)");
+    const sync = () => setCompact(query.matches);
+    sync();
+    query.addEventListener("change", sync);
+    return () => query.removeEventListener("change", sync);
+  }, []);
 
   return (
     <aside style={{
-      width: "220px", minWidth: "220px",
+      width: compact ? "72px" : "220px", minWidth: compact ? "72px" : "220px",
       background: "var(--bg-secondary)",
       borderRight: "1px solid var(--border)",
       display: "flex", flexDirection: "column",
       padding: "24px 0",
     }}>
       {/* Logo */}
-      <div style={{ paddingBottom: "28px" }}>
-        <Image
-          src="/quantedge-logo-dark.svg"
-          alt="QuantEdge"
-          width={190}
-          height={46}
-          priority
-          style={{ display: "block", margin: "0 auto" }}
-        />
+      <div style={{ paddingBottom: compact ? "16px" : "28px" }}>
+        {compact ? (
+          <Image
+            src="/quantedge-icon.svg"
+            alt="QuantEdge"
+            width={32}
+            height={32}
+            priority
+            style={{ display: "block", margin: "0 auto" }}
+          />
+        ) : (
+          <Image
+            src={settings.theme === "light" ? "/quantedge-logo-light.svg" : "/quantedge-logo-dark.svg"}
+            alt="QuantEdge"
+            width={190}
+            height={46}
+            priority
+            style={{ display: "block", margin: "0 auto" }}
+          />
+        )}
       </div>
 
       {/* Account Switcher */}
       {accounts.length > 0 && (
-        <div style={{ padding: "0 12px 20px", position: "relative" }}>
+        <div style={{ padding: compact ? "0 8px 16px" : "0 12px 20px", position: "relative" }}>
           <button
             onClick={() => setShowAccountMenu(!showAccountMenu)}
+            aria-label={activeAccount ? `Active account: ${activeAccount.name}` : "Select account"}
+            title={activeAccount?.name}
             style={{
               width: "100%", display: "flex", alignItems: "center",
-              justifyContent: "space-between", padding: "10px 12px",
+              justifyContent: compact ? "center" : "space-between",
+              padding: compact ? "8px" : "10px 12px",
               borderRadius: "8px", border: "1px solid var(--border)",
               background: "var(--bg-card)", cursor: "pointer", gap: "8px",
             }}
@@ -64,28 +91,33 @@ export default function Sidebar() {
               }}>
                 <Wallet size={12} color="var(--accent-green)" />
               </div>
-              <div style={{ minWidth: 0 }}>
-                <div style={{
-                  fontSize: "12px", fontWeight: "600", color: "#f0f0ff",
-                  whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
-                }}>
-                  {activeAccount?.name || "Select Account"}
+              {!compact && (
+                <div style={{ minWidth: 0 }}>
+                  <div style={{
+                    fontSize: "12px", fontWeight: "600", color: "var(--text-primary)",
+                    whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+                  }}>
+                    {activeAccount?.name || "Select Account"}
+                  </div>
+                  <div style={{ fontSize: "10px", color: "var(--text-secondary)" }}>{activeAccount?.platform || ""}</div>
                 </div>
-                <div style={{ fontSize: "10px", color: "#a8a8c8" }}>{activeAccount?.platform || ""}</div>
-              </div>
+              )}
             </div>
-            <ChevronDown
-              size={12} color="#a8a8c8"
-              style={{
-                transform: showAccountMenu ? "rotate(180deg)" : "rotate(0deg)",
-                transition: "transform 0.15s ease", flexShrink: 0,
-              }}
-            />
+            {!compact && (
+              <ChevronDown
+                size={12} color="var(--text-secondary)"
+                style={{
+                  transform: showAccountMenu ? "rotate(180deg)" : "rotate(0deg)",
+                  transition: "transform 0.15s ease", flexShrink: 0,
+                }}
+              />
+            )}
           </button>
 
           {showAccountMenu && (
             <div style={{
-              position: "absolute", top: "calc(100% - 8px)", left: "12px", right: "12px",
+              position: "absolute", top: "calc(100% - 8px)", left: compact ? "8px" : "12px",
+              right: "auto", width: compact ? "260px" : undefined,
               background: "var(--bg-card)", border: "1px solid var(--border)",
               borderRadius: "8px", zIndex: 100, overflow: "hidden",
               boxShadow: "0 8px 24px rgba(0,0,0,0.3)",
@@ -102,8 +134,8 @@ export default function Sidebar() {
                   }}
                 >
                   <div>
-                    <div style={{ fontSize: "12px", fontWeight: "600", color: "#f0f0ff" }}>{account.name}</div>
-                    <div style={{ fontSize: "10px", color: "#a8a8c8" }}>
+                    <div style={{ fontSize: "12px", fontWeight: "600", color: "var(--text-primary)" }}>{account.name}</div>
+                    <div style={{ fontSize: "10px", color: "var(--text-secondary)" }}>
                       {account.platform} · {account.currency} {account.initialBalance.toLocaleString()}
                     </div>
                   </div>
@@ -118,7 +150,7 @@ export default function Sidebar() {
                   style={{
                     width: "100%", padding: "10px 12px", border: "none",
                     background: "transparent", cursor: "pointer",
-                    textAlign: "left", fontSize: "12px", color: "#a8a8c8",
+                    textAlign: "left", fontSize: "12px", color: "var(--text-secondary)",
                     display: "flex", alignItems: "center", gap: "6px",
                   }}
                 >
@@ -133,34 +165,71 @@ export default function Sidebar() {
 
       {/* No accounts nudge */}
       {accounts.length === 0 && (
-        <div style={{ padding: "0 12px 20px" }}>
+        <div style={{ padding: compact ? "0 8px 16px" : "0 12px 20px" }}>
           <button
             onClick={() => setActivePage("accounts")}
+            aria-label="Create an account"
+            title="Create an account"
             style={{
-              width: "100%", padding: "10px 12px", borderRadius: "8px",
+              width: "100%", padding: compact ? "10px" : "10px 12px", borderRadius: "8px",
               border: "1px dashed var(--border)", background: "transparent",
-              cursor: "pointer", textAlign: "left",
-              fontSize: "12px", color: "#a8a8c8",
+              cursor: "pointer", textAlign: "left", justifyContent: compact ? "center" : "flex-start",
+              fontSize: "12px", color: "var(--text-secondary)",
               display: "flex", alignItems: "center", gap: "8px",
             }}
           >
             <PlusCircle size={12} />
-            Create an account
+            {!compact && "Create an account"}
           </button>
         </div>
       )}
 
+      {/* Search. A journal with a year of trades cannot be browsed a month at
+          a time, so the palette is reachable from the rail and from ⌘K. */}
+      <div style={{ padding: compact ? "0 8px 12px" : "0 12px 12px" }}>
+        <button
+          onClick={() => window.dispatchEvent(new Event("quantedge:search"))}
+          aria-label="Search trades"
+          title="Search trades (Ctrl/Cmd+K)"
+          style={{
+            width: "100%", display: "flex", alignItems: "center", gap: "8px",
+            justifyContent: compact ? "center" : "flex-start",
+            padding: compact ? "10px 0" : "8px 10px", borderRadius: "8px",
+            border: "1px solid var(--border)", background: "var(--bg-card)",
+            color: "var(--text-secondary)", cursor: "pointer",
+            fontSize: "12px", fontFamily: "'DM Sans', sans-serif",
+          }}
+        >
+          <Search size={14} />
+          {!compact && (
+            <>
+              <span style={{ flex: 1, textAlign: "left" }}>Search trades</span>
+              <kbd style={{
+                fontSize: "10px", fontFamily: "monospace", color: "var(--text-muted)",
+                border: "1px solid var(--border)", borderRadius: "4px", padding: "1px 4px",
+              }}>
+                ⌘K
+              </kbd>
+            </>
+          )}
+        </button>
+      </div>
+
       {/* Nav Items */}
       <nav style={{ flex: 1, padding: "0 12px", overflowY: "auto" }}>
         {NAV_ITEMS.map(({ icon: Icon, label, id }) => {
-          const active = activePage === id || (id === "journal" && activePage === "journal-editor");
+          const active = activePage === id;
           return (
             <button
               key={id}
               onClick={() => setActivePage(id)}
+              aria-current={active ? "page" : undefined}
+              aria-label={compact ? label : undefined}
+              title={compact ? label : undefined}
               style={{
                 width: "100%", display: "flex", alignItems: "center",
-                gap: "10px", padding: "10px 12px", borderRadius: "8px",
+                justifyContent: compact ? "center" : "flex-start",
+                gap: "10px", padding: compact ? "10px 0" : "10px 12px", borderRadius: "8px",
                 border: "none", cursor: "pointer", marginBottom: "2px",
                 background: active ? "var(--accent-green-dim)" : "transparent",
                 color: active ? "var(--accent-green)" : "var(--text-secondary)",
@@ -182,19 +251,23 @@ export default function Sidebar() {
               }}
             >
               <Icon size={16} />
-              {label}
+              {!compact && label}
             </button>
           );
         })}
       </nav>
 
-      {/* Settings */}
-      <div style={{ padding: "0 12px", borderTop: "1px solid var(--border)" }}>
+      {/* Settings + shortcut help */}
+      <div style={{ padding: compact ? "0 8px" : "0 12px", borderTop: "1px solid var(--border)", display: "flex", gap: "4px" }}>
         <button
           onClick={() => setActivePage("settings")}
+          aria-current={activePage === "settings" ? "page" : undefined}
+          aria-label={compact ? "Settings" : undefined}
+          title={compact ? "Settings" : undefined}
           style={{
-            width: "100%", display: "flex", alignItems: "center", gap: "10px",
-            padding: "10px 12px", borderRadius: "8px", border: "none",
+            flex: 1, display: "flex", alignItems: "center",
+            justifyContent: compact ? "center" : "flex-start", gap: "10px",
+            padding: compact ? "10px 0" : "10px 12px", borderRadius: "8px", border: "none",
             background: activePage === "settings" ? "var(--accent-green-dim)" : "transparent",
             color: activePage === "settings" ? "var(--accent-green)" : "var(--text-muted)",
             fontSize: "13px", fontFamily: "'DM Sans', sans-serif",
@@ -202,7 +275,19 @@ export default function Sidebar() {
           }}
         >
           <Settings size={15} />
-          Settings
+          {!compact && "Settings"}
+        </button>
+        <button
+          onClick={() => window.dispatchEvent(new Event("quantedge:shortcuts"))}
+          aria-label="Keyboard shortcuts"
+          title="Keyboard shortcuts (press /)"
+          style={{
+            width: "36px", display: "flex", alignItems: "center", justifyContent: "center",
+            borderRadius: "8px", border: "none", background: "transparent",
+            color: "var(--text-muted)", cursor: "pointer",
+          }}
+        >
+          <HelpCircle size={15} />
         </button>
       </div>
     </aside>

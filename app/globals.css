@@ -20,6 +20,16 @@
   --accent-red: #ff4d6a;
   --accent-red-dim: #ff4d6a18;
   --accent-blue: #4d9fff;
+  /* Semantic chart/status colours are separate from the brand accent: picking
+     a pink accent must not repaint profit and loss. They also carry the
+     light-theme values, where the neon palette fails contrast on white. */
+  --profit: #00e57a;
+  --loss: #ff4d6a;
+  --warning: #fbbf24;
+  --violet: #a78bfa;
+  --tooltip-bg: #16161f;
+  --chart-grid: #2a2a3a;
+  --calendar-empty: rgba(0,0,0,0.15);
 }
 
 [data-theme="light"] {
@@ -34,7 +44,41 @@
   --accent-red: #e8294a;
   --accent-red-dim: rgba(232,41,74,0.1);
   --accent-blue: #2979d4;
+  --profit: #067a44;
+  --loss: #c81e3c;
+  --warning: #a16207;
+  --violet: #6d4fd1;
+  --tooltip-bg: #ffffff;
+  --chart-grid: #d4d4e4;
+  --calendar-empty: rgba(10,10,26,0.035);
 }
+
+/* Native controls follow the app theme, not the OS theme. */
+:root { color-scheme: dark; }
+[data-theme="light"] { color-scheme: light; }
+
+/* SVG presentation attributes (recharts fill/stroke, lucide stroke) are parsed
+   as attributes, where var() is invalid and silently becomes black. Recharts
+   and lucide are handed token strings, so map those attribute values back to
+   real CSS declarations; only the token list that reaches attributes is
+   needed here. */
+[fill="var(--profit)"]        { fill: var(--profit); }
+[fill="var(--loss)"]          { fill: var(--loss); }
+[fill="var(--accent-blue)"]   { fill: var(--accent-blue); }
+[stroke="var(--profit)"]      { stroke: var(--profit); }
+[stroke="var(--loss)"]        { stroke: var(--loss); }
+[stroke="var(--warning)"]     { stroke: var(--warning); }
+[stroke="var(--violet)"]      { stroke: var(--violet); }
+[stroke="var(--accent-green)"]{ stroke: var(--accent-green); }
+[stroke="var(--accent-blue)"] { stroke: var(--accent-blue); }
+[stroke="var(--chart-grid)"]  { stroke: var(--chart-grid); }
+[stroke="var(--text-secondary)"] { stroke: var(--text-secondary); }
+[stroke="var(--text-muted)"]  { stroke: var(--text-muted); }
+[stroke="var(--border)"]      { stroke: var(--border); }
+[stroke="var(--bg-secondary)"]{ stroke: var(--bg-secondary); }
+[stop-color="var(--profit)"]  { stop-color: var(--profit); }
+[stop-color="var(--loss)"]    { stop-color: var(--loss); }
+[stop-color="var(--accent-blue)"] { stop-color: var(--accent-blue); }
 
 * {
   box-sizing: border-box;

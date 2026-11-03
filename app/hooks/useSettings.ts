@@ -20,6 +20,8 @@ export interface Settings {
   // Which day a week begins on. Drives the calendar grid and any weekly
   // bucketing; forex desks and prop-firm trackers rarely agree on this.
   weekStart: "sunday" | "monday";
+  // Display only: trade times are stored in 24h and formatted on render.
+  timeFormat: "24h" | "12h";
 }
 
 const DEFAULTS: Settings = {
@@ -34,6 +36,7 @@ const DEFAULTS: Settings = {
   defaultRiskPct: 1,
   guidance: "full",
   weekStart: "monday",
+  timeFormat: "24h",
 };
 
 const STORAGE_KEY = "quantedge_settings";
@@ -46,13 +49,25 @@ const COLOR_MAP: Record<string, { dim: string }> = {
   "#f472b6": { dim: "rgba(244,114,182,0.12)" },
 };
 
-function applyAccentColor(value: string) {
-  const color = COLOR_MAP[value];
-  if (!color) return;
+// The neon accents were chosen on #0a0a0f. On a white surface they sit around
+// 2:1, so light mode gets an equivalent darker shade instead of the same hex.
+const LIGHT_COLOR_MAP: Record<string, { value: string; dim: string }> = {
+  "#00e57a": { value: "#067a44", dim: "rgba(6,122,68,0.12)"   },
+  "#4d9fff": { value: "#1a6fc4", dim: "rgba(26,111,196,0.12)" },
+  "#a78bfa": { value: "#6d4fd1", dim: "rgba(109,79,209,0.12)" },
+  "#fb923c": { value: "#b45309", dim: "rgba(180,83,9,0.12)"   },
+  "#f472b6": { value: "#b83a76", dim: "rgba(184,58,118,0.12)" },
+};
+
+function applyAccentColor(value: string, theme: Settings["theme"] = "dark") {
+  const light = LIGHT_COLOR_MAP[value];
+  const dark = COLOR_MAP[value];
+  if (!dark) return;
   const root = document.documentElement;
-  root.style.setProperty("--accent-green", value);
-  root.style.setProperty("--accent-dim", color.dim);
-  root.style.setProperty("--accent-green-dim", color.dim);
+  root.style.setProperty("--accent-green", theme === "light" && light ? light.value : value);
+  const dim = theme === "light" && light ? light.dim : dark.dim;
+  root.style.setProperty("--accent-dim", dim);
+  root.style.setProperty("--accent-green-dim", dim);
 }
 
 function applyTheme(theme: "dark" | "light") {
@@ -114,8 +129,8 @@ function getServerSnapshot(): Settings {
 }
 
 if (typeof window !== "undefined") {
-  applyAccentColor(current.accentColor);
   applyTheme(current.theme);
+  applyAccentColor(current.accentColor, current.theme);
 }
 
 export function useSettings() {
@@ -125,16 +140,18 @@ export function useSettings() {
     current = { ...current, ...partial };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(current));
     emit();
-    if (partial.accentColor) applyAccentColor(partial.accentColor);
-    if (partial.theme !== undefined) applyTheme(partial.theme);
+    if (partial.theme !== undefined) applyTheme(current.theme);
+    if (partial.accentColor || partial.theme !== undefined) {
+      applyAccentColor(current.accentColor, current.theme);
+    }
   };
 
   const resetSettings = () => {
     current = DEFAULTS;
     localStorage.removeItem(STORAGE_KEY);
     emit();
-    applyAccentColor(DEFAULTS.accentColor);
     applyTheme(DEFAULTS.theme);
+    applyAccentColor(DEFAULTS.accentColor, DEFAULTS.theme);
   };
 
   return { settings, updateSettings, resetSettings };

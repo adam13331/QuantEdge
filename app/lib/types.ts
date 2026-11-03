@@ -29,9 +29,17 @@ export interface Trade {
   averagedDown?: boolean;
   balanceAfter?: number;
   hourOfDay?: number;
+  atr?: number;
+  spread?: number;
+  dayRange?: number;
   playbookId?: string;
+  setupVersion?: number;
   planId?: string;
   tags?: string[] | string;
+  mistakeTags?: string[] | string;
+  followedPlan?: boolean | null;
+  confidence?: number;
+  isForwardTest?: boolean;
   journalEntry?: string;
   link?: string;
   imageUrls?: string[] | string;
@@ -49,8 +57,33 @@ export interface Playbook {
   exitRules?: string;
   notes?: string;
   imageUrls: string[] | string;
+  revisions?: PlaybookRevision[] | string;
   createdAt: string;
   updatedAt: string;
+}
+
+// A revision is a dated snapshot of the rules after an edit. Trades carry the
+// version that was live at entry, so "before vs after the change" is a query
+// rather than a guess.
+export interface PlaybookRevision {
+  version: number;
+  effectiveDate: string;
+  summary: string;
+  createdAt: string;
+}
+
+export interface Experiment {
+  id: string;
+  name: string;
+  hypothesis: string;
+  change: string;
+  expectedEffect?: string | null;
+  startDate: string;
+  endDate?: string | null;
+  playbookId?: string;
+  status: "running" | "concluded" | "abandoned" | string;
+  conclusion?: string;
+  createdAt: string;
 }
 
 export interface Account {
@@ -77,7 +110,6 @@ export interface JournalTemplate {
 
 export type PageId =
   | "dashboard"
-  | "journal"
   | "journal-editor"
   | "calendar"
   | "propfirm"
@@ -85,5 +117,6 @@ export type PageId =
   | "accounts"
   | "settings"
   | "export"
-  | "playbook";
+  | "playbook"
+  | "review";
   

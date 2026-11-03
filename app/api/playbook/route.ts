@@ -14,6 +14,9 @@ function serializePlaybook(data: Record<string, unknown>): any {
     imageUrls: Array.isArray(data.imageUrls)
       ? JSON.stringify(data.imageUrls)
       : (data.imageUrls ?? "[]"),
+    revisions: Array.isArray(data.revisions)
+      ? JSON.stringify(data.revisions)
+      : (data.revisions ?? "[]"),
   };
 }
 

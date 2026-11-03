@@ -1,30 +1,32 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { AppProvider } from "./context/AppContext";
 import { useApp } from "./context/AppContext";
 import Sidebar from "./components/Sidebar";
 import GlobalDateFilter from "./components/GlobalDateFilter";
 import TradePanel from "./components/TradePanel";
+import TradeSearch from "./components/TradeSearch";
 import Dashboard from "./pages/Dashboard";
 import ImportPage from "./pages/ImportPage";
 import CalendarPage from "./pages/CalendarPage";
 import PropFirmPage from "./pages/PropFirmPage";
-import JournalPage from "./pages/JournalPage";
 import JournalEditorPage from "./pages/JournalEditorPage";
 import AccountsPage from "./pages/AccountsPage";
 import SettingsPage from "./pages/SettingsPage";
 import ExportPage from "./pages/ExportPage";
 import PlaybookPage from "./pages/PlaybookPage";
+import ReviewPage from "./pages/ReviewPage";
 import { X } from "lucide-react";
 
 const SHORTCUTS = [
   { key: "D", description: "Dashboard"       },
-  { key: "J", description: "Journal"         },
   { key: "C", description: "Calendar"        },
   { key: "F", description: "Prop Firm"       },
   { key: "B", description: "Playbook"        },
+  { key: "R", description: "Weekly Review"   },
   { key: "I", description: "Import Trades"   },
   { key: "E", description: "Export"          },
+  { key: "⌘K", description: "Search Trades"  },
   { key: "/", description: "Show Shortcuts"  },
   { key: "Esc", description: "Close modal"   },
 ];
@@ -95,11 +97,42 @@ function ShortcutsModal({ onClose }: { onClose: () => void }) {
   );
 }
 
+// A neutral shell-sized skeleton. Without it the first paint shows "No trades
+// yet" and an empty sidebar while the context fetch is still in flight.
+function LoadingSkeleton() {
+  const bar = (width: string, height: string, extra?: React.CSSProperties): React.CSSProperties => ({
+    width, height, borderRadius: "8px", background: "var(--bg-card)",
+    border: "1px solid var(--border)", ...extra,
+  });
+  return (
+    <div aria-busy="true" aria-label="Loading your journal">
+      <div style={{ ...bar("220px", "34px"), marginBottom: "10px" }} />
+      <div style={{ ...bar("340px", "16px"), marginBottom: "28px" }} />
+      <div style={{ ...bar("100%", "60px"), marginBottom: "24px" }} />
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "16px", marginBottom: "24px" }}>
+        {Array.from({ length: 6 }).map((_, i) => (
+          <div key={i} style={{ ...bar("100%", "104px"), borderRadius: "12px" }} />
+        ))}
+      </div>
+      <div style={{ ...bar("100%", "260px"), borderRadius: "16px", marginBottom: "20px" }} />
+      <div style={{ ...bar("100%", "180px"), borderRadius: "16px" }} />
+    </div>
+  );
+}
+
 function AppShell() {
-  const { activePage, setActivePage, selectedTrade, setSelectedTrade, setTrades, trades } = useApp();
+  const { activePage, setActivePage, selectedTrade, setSelectedTrade, setTrades, trades, loading } = useApp();
   const [showShortcuts, setShowShortcuts]       = useState(false);
 
   const isEditorPage = activePage === "journal-editor";
+  const mainRef = useRef<HTMLElement>(null);
+
+  // Each page owns the full viewport; carrying the previous page's scroll
+  // offset lands the next page halfway down (a scrolled Calendar, a Settings
+  // page missing its heading). Reset to the top on every navigation.
+  useEffect(() => {
+    mainRef.current?.scrollTo({ top: 0 });
+  }, [activePage]);
 
   // The interval scopes the Dashboard figures and the analytics body below
   // them, so it is only offered where it actually changes numbers.
@@ -108,6 +141,16 @@ function AppShell() {
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.metaKey || e.ctrlKey || e.altKey) return;
+
+      // Escape closes the shortcuts sheet here; the TradePanel owns its own
+      // Escape so it can warn about unsaved edits before closing.
+      if (e.key === "Escape" && showShortcuts) {
+        setShowShortcuts(false);
+        return;
+      }
+      // A drawer or the shortcuts sheet owns the screen; single-letter
+      // shortcuts must not navigate the page behind it.
+      if (showShortcuts || selectedTrade) return;
 
       const target = e.target as HTMLElement;
       const tag    = target.tagName;
@@ -120,29 +163,33 @@ function AppShell() {
 
       switch (e.key) {
         case "d": case "D": setActivePage("dashboard");       break;
-        case "j": case "J": setActivePage("journal");         break;
         case "c": case "C": setActivePage("calendar");        break;
         case "f": case "F": setActivePage("propfirm");         break;
         case "b": case "B": setActivePage("playbook");        break;
+        case "r": case "R": setActivePage("review");          break;
         case "i": case "I": setActivePage("import");          break;
         case "e": case "E": setActivePage("export");          break;
         case "/":           setShowShortcuts((v) => !v);      break;
-        case "Escape":
-          setShowShortcuts(false);
-          setSelectedTrade(null);
-          break;
       }
     };
 
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [setActivePage, setSelectedTrade]);
+  }, [setActivePage, setSelectedTrade, showShortcuts, selectedTrade]);
+
+  // The sidebar help button lives outside the shortcut state, so it asks for
+  // the sheet through a window event instead of lifting state into context.
+  useEffect(() => {
+    const openShortcuts = () => setShowShortcuts((v) => !v);
+    window.addEventListener("quantedge:shortcuts", openShortcuts);
+    return () => window.removeEventListener("quantedge:shortcuts", openShortcuts);
+  }, []);
 
   return (
     <div style={{ display: "flex", height: "100vh", overflow: "hidden" }}>
       <Sidebar />
 
-      <main style={{
+      <main ref={mainRef} style={{
         flex: 1,
         overflow: isEditorPage ? "hidden" : "auto",
         background: "var(--bg-primary)",
@@ -150,20 +197,26 @@ function AppShell() {
         display: isEditorPage ? "flex" : "block",
         flexDirection: isEditorPage ? "column" : undefined,
       }}>
-        {showsDateRange && <GlobalDateFilter />}
+        {showsDateRange && !loading && <GlobalDateFilter />}
 
-        {activePage === "dashboard"      && <Dashboard />}
-        {activePage === "journal"        && <JournalPage />}
-        {activePage === "journal-editor" && <JournalEditorPage />}
-        {activePage === "calendar"       && <CalendarPage />}
-        {activePage === "propfirm"        && <PropFirmPage />}
-        {activePage === "playbook"       && <PlaybookPage />}
-        {activePage === "import"         && <ImportPage />}
-        {activePage === "accounts"       && <AccountsPage />}
-        {activePage === "export"         && <ExportPage />}
-        {activePage === "settings"       && <SettingsPage />}
+        {loading && <LoadingSkeleton />}
 
-        {!isEditorPage && (
+        {!loading && (
+          <>
+            {activePage === "dashboard"      && <Dashboard />}
+            {activePage === "journal-editor" && <JournalEditorPage />}
+            {activePage === "calendar"       && <CalendarPage />}
+            {activePage === "propfirm"        && <PropFirmPage />}
+            {activePage === "playbook"       && <PlaybookPage />}
+            {activePage === "review"         && <ReviewPage />}
+            {activePage === "import"         && <ImportPage />}
+            {activePage === "accounts"       && <AccountsPage />}
+            {activePage === "export"         && <ExportPage />}
+            {activePage === "settings"       && <SettingsPage />}
+          </>
+        )}
+
+        {!loading && !isEditorPage && (
           <div style={{
             textAlign: "center", marginTop: "48px",
             color: "var(--text-muted)", fontSize: "12px",
@@ -172,6 +225,8 @@ function AppShell() {
           </div>
         )}
       </main>
+
+      <TradeSearch />
 
       <TradePanel
         trade={selectedTrade}

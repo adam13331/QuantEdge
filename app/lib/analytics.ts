@@ -1361,3 +1361,432 @@ export function buildReportStats(
     currentType: s.currentType,
   };
 }
+
+// ─── Research: uncertainty, cohorts, adherence ────────────────────────
+// A number without an interval invites strategy changes the sample cannot
+// support. Everything below exists so a screen can print "not distinguishable"
+// instead of ranking noise, and so a rule change can be judged against the
+// trades taken before and after it.
+
+export interface Interval {
+  point: number;
+  low: number;
+  high: number;
+}
+
+// Wilson score interval for a proportion. The normal approximation collapses
+// at the sample sizes a personal journal actually reaches.
+export function wilsonInterval(successes: number, n: number, z = 1.96): Interval | null {
+  if (n <= 0) return null;
+  const p = successes / n;
+  const denom = 1 + (z * z) / n;
+  const centre = (p + (z * z) / (2 * n)) / denom;
+  const margin = (z * Math.sqrt((p * (1 - p)) / n + (z * z) / (4 * n * n))) / denom;
+  return {
+    point: p * 100,
+    low: Math.max(0, (centre - margin) * 100),
+    high: Math.min(100, (centre + margin) * 100),
+  };
+}
+
+// Deterministic PRNG: the bootstrap has to return the same interval on every
+// render, or the verdict column flickers between "real" and "noise".
+function lcg(seed: number): () => number {
+  let s = seed >>> 0;
+  return () => {
+    s = (Math.imul(s, 1664525) + 1013904223) >>> 0;
+    return s / 4294967296;
+  };
+}
+
+export function bootstrapMeanCI(values: number[], iterations = 2000, seed = 20261103): Interval | null {
+  if (values.length < 2) return null;
+  const rand = lcg(seed);
+  const means: number[] = [];
+  for (let i = 0; i < iterations; i++) {
+    let sum = 0;
+    for (let j = 0; j < values.length; j++) sum += values[Math.floor(rand() * values.length)];
+    means.push(sum / values.length);
+  }
+  means.sort((a, b) => a - b);
+  const quantile = (q: number) => means[Math.min(means.length - 1, Math.max(0, Math.floor(q * means.length)))];
+  const point = values.reduce((s, v) => s + v, 0) / values.length;
+  return { point, low: quantile(0.025), high: quantile(0.975) };
+}
+
+// The 1R unit for a set of trades: planned risk where the exporter recorded a
+// stop, average loss otherwise. Two cohorts must share one unit before their
+// expectancies can be compared at all.
+export function riskUnit(trades: Trade[]): number {
+  const losses = trades.filter((t) => t.pnl < 0);
+  return losses.length > 0 ? Math.abs(losses.reduce((s, t) => s + t.pnl, 0) / losses.length) : 0;
+}
+
+export function rSeries(trades: Trade[], unit = riskUnit(trades)): number[] {
+  return trades.map((t) => {
+    const own = t.plannedRisk != null && t.plannedRisk > 0 ? t.plannedRisk : unit;
+    return own > 0 ? t.pnl / own : 0;
+  });
+}
+
+export interface CohortStats {
+  label: string;
+  trades: number;
+  wins: number;
+  losses: number;
+  winRate: number;                 // %
+  winRateCI: Interval | null;      // %
+  totalPnl: number;
+  expectancyR: number;
+  expectancyCI: Interval | null;   // R
+  profitFactor: number | null;
+  avgMfe: number | null;
+  mfeCapture: number | null;       // % of the favourable move kept on winners
+  adherence: number | null;        // % of reviewed trades that followed the plan
+  reviewed: number;
+}
+
+export function cohortStats(label: string, trades: Trade[], unit?: number): CohortStats {
+  const shared = unit && unit > 0 ? unit : riskUnit(trades);
+  const wins = trades.filter((t) => t.pnl > 0);
+  const losses = trades.filter((t) => t.pnl < 0);
+  const rs = rSeries(trades, shared);
+  const meanR = rs.length > 0 ? rs.reduce((s, v) => s + v, 0) / rs.length : 0;
+  const grossWin = wins.reduce((s, t) => s + t.pnl, 0);
+  const grossLoss = Math.abs(losses.reduce((s, t) => s + t.pnl, 0));
+  const withMfe = trades.filter((t) => t.mfe != null && (t.mfe as number) > 0);
+  const winMfe = wins.filter((t) => t.mfe != null && (t.mfe as number) > 0);
+  const reviewed = trades.filter((t) => t.followedPlan === true || t.followedPlan === false);
+
+  return {
+    label,
+    trades: trades.length,
+    wins: wins.length,
+    losses: losses.length,
+    winRate: trades.length > 0 ? (wins.length / trades.length) * 100 : 0,
+    winRateCI: wilsonInterval(wins.length, trades.length),
+    totalPnl: grossWin - grossLoss,
+    expectancyR: meanR,
+    expectancyCI: bootstrapMeanCI(rs),
+    profitFactor: grossLoss > 0 ? grossWin / grossLoss : null,
+    avgMfe: withMfe.length > 0 ? withMfe.reduce((s, t) => s + (t.mfe as number), 0) / withMfe.length : null,
+    mfeCapture: winMfe.length > 0
+      ? winMfe.reduce((s, t) => s + Math.min(150, (t.pnl / (t.mfe as number)) * 100), 0) / winMfe.length
+      : null,
+    adherence: reviewed.length > 0
+      ? (reviewed.filter((t) => t.followedPlan === true).length / reviewed.length) * 100
+      : null,
+    reviewed: reviewed.length,
+  };
+}
+
+// 80% power, two-sided 5%, normal approximation. Only ever used to tell the
+// trader how much more data a question needs before it can be answered.
+export function sampleSizePerCohort(effect: number, sd: number): number | null {
+  if (!(Math.abs(effect) > 0) || !(sd > 0)) return null;
+  return Math.ceil((2 * (1.96 + 0.8416) ** 2 * sd * sd) / (effect * effect));
+}
+
+export interface CohortComparison {
+  verdict: "a" | "b" | "indistinguishable" | "insufficient";
+  gapR: number;
+  neededPerCohort: number | null;
+}
+
+// Overlapping bootstrap intervals are treated as "no difference you can act
+// on". That is deliberately conservative: a journal exists to stop the trader
+// from switching rules on noise, not to hand out false positives.
+export function compareCohorts(a: CohortStats, b: CohortStats): CohortComparison {
+  const gapR = a.expectancyR - b.expectancyR;
+  const sdOf = (c: CohortStats) =>
+    c.expectancyCI && c.trades >= 2
+      ? ((c.expectancyCI.high - c.expectancyCI.low) / 3.92) * Math.sqrt(c.trades)
+      : null;
+  const sdA = sdOf(a);
+  const sdB = sdOf(b);
+  const pooledSd = sdA != null && sdB != null
+    ? Math.sqrt((sdA * sdA + sdB * sdB) / 2)
+    : sdA ?? sdB;
+
+  const needed = pooledSd != null && Math.abs(gapR) > 0
+    ? sampleSizePerCohort(Math.abs(gapR), pooledSd)
+    : null;
+
+  // Below this a cohort is not a sample, it is an anecdote.
+  if (a.trades < 20 || b.trades < 20) {
+    return { verdict: "insufficient", gapR, neededPerCohort: needed };
+  }
+
+  const aCI = a.expectancyCI;
+  const bCI = b.expectancyCI;
+  if (!aCI || !bCI) return { verdict: "insufficient", gapR, neededPerCohort: needed };
+
+  if (aCI.low > bCI.high) return { verdict: "a", gapR, neededPerCohort: null };
+  if (bCI.low > aCI.high) return { verdict: "b", gapR, neededPerCohort: null };
+  return { verdict: "indistinguishable", gapR, neededPerCohort: needed };
+}
+
+export interface CaptureBucket {
+  label: string;
+  count: number;
+  avgCapture: number;
+}
+
+// How much of the move that was available did the exit actually keep? A book
+// full of 30% captures is a stop-and-target problem, not a selection problem.
+export function mfeCaptureBuckets(trades: Trade[]): CaptureBucket[] {
+  const rated = trades
+    .filter((t) => t.status === "win" && t.mfe != null && (t.mfe as number) > 0)
+    .map((t) => Math.min(150, Math.max(0, (t.pnl / (t.mfe as number)) * 100)));
+  const defs = [
+    { label: "≤25%", test: (c: number) => c <= 25 },
+    { label: "26–50%", test: (c: number) => c > 25 && c <= 50 },
+    { label: "51–75%", test: (c: number) => c > 50 && c <= 75 },
+    { label: "76–100%", test: (c: number) => c > 75 && c <= 100 },
+    { label: ">100%", test: (c: number) => c > 100 },
+  ];
+  return defs.map(({ label, test }) => {
+    const inBucket = rated.filter(test);
+    return {
+      label,
+      count: inBucket.length,
+      avgCapture: inBucket.length > 0 ? inBucket.reduce((s, c) => s + c, 0) / inBucket.length : 0,
+    };
+  });
+}
+
+export interface AtrBucket {
+  label: string;
+  count: number;
+  winRate: number;
+  expectancyR: number;
+}
+
+// Stop distance measured in ATR, so a stop can be judged against the noise of
+// the instrument rather than in a currency that means nothing across symbols.
+export function stopVsAtr(trades: Trade[]): AtrBucket[] {
+  const rated = trades.filter((t) =>
+    t.atr != null && (t.atr as number) > 0 &&
+    t.plannedRisk != null && (t.plannedRisk as number) > 0 &&
+    t.quantity > 0
+  );
+  const unit = riskUnit(rated);
+  const ratioOf = (t: Trade) => ((t.plannedRisk as number) / t.quantity) / (t.atr as number);
+  const defs = [
+    { label: "<0.5 ATR", test: (r: number) => r < 0.5 },
+    { label: "0.5–1 ATR", test: (r: number) => r >= 0.5 && r < 1 },
+    { label: "1–1.5 ATR", test: (r: number) => r >= 1 && r < 1.5 },
+    { label: "1.5–2 ATR", test: (r: number) => r >= 1.5 && r < 2 },
+    { label: "≥2 ATR", test: (r: number) => r >= 2 },
+  ];
+  return defs.map(({ label, test }) => {
+    const inBucket = rated.filter((t) => test(ratioOf(t)));
+    return {
+      label,
+      count: inBucket.length,
+      winRate: inBucket.length > 0 ? (inBucket.filter((t) => t.pnl > 0).length / inBucket.length) * 100 : 0,
+      expectancyR: inBucket.length > 0
+        ? rSeries(inBucket, unit).reduce((s, v) => s + v, 0) / inBucket.length
+        : 0,
+    };
+  });
+}
+
+export interface RRBucket {
+  label: string;
+  count: number;
+  winRate: number;
+  expectancyR: number;
+}
+
+// Did the trades actually reach the reward the plan asked for? Intended R:R is
+// a written promise; realised expectancy is the settlement.
+export function outcomeByIntendedRR(trades: Trade[]): RRBucket[] {
+  const rated = trades
+    .map((t) => ({ t, rr: parseRR(t.rr) }))
+    .filter((x): x is { t: Trade; rr: number } => x.rr != null && x.rr > 0);
+  const unit = riskUnit(rated.map((x) => x.t));
+  const defs = [
+    { label: "<1:1", test: (r: number) => r < 1 },
+    { label: "1:1–1.5", test: (r: number) => r >= 1 && r < 1.5 },
+    { label: "1.5–2", test: (r: number) => r >= 1.5 && r < 2 },
+    { label: "2–3", test: (r: number) => r >= 2 && r < 3 },
+    { label: "≥3", test: (r: number) => r >= 3 },
+  ];
+  return defs.map(({ label, test }) => {
+    const inBucket = rated.filter((x) => test(x.rr));
+    return {
+      label,
+      count: inBucket.length,
+      winRate: inBucket.length > 0 ? (inBucket.filter((x) => x.t.pnl > 0).length / inBucket.length) * 100 : 0,
+      expectancyR: inBucket.length > 0
+        ? rSeries(inBucket.map((x) => x.t), unit).reduce((s, v) => s + v, 0) / inBucket.length
+        : 0,
+    };
+  });
+}
+
+export interface AdherenceStats {
+  reviewed: number;
+  followed: number;
+  broke: number;
+  adherencePct: number | null;
+  followedExpectancyR: number | null;
+  brokeExpectancyR: number | null;
+  followedPnl: number;
+  brokePnl: number;
+  costPerBreak: number | null;   // $ gap between a break and the followed baseline
+}
+
+// The one comparison that most reliably changes behaviour: the same trader,
+// same market, following the rules versus not.
+export function adherenceStats(trades: Trade[]): AdherenceStats {
+  const reviewed = trades.filter((t) => t.followedPlan === true || t.followedPlan === false);
+  const followed = reviewed.filter((t) => t.followedPlan === true);
+  const broke = reviewed.filter((t) => t.followedPlan === false);
+  const unit = riskUnit(reviewed);
+  const meanR = (list: Trade[]) =>
+    list.length > 0 ? rSeries(list, unit).reduce((s, v) => s + v, 0) / list.length : null;
+  const followedR = meanR(followed);
+  const brokeR = meanR(broke);
+  const followedAvgPnl = followed.length > 0
+    ? followed.reduce((s, t) => s + t.pnl, 0) / followed.length : null;
+  const brokeAvgPnl = broke.length > 0
+    ? broke.reduce((s, t) => s + t.pnl, 0) / broke.length : null;
+
+  return {
+    reviewed: reviewed.length,
+    followed: followed.length,
+    broke: broke.length,
+    adherencePct: reviewed.length > 0 ? (followed.length / reviewed.length) * 100 : null,
+    followedExpectancyR: followedR,
+    brokeExpectancyR: brokeR,
+    followedPnl: followed.reduce((s, t) => s + t.pnl, 0),
+    brokePnl: broke.reduce((s, t) => s + t.pnl, 0),
+    costPerBreak: followedAvgPnl != null && brokeAvgPnl != null ? brokeAvgPnl - followedAvgPnl : null,
+  };
+}
+
+export interface MistakeStat {
+  tag: string;
+  count: number;
+  pnl: number;
+  expectancyR: number;
+  winRate: number;
+}
+
+export function mistakeTagStats(trades: Trade[]): MistakeStat[] {
+  const counts: Record<string, Trade[]> = {};
+  for (const t of trades) {
+    const tags = Array.isArray(t.mistakeTags) ? t.mistakeTags : [];
+    for (const tag of tags) {
+      if (!tag) continue;
+      (counts[tag] = counts[tag] || []).push(t);
+    }
+  }
+  const unit = riskUnit(trades);
+  return Object.entries(counts)
+    .map(([tag, list]) => ({
+      tag,
+      count: list.length,
+      pnl: list.reduce((s, t) => s + t.pnl, 0),
+      expectancyR: rSeries(list, unit).reduce((s, v) => s + v, 0) / list.length,
+      winRate: (list.filter((t) => t.pnl > 0).length / list.length) * 100,
+    }))
+    .sort((a, b) => a.expectancyR - b.expectancyR);
+}
+
+export interface VersionStat {
+  version: number;
+  count: number;
+  winRate: number;
+  expectancyR: number;
+  pnl: number;
+}
+
+// Setup revisions: the same playbook before and after a rule change.
+export function setupVersionStats(trades: Trade[]): VersionStat[] {
+  const counts: Record<number, Trade[]> = {};
+  for (const t of trades) {
+    if (t.setupVersion == null) continue;
+    (counts[t.setupVersion] = counts[t.setupVersion] || []).push(t);
+  }
+  const unit = riskUnit(trades);
+  return Object.entries(counts)
+    .map(([v, list]) => ({
+      version: Number(v),
+      count: list.length,
+      winRate: (list.filter((t) => t.pnl > 0).length / list.length) * 100,
+      expectancyR: rSeries(list, unit).reduce((s, v) => s + v, 0) / list.length,
+      pnl: list.reduce((s, t) => s + t.pnl, 0),
+    }))
+    .sort((a, b) => a.version - b.version);
+}
+
+export interface WeekRow {
+  weekStart: string;
+  trades: number;
+  pnl: number;
+  expectancyR: number;
+  adherence: number | null;
+  baselineR: number | null;
+  verdict: "above" | "in-line" | "below" | "insufficient";
+}
+
+// The weekly ritual: was the week's result inside the noise of the trader's
+// own baseline, or did something actually change? A week is "above" only when
+// its interval clears the baseline, so one good Friday is not evidence.
+export function weeklyReview(trades: Trade[], weeks = 8, weekStartsOn: "monday" | "sunday" = "monday"): WeekRow[] {
+  const unit = riskUnit(trades);
+  const sorted = [...trades].sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+  const weekStart = (date: string): string => {
+    const d = new Date(`${normalizeDate(date)}T00:00:00Z`);
+    const day = d.getUTCDay();
+    const offset = weekStartsOn === "monday" ? (day + 6) % 7 : day;
+    d.setUTCDate(d.getUTCDate() - offset);
+    return d.toISOString().slice(0, 10);
+  };
+
+  const groups: Record<string, Trade[]> = {};
+  for (const t of sorted) {
+    const key = weekStart(t.date);
+    (groups[key] = groups[key] || []).push(t);
+  }
+
+  const keys = Object.keys(groups).sort();
+  const rows: WeekRow[] = [];
+  let history: Trade[] = [];
+
+  for (const key of keys) {
+    const list = groups[key];
+    const baselineList = history;
+    const baselineR = baselineList.length >= 20
+      ? rSeries(baselineList, unit).reduce((s, v) => s + v, 0) / baselineList.length
+      : null;
+    const rs = rSeries(list, unit);
+    const meanR = rs.reduce((s, v) => s + v, 0) / rs.length;
+    const ci = bootstrapMeanCI(rs);
+    const reviewed = list.filter((t) => t.followedPlan === true || t.followedPlan === false);
+
+    let verdict: WeekRow["verdict"] = "insufficient";
+    if (list.length >= 8 && ci && baselineR != null) {
+      verdict = ci.low > baselineR ? "above" : ci.high < baselineR ? "below" : "in-line";
+    }
+
+    rows.push({
+      weekStart: key,
+      trades: list.length,
+      pnl: list.reduce((s, t) => s + t.pnl, 0),
+      expectancyR: meanR,
+      adherence: reviewed.length > 0
+        ? (reviewed.filter((t) => t.followedPlan === true).length / reviewed.length) * 100
+        : null,
+      baselineR,
+      verdict,
+    });
+    history = history.concat(list);
+  }
+
+  return rows.slice(-weeks);
+}
+

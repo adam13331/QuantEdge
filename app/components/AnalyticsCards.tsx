@@ -30,7 +30,7 @@ export function MetricCard({
   label: string; value: string; sub?: string;
   positive?: boolean; neutral?: boolean; icon: LucideIcon;
 }) {
-  const color = neutral ? "var(--text-muted)" : positive ? "#00e57a" : "#ff4d6a";
+  const color = neutral ? "var(--text-muted)" : positive ? "var(--profit)" : "var(--loss)";
   return (
     <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: "12px", padding: "16px 18px" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
@@ -50,21 +50,21 @@ export function MetricCard({
 // ─── Recommendations ────────────────────────────────────────────────────
 
 const LEVEL_STYLE: Record<InsightLevel, { color: string; bg: string; border: string; Icon: LucideIcon; word: string }> = {
-  bad:  { color: "#ff4d6a", bg: "rgba(255,77,106,0.07)",  border: "rgba(255,77,106,0.22)",  Icon: XCircle,        word: "Fix first" },
-  warn: { color: "#fbbf24", bg: "rgba(251,191,36,0.07)",  border: "rgba(251,191,36,0.22)",  Icon: AlertTriangle,  word: "Watch" },
-  good: { color: "#00e57a", bg: "rgba(0,229,122,0.07)",   border: "rgba(0,229,122,0.22)",   Icon: CheckCircle2,   word: "Working" },
-  info: { color: "#4d9fff", bg: "rgba(77,159,255,0.07)",  border: "rgba(77,159,255,0.22)",  Icon: Info,           word: "Context" },
+  bad:  { color: "var(--loss)", bg: "rgba(255,77,106,0.07)",  border: "rgba(255,77,106,0.22)",  Icon: XCircle,        word: "Fix first" },
+  warn: { color: "var(--warning)", bg: "rgba(251,191,36,0.07)",  border: "rgba(251,191,36,0.22)",  Icon: AlertTriangle,  word: "Watch" },
+  good: { color: "var(--profit)", bg: "rgba(0,229,122,0.07)",   border: "rgba(0,229,122,0.22)",   Icon: CheckCircle2,   word: "Working" },
+  info: { color: "var(--accent-blue)", bg: "rgba(77,159,255,0.07)",  border: "rgba(77,159,255,0.22)",  Icon: Info,           word: "Context" },
 };
 
 // The scale reads left-to-right like a score: red is the worst band, purple the
 // best. Advanced uses the palette's violet rather than a second green so the top
 // two bands stay distinguishable; two identical greens read as one wider band.
 const GRADE_STYLE: Record<Grade, string> = {
-  bad:      "#ff4d6a",
-  average:  "#fbbf24",
-  good:     "#4d9fff",
-  great:    "#00e57a",
-  advanced: "#a78bfa",
+  bad:      "var(--loss)",
+  average:  "var(--warning)",
+  good:     "var(--accent-blue)",
+  great:    "var(--profit)",
+  advanced: "var(--violet)",
 };
 
 // Worst to best, so the bar grows healthier toward the right.
@@ -327,7 +327,12 @@ export function InsightPanel({
     return <BenchmarkPanel keys={keys} />;
   }
 
-  const [hero, ...rest] = shown;
+  // The small-sample caveat is prepended to every section. Leading with it is
+  // right, but it is context rather than the worst finding, so it gets its own
+  // compact banner and the worst actionable finding keeps the hero slot.
+  const caveat = shown[0]?.guide === "sampleSize" ? shown[0] : null;
+  const findings = caveat ? shown.slice(1) : shown;
+  const [hero, ...rest] = findings;
 
   return (
     <div style={{
@@ -342,7 +347,35 @@ export function InsightPanel({
         Start with the top finding. Open any row for the reasoning and the scale it was judged on.
       </p>
 
-      <HeroFinding item={hero} />
+      {caveat && (
+        <div style={{
+          display: "flex", alignItems: "flex-start", gap: "8px",
+          padding: "10px 14px", marginBottom: "10px",
+          background: "var(--bg-secondary)", border: "1px solid var(--border)",
+          borderRadius: "10px",
+        }}>
+          <Info size={14} color="var(--accent-blue)" style={{ flexShrink: 0, marginTop: "2px" }} />
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: "12.5px", fontWeight: "700", color: "var(--text-primary)" }}>
+              {caveat.title}
+            </div>
+            <div style={{ fontSize: "12px", color: "var(--text-muted)", lineHeight: 1.5, marginTop: "2px" }}>
+              {caveat.detail}
+            </div>
+          </div>
+          {caveat.metric && (
+            <span style={{
+              fontSize: "12px", fontWeight: "700", color: "var(--accent-blue)",
+              background: "var(--accent-green-dim)", padding: "2px 8px",
+              borderRadius: "20px", whiteSpace: "nowrap", flexShrink: 0,
+            }}>
+              {caveat.metric}
+            </span>
+          )}
+        </div>
+      )}
+
+      {hero && <HeroFinding item={hero} />}
       {rest.length > 0 && (
         <div>{rest.map((item, i) => (
           <FindingRow key={`${item.level}-${item.title}-${i}`} item={item} />
