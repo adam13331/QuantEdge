@@ -1,4 +1,5 @@
 "use client";
+import { t as tr } from "./lib/i18n";
 import { useState, useEffect, useRef } from "react";
 import { AppProvider } from "./context/AppContext";
 import { useApp } from "./context/AppContext";
@@ -53,11 +54,9 @@ function ShortcutsModal({ onClose }: { onClose: () => void }) {
         }}>
           <div>
             <h3 style={{ fontSize: "16px", fontWeight: "700", color: "var(--text-primary)" }}>
-              Keyboard Shortcuts
-            </h3>
+              {tr("Keyboard Shortcuts")}</h3>
             <p style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "2px" }}>
-              Shortcuts are disabled while typing in any input
-            </p>
+              {tr("Shortcuts are disabled while typing in any input")}</p>
           </div>
           <button
             onClick={onClose}
@@ -76,7 +75,7 @@ function ShortcutsModal({ onClose }: { onClose: () => void }) {
                 borderRadius: "8px",
               }}>
                 <span style={{ fontSize: "13px", color: "var(--text-secondary)" }}>
-                  {description}
+                  {tr(description)}
                 </span>
                 <kbd style={{
                   display: "inline-flex", alignItems: "center", justifyContent: "center",
@@ -105,7 +104,7 @@ function LoadingSkeleton() {
     border: "1px solid var(--border)", ...extra,
   });
   return (
-    <div aria-busy="true" aria-label="Loading your journal">
+    <div aria-busy="true" aria-label={tr("Loading your journal")}>
       <div style={{ ...bar("220px", "34px"), marginBottom: "10px" }} />
       <div style={{ ...bar("340px", "16px"), marginBottom: "28px" }} />
       <div style={{ ...bar("100%", "60px"), marginBottom: "24px" }} />
@@ -221,8 +220,7 @@ function AppShell() {
             textAlign: "center", marginTop: "48px",
             color: "var(--text-muted)", fontSize: "12px",
           }}>
-            Made with ❤️ by The Quantum Dev
-          </div>
+            {tr("Made with ❤️ by The Quantum Dev")}</div>
         )}
       </main>
 

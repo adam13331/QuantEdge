@@ -1,4 +1,5 @@
 "use client";
+import { t as tr } from "../lib/i18n";
 import { useState, useEffect } from "react";
 import { PDFDownloadLink } from "@react-pdf/renderer";
 import TradingReportPDF from "./TradingReportPDF";
@@ -51,8 +52,7 @@ export default function ExportPDFInner({ trades, account, challenge, weekStart, 
         justifyContent: "center", gap: "8px",
       }}>
         <FileDown size={16} />
-        No trades to export
-      </button>
+        {tr("No trades to export")}</button>
     );
   }
 
@@ -85,7 +85,7 @@ export default function ExportPDFInner({ trades, account, challenge, weekStart, 
           transition: "all 0.2s ease",
         }}>
           <FileDown size={16} />
-          {loading ? "Preparing PDF..." : `Download PDF · ${trades.length} trade${trades.length === 1 ? "" : "s"}`}
+          {tr(loading ? "Preparing PDF..." : `Download PDF · ${trades.length} trade${trades.length === 1 ? "" : "s"}`)}
         </button>
       )}
     </PDFDownloadLink>

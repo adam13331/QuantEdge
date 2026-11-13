@@ -16,6 +16,7 @@ model Account {
   createdAt      DateTime    @default(now())
   trades         Trade[]
   plans          TradePlan[]
+  ledger         PropLedgerEntry[]
 }
 
 model Trade {
@@ -134,4 +135,27 @@ model JournalTemplate {
 model Tag {
   id   String @id
   name String @unique
+}
+
+// The cash history of a prop challenge: what the evaluation cost and what it
+// paid back. Deliberately separate from the challenge rule config — the rules
+// are a plan the trader can edit freely, these rows are money that moved.
+// `amount` is signed (fees negative, payouts positive) so one sum is the net;
+// the API route writes the sign so the form can always ask for a positive.
+model PropLedgerEntry {
+  id        String   @id
+  accountId String
+  account   Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  kind      String   // "fee" | "payout"
+  date      String   // YYYY-MM-DD, same convention as Trade.date
+  amount    Float
+  // The firm the entry was paid to or by, captured at save time. The challenge
+  // preset lives in localStorage and can be switched, so without this an old
+  // fee would silently start reporting against a new firm.
+  firm      String?
+  label     String?
+  note      String?
+  createdAt DateTime @default(now())
+
+  @@index([accountId, date])
 }

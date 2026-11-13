@@ -1,4 +1,5 @@
 "use client";
+import { t as tr } from "../lib/i18n";
 import { useMemo } from "react";
 import { Upload, ShieldCheck, ShieldAlert } from "lucide-react";
 import { useApp } from "../context/AppContext";
@@ -75,7 +76,7 @@ function DailyRiskStrip({ trades }: { trades: Trade[] }) {
       <div style={{ display: "flex", alignItems: "center", gap: "8px", flexShrink: 0 }}>
         <StatusIcon size={16} color={statusColor} />
         <span style={{ fontSize: "12px", fontWeight: "700", color: statusColor }}>
-          {anyBreached ? "Limit Reached" : anyWarning ? "Approaching Limit" : "Within Limits"}
+          {tr(anyBreached ? "Limit Reached" : anyWarning ? "Approaching Limit" : "Within Limits")}
         </span>
       </div>
 
@@ -85,8 +86,7 @@ function DailyRiskStrip({ trades }: { trades: Trade[] }) {
         <div style={{ flex: 1, minWidth: "180px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "5px" }}>
             <span style={{ fontSize: "11px", fontWeight: "600", color: "var(--text-muted)", letterSpacing: "0.3px" }}>
-              DAILY LOSS
-            </span>
+              {tr("DAILY LOSS")}</span>
             <span style={{
               fontSize: "11px", fontWeight: "700",
               color: lossBreached ? "var(--loss)" : lossWarning ? "var(--warning)" : "var(--text-muted)",
@@ -108,8 +108,7 @@ function DailyRiskStrip({ trades }: { trades: Trade[] }) {
         <div style={{ flex: 1, minWidth: "180px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "5px" }}>
             <span style={{ fontSize: "11px", fontWeight: "600", color: "var(--text-muted)", letterSpacing: "0.3px" }}>
-              TRADES TODAY
-            </span>
+              {tr("TRADES TODAY")}</span>
             <span style={{
               fontSize: "11px", fontWeight: "700",
               color: tradeBreached ? "var(--loss)" : tradeWarning ? "var(--warning)" : "var(--text-muted)",
@@ -128,9 +127,9 @@ function DailyRiskStrip({ trades }: { trades: Trade[] }) {
       )}
 
       <div style={{ flexShrink: 0, textAlign: "right" }}>
-        <div style={{ fontSize: "10px", color: "var(--text-muted)", marginBottom: "2px" }}>TODAY</div>
+        <div style={{ fontSize: "10px", color: "var(--text-muted)", marginBottom: "2px" }}>{tr("TODAY")}</div>
         <div style={{ fontSize: "16px", fontWeight: "800", color: todayPnl >= 0 ? "var(--profit)" : "var(--loss)" }}>
-          {todayPnl >= 0 ? "+" : ""}${todayPnl.toFixed(2)}
+          {tr(todayPnl >= 0 ? "+" : "")}${todayPnl.toFixed(2)}
         </div>
       </div>
     </div>
@@ -147,11 +146,9 @@ export default function Dashboard() {
     <>
       <div style={{ marginBottom: "24px" }}>
         <h2 style={{ fontSize: "26px", fontWeight: "700", color: "var(--text-primary)", letterSpacing: "-0.5px" }}>
-          Dashboard
-        </h2>
+          {tr("Dashboard")}</h2>
         <p style={{ color: "var(--text-muted)", fontSize: "14px", marginTop: "4px" }}>
-          Your edge, risk and process for the selected market and period
-        </p>
+          {tr("Your edge, risk and process for the selected market and period")}</p>
       </div>
 
       {/* Headline figures are period-scoped and only exist once there is a
@@ -178,16 +175,16 @@ export default function Dashboard() {
             <Upload size={20} color="var(--accent-green)" />
           </div>
           <h3 style={{ fontSize: "18px", fontWeight: "700", marginBottom: "8px", color: "var(--text-primary)" }}>
-            {hasRange || symbolFilter ? "No trades for this selection" : "No trades yet"}
+            {tr(hasRange || symbolFilter ? "No trades for this selection" : "No trades yet")}
           </h3>
           <p style={{ color: "var(--text-muted)", fontSize: "14px", marginBottom: "24px" }}>
-            {symbolFilter && hasRange
+            {tr(symbolFilter && hasRange
               ? `Nothing was traded on ${symbolFilter} between ${dateFrom || "the start"} and ${dateTo || "today"}.`
               : symbolFilter
               ? `No ${symbolFilter} trades in this account.`
               : hasRange
               ? `Nothing was traded between ${dateFrom || "the start"} and ${dateTo || "today"}.`
-              : "Run the QuantEdge exporter on your MetaTrader terminal, then import the CSV to get started."}
+              : "Run the QuantEdge exporter on your MetaTrader terminal, then import the CSV to get started.")}
           </p>
           <div style={{ display: "flex", gap: "12px", justifyContent: "center" }}>
             <button
@@ -198,8 +195,7 @@ export default function Dashboard() {
                 fontWeight: "600", fontFamily: "'DM Sans', sans-serif", cursor: "pointer",
               }}
             >
-              Import CSV
-            </button>
+              {tr("Import CSV")}</button>
           </div>
         </div>
       ) : (

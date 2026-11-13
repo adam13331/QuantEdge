@@ -1,4 +1,5 @@
 "use client";
+import { t as tr } from "../lib/i18n";
 import {
   LayoutDashboard, Calendar,
   Upload, PlusCircle, Settings, Wallet, ChevronDown,
@@ -50,7 +51,7 @@ export default function Sidebar() {
         {compact ? (
           <Image
             src="/quantedge-icon.svg"
-            alt="QuantEdge"
+            alt={tr("QuantEdge")}
             width={32}
             height={32}
             priority
@@ -59,7 +60,7 @@ export default function Sidebar() {
         ) : (
           <Image
             src={settings.theme === "light" ? "/quantedge-logo-light.svg" : "/quantedge-logo-dark.svg"}
-            alt="QuantEdge"
+            alt={tr("QuantEdge")}
             width={190}
             height={46}
             priority
@@ -73,7 +74,7 @@ export default function Sidebar() {
         <div style={{ padding: compact ? "0 8px 16px" : "0 12px 20px", position: "relative" }}>
           <button
             onClick={() => setShowAccountMenu(!showAccountMenu)}
-            aria-label={activeAccount ? `Active account: ${activeAccount.name}` : "Select account"}
+            aria-label={tr(activeAccount ? `Active account: ${activeAccount.name}` : "Select account")}
             title={activeAccount?.name}
             style={{
               width: "100%", display: "flex", alignItems: "center",
@@ -155,8 +156,7 @@ export default function Sidebar() {
                   }}
                 >
                   <PlusCircle size={12} />
-                  Manage Accounts
-                </button>
+                  {tr("Manage Accounts")}</button>
               </div>
             </div>
           )}
@@ -168,8 +168,8 @@ export default function Sidebar() {
         <div style={{ padding: compact ? "0 8px 16px" : "0 12px 20px" }}>
           <button
             onClick={() => setActivePage("accounts")}
-            aria-label="Create an account"
-            title="Create an account"
+            aria-label={tr("Create an account")}
+            title={tr("Create an account")}
             style={{
               width: "100%", padding: compact ? "10px" : "10px 12px", borderRadius: "8px",
               border: "1px dashed var(--border)", background: "transparent",
@@ -189,8 +189,8 @@ export default function Sidebar() {
       <div style={{ padding: compact ? "0 8px 12px" : "0 12px 12px" }}>
         <button
           onClick={() => window.dispatchEvent(new Event("quantedge:search"))}
-          aria-label="Search trades"
-          title="Search trades (Ctrl/Cmd+K)"
+          aria-label={tr("Search trades")}
+          title={tr("Search trades (Ctrl/Cmd+K)")}
           style={{
             width: "100%", display: "flex", alignItems: "center", gap: "8px",
             justifyContent: compact ? "center" : "flex-start",
@@ -203,7 +203,7 @@ export default function Sidebar() {
           <Search size={14} />
           {!compact && (
             <>
-              <span style={{ flex: 1, textAlign: "left" }}>Search trades</span>
+              <span style={{ flex: 1, textAlign: "left" }}>{tr("Search trades")}</span>
               <kbd style={{
                 fontSize: "10px", fontFamily: "monospace", color: "var(--text-muted)",
                 border: "1px solid var(--border)", borderRadius: "4px", padding: "1px 4px",
@@ -224,7 +224,7 @@ export default function Sidebar() {
               key={id}
               onClick={() => setActivePage(id)}
               aria-current={active ? "page" : undefined}
-              aria-label={compact ? label : undefined}
+              aria-label={compact ? tr(label) : undefined}
               title={compact ? label : undefined}
               style={{
                 width: "100%", display: "flex", alignItems: "center",
@@ -251,7 +251,7 @@ export default function Sidebar() {
               }}
             >
               <Icon size={16} />
-              {!compact && label}
+              {!compact && tr(label)}
             </button>
           );
         })}
@@ -262,8 +262,8 @@ export default function Sidebar() {
         <button
           onClick={() => setActivePage("settings")}
           aria-current={activePage === "settings" ? "page" : undefined}
-          aria-label={compact ? "Settings" : undefined}
-          title={compact ? "Settings" : undefined}
+          aria-label={compact ? tr("Settings") : undefined}
+          title={compact ? tr("Settings") : undefined}
           style={{
             flex: 1, display: "flex", alignItems: "center",
             justifyContent: compact ? "center" : "flex-start", gap: "10px",
@@ -275,12 +275,12 @@ export default function Sidebar() {
           }}
         >
           <Settings size={15} />
-          {!compact && "Settings"}
+          {!compact && tr("Settings")}
         </button>
         <button
           onClick={() => window.dispatchEvent(new Event("quantedge:shortcuts"))}
-          aria-label="Keyboard shortcuts"
-          title="Keyboard shortcuts (press /)"
+          aria-label={tr("Keyboard shortcuts")}
+          title={tr("Keyboard shortcuts (press /)")}
           style={{
             width: "36px", display: "flex", alignItems: "center", justifyContent: "center",
             borderRadius: "8px", border: "none", background: "transparent",

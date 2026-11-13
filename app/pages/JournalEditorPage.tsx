@@ -1,4 +1,5 @@
 "use client";
+import { t as tr } from "../lib/i18n";
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
@@ -114,8 +115,7 @@ function PlaybookSelector({ trade }: { trade: Trade }) {
   return (
     <div ref={ref} style={{ position: "relative" }}>
       <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-muted)", letterSpacing: "0.5px", marginBottom: 6 }}>
-        PLAYBOOK SETUP
-      </div>
+        {tr("PLAYBOOK SETUP")}</div>
       <button
         onClick={() => setOpen(!open)}
         style={{
@@ -131,7 +131,7 @@ function PlaybookSelector({ trade }: { trade: Trade }) {
       >
         <Library size={13} />
         <span style={{ flex: 1, textAlign: "left" }}>
-          {saving ? "Saving…" : linked ? linked.name : "Link to playbook setup"}
+          {tr(saving ? "Saving…" : linked ? linked.name : "Link to playbook setup")}
         </span>
         {linked && !saving && (
           <span
@@ -153,8 +153,7 @@ function PlaybookSelector({ trade }: { trade: Trade }) {
         }}>
           {playbook.length === 0 ? (
             <div style={{ padding: "14px 16px", fontSize: 12, color: "var(--text-muted)" }}>
-              No playbook setups yet — create one in the Playbook page.
-            </div>
+              {tr("No playbook setups yet — create one in the Playbook page.")}</div>
           ) : (
             playbook.map((entry) => {
               const isLinked = trade.playbookId === entry.id;
@@ -217,10 +216,9 @@ function TemplatePicker({
           display: "flex", justifyContent: "space-between", alignItems: "center",
         }}>
           <div>
-            <h3 style={{ fontSize: 16, fontWeight: 700, color: "var(--text-primary)" }}>Templates</h3>
+            <h3 style={{ fontSize: 16, fontWeight: 700, color: "var(--text-primary)" }}>{tr("Templates")}</h3>
             <p style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2 }}>
-              Apply a template to the current entry
-            </p>
+              {tr("Apply a template to the current entry")}</p>
           </div>
           <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)" }}>
             <X size={18} />
@@ -229,8 +227,7 @@ function TemplatePicker({
         <div style={{ flex: 1, overflowY: "auto", padding: 16 }}>
           {templates.length === 0 ? (
             <div style={{ padding: 40, textAlign: "center", color: "var(--text-muted)", fontSize: 13 }}>
-              No templates yet. Save one from the editor to get started.
-            </div>
+              {tr("No templates yet. Save one from the editor to get started.")}</div>
           ) : (
             templates.map((t) => (
               <div key={t.id} style={{
@@ -242,7 +239,7 @@ function TemplatePicker({
                 <div>
                   <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)" }}>{t.name}</div>
                   <div style={{ fontSize: 13, color: "var(--text-muted)", marginTop: 2 }}>
-                    {t.scope === "all" ? "All trade types" : t.scope.split(",").join(", ")}
+                    {tr(t.scope === "all" ? "All trade types" : t.scope.split(",").join(", "))}
                   </div>
                 </div>
                 <div style={{ display: "flex", gap: 8 }}>
@@ -265,8 +262,7 @@ function TemplatePicker({
                       fontFamily: "'DM Sans', sans-serif",
                     }}
                   >
-                    Apply
-                  </button>
+                    {tr("Apply")}</button>
                 </div>
               </div>
             ))
@@ -285,10 +281,10 @@ function SaveTemplateModal({ onSave, onClose }: {
   const [scope, setScope] = useState<string[]>(["all"]);
 
   const SCOPE_OPTIONS = [
-    { value: "all",    label: "All types" },
-    { value: "option", label: "Options"   },
-    { value: "stock",  label: "Stocks"    },
-    { value: "future", label: "Futures"   },
+    { value: "all",    label: tr("All types") },
+    { value: "option", label: tr("Options")   },
+    { value: "stock",  label: tr("Stocks")    },
+    { value: "future", label: tr("Futures")   },
   ];
 
   const toggleScope = (value: string) => {
@@ -314,7 +310,7 @@ function SaveTemplateModal({ onSave, onClose }: {
         boxShadow: "0 24px 64px rgba(0,0,0,0.5)", padding: 24,
       }}>
         <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 20 }}>
-          <h3 style={{ fontSize: 16, fontWeight: 700, color: "var(--text-primary)" }}>Save as Template</h3>
+          <h3 style={{ fontSize: 16, fontWeight: 700, color: "var(--text-primary)" }}>{tr("Save as Template")}</h3>
           <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)" }}>
             <X size={18} />
           </button>
@@ -322,12 +318,11 @@ function SaveTemplateModal({ onSave, onClose }: {
 
         <div style={{ marginBottom: 16 }}>
           <label style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", display: "block", marginBottom: 6 }}>
-            Template Name
-          </label>
+            {tr("Template Name")}</label>
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="e.g. Options Trade Review"
+            placeholder={tr("e.g. Options Trade Review")}
             autoFocus
             onKeyDown={(e) => { if (e.key === "Enter" && name.trim()) onSave(name.trim(), scope.join(",")); }}
             style={{
@@ -342,8 +337,7 @@ function SaveTemplateModal({ onSave, onClose }: {
 
         <div style={{ marginBottom: 24 }}>
           <label style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", display: "block", marginBottom: 8 }}>
-            Auto-Apply For
-          </label>
+            {tr("Auto-Apply For")}</label>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             {SCOPE_OPTIONS.map((opt) => {
               const active = scope.includes(opt.value);
@@ -360,14 +354,13 @@ function SaveTemplateModal({ onSave, onClose }: {
                     fontFamily: "'DM Sans', sans-serif", transition: "all 0.15s",
                   }}
                 >
-                  {opt.label}
+                  {tr(opt.label)}
                 </button>
               );
             })}
           </div>
           <p style={{ fontSize: 13, color: "var(--text-muted)", marginTop: 8 }}>
-            Auto-applied when opening a new journal for the selected trade types.
-          </p>
+            {tr("Auto-applied when opening a new journal for the selected trade types.")}</p>
         </div>
 
         <div style={{ display: "flex", gap: 10 }}>
@@ -383,8 +376,7 @@ function SaveTemplateModal({ onSave, onClose }: {
               fontFamily: "'DM Sans', sans-serif",
             }}
           >
-            Save Template
-          </button>
+            {tr("Save Template")}</button>
           <button
             onClick={onClose}
             style={{
@@ -394,8 +386,7 @@ function SaveTemplateModal({ onSave, onClose }: {
               cursor: "pointer", fontFamily: "'DM Sans', sans-serif",
             }}
           >
-            Cancel
-          </button>
+            {tr("Cancel")}</button>
         </div>
       </div>
     </>
@@ -613,7 +604,7 @@ export default function JournalEditorPage() {
         display: "flex", alignItems: "center", justifyContent: "center",
         height: "60vh", flexDirection: "column", gap: 16,
       }}>
-        <div style={{ fontSize: 14, color: "var(--text-muted)" }}>No trade selected.</div>
+        <div style={{ fontSize: 14, color: "var(--text-muted)" }}>{tr("No trade selected.")}</div>
         <button
           onClick={backToCalendar}
           style={{
@@ -623,8 +614,7 @@ export default function JournalEditorPage() {
             fontFamily: "'DM Sans', sans-serif",
           }}
         >
-          Back to Calendar
-        </button>
+          {tr("Back to Calendar")}</button>
       </div>
     );
   }
@@ -657,16 +647,15 @@ export default function JournalEditorPage() {
           onMouseLeave={(e) => e.currentTarget.style.color = "var(--text-muted)"}
         >
           <ArrowLeft size={15} />
-          Back to Calendar
-        </button>
+          {tr("Back to Calendar")}</button>
 
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
             <button
               onClick={() => previousTrade && navigateToTrade(previousTrade.id)}
               disabled={!previousTrade}
-              aria-label="Previous trade"
-              title="Previous trade"
+              aria-label={tr("Previous trade")}
+              title={tr("Previous trade")}
               style={{
                 display: "flex", alignItems: "center", justifyContent: "center",
                 width: "28px", height: "28px", borderRadius: "7px",
@@ -684,8 +673,8 @@ export default function JournalEditorPage() {
             <button
               onClick={() => nextTrade && navigateToTrade(nextTrade.id)}
               disabled={!nextTrade}
-              aria-label="Next trade"
-              title="Next trade"
+              aria-label={tr("Next trade")}
+              title={tr("Next trade")}
               style={{
                 display: "flex", alignItems: "center", justifyContent: "center",
                 width: "28px", height: "28px", borderRadius: "7px",
@@ -706,7 +695,7 @@ export default function JournalEditorPage() {
           }}>
             {saveState === "saving" && <Loader size={12} style={{ animation: "spin 1s linear infinite" }} />}
             {saveState === "saved"  && <Check  size={12} />}
-            {saveState === "saving" ? "Saving..." : saveState === "saved" ? "Saved" : ""}
+            {tr(saveState === "saving" ? "Saving..." : saveState === "saved" ? "Saved" : "")}
           </div>
 
           <button
@@ -722,8 +711,7 @@ export default function JournalEditorPage() {
             onMouseLeave={(e) => e.currentTarget.style.borderColor = "var(--border)"}
           >
             <FileText size={13} />
-            Save as Template
-          </button>
+            {tr("Save as Template")}</button>
           <button
             onClick={() => setShowTemplates(true)}
             style={{
@@ -737,8 +725,7 @@ export default function JournalEditorPage() {
             onMouseLeave={(e) => e.currentTarget.style.borderColor = "var(--border)"}
           >
             <LayoutTemplate size={13} />
-            Templates
-          </button>
+            {tr("Templates")}</button>
         </div>
       </div>
 
@@ -770,29 +757,28 @@ export default function JournalEditorPage() {
             </span>
           </div>
           <div style={{ fontSize: 26, fontWeight: 800, color: isWin ? "var(--accent-green)" : "var(--loss)" }}>
-            {isWin ? "+" : ""}${trade.pnl.toFixed(2)}
+            {tr(isWin ? "+" : "")}${trade.pnl.toFixed(2)}
           </div>
         </div>
 
         {/* Stat pills */}
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
-          <StatPill label="DATE"  value={trade.date} />
-          <StatPill label="ENTRY" value={`$${trade.entryPrice}`} />
-          <StatPill label="EXIT"  value={`$${trade.exitPrice}`} />
-          <StatPill label="QTY"   value={String(trade.quantity)} />
-          {trade.strike    && <StatPill label="STRIKE"     value={`$${trade.strike}`} />}
-          {trade.expiry    && <StatPill label="EXPIRY"     value={trade.expiry} />}
+          <StatPill label={tr("DATE")}  value={trade.date} />
+          <StatPill label={tr("ENTRY")} value={`$${trade.entryPrice}`} />
+          <StatPill label={tr("EXIT")}  value={`$${trade.exitPrice}`} />
+          <StatPill label={tr("QTY")}   value={String(trade.quantity)} />
+          {trade.strike    && <StatPill label={tr("STRIKE")}     value={`$${trade.strike}`} />}
+          {trade.expiry    && <StatPill label={tr("EXPIRY")}     value={trade.expiry} />}
           {trade.rr        && <StatPill label="R:R"        value={trade.rr} />}
-          {trade.entryTime && <StatPill label="ENTRY TIME" value={formatTime(trade.entryTime, settings.timeFormat)} color="var(--text-secondary)" />}
-          {trade.exitTime  && <StatPill label="EXIT TIME"  value={formatTime(trade.exitTime, settings.timeFormat)}  color="var(--text-secondary)" />}
+          {trade.entryTime && <StatPill label={tr("ENTRY TIME")} value={formatTime(trade.entryTime, settings.timeFormat)} color="var(--text-secondary)" />}
+          {trade.exitTime  && <StatPill label={tr("EXIT TIME")}  value={formatTime(trade.exitTime, settings.timeFormat)}  color="var(--text-secondary)" />}
         </div>
 
         {/* Tags + Playbook — side by side */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 24, alignItems: "start" }}>
           <div>
             <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-muted)", letterSpacing: "0.5px", marginBottom: 8 }}>
-              TAGS
-            </div>
+              {tr("TAGS")}</div>
             <TagSelector selected={currentTags} onChange={saveTags} maxHeight={180} />
           </div>
           <PlaybookSelector trade={trade} />

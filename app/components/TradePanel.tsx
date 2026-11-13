@@ -1,4 +1,5 @@
 "use client";
+import { t as tr } from "../lib/i18n";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { X, Clock, TrendingUp, Link, Save, Image, Trash2, ExternalLink, Library, ChevronDown, Check, AlertTriangle } from "lucide-react";
 import { Trade } from "../lib/types";
@@ -82,7 +83,7 @@ function PlaybookSelector({ trade }: { trade: Trade }) {
       >
         <Library size={13} style={{ flexShrink: 0 }} />
         <span style={{ flex: 1 }}>
-          {saving ? "Saving…" : linked ? linked.name : "Link to playbook setup"}
+          {tr(saving ? "Saving…" : linked ? linked.name : "Link to playbook setup")}
         </span>
         {linked && !saving && (
           <span
@@ -105,8 +106,7 @@ function PlaybookSelector({ trade }: { trade: Trade }) {
         }}>
           {playbook.length === 0 ? (
             <div style={{ padding: "14px 16px", fontSize: 12, color: "var(--text-muted)" }}>
-              No playbook setups yet.
-            </div>
+              {tr("No playbook setups yet.")}</div>
           ) : (
             playbook.map((entry) => {
               const isLinked = trade.playbookId === entry.id;
@@ -237,7 +237,7 @@ export default function TradePanel({ trade, onClose, onSave }: Props) {
     savedSnapshot.current !== currentSnapshot;
 
   const requestClose = useCallback(() => {
-    if (dirty && !window.confirm("You have unsaved changes to this trade. Close and discard them?")) return;
+    if (dirty && !window.confirm(tr("You have unsaved changes to this trade. Close and discard them?"))) return;
     onClose();
   }, [dirty, onClose]);
 
@@ -328,7 +328,7 @@ export default function TradePanel({ trade, onClose, onSave }: Props) {
   };
 
   const openFullJournal = () => {
-    if (dirty && !window.confirm("You have unsaved changes to this trade. Open the journal and discard them?")) return;
+    if (dirty && !window.confirm(tr("You have unsaved changes to this trade. Open the journal and discard them?"))) return;
     setActiveTradeId(trade.id);
     setActivePage("journal-editor");
     onClose();
@@ -371,7 +371,7 @@ export default function TradePanel({ trade, onClose, onSave }: Props) {
                 background: trade.optionType === "call" ? "rgba(77,159,255,0.15)" : "rgba(255,77,106,0.15)",
                 color: trade.optionType === "call" ? "var(--accent-blue)" : "var(--accent-red)",
               }}>
-                {trade.optionType ? `${trade.optionType.toUpperCase()} $${trade.strike}` : trade.type.toUpperCase()}
+                {tr(trade.optionType ? `${trade.optionType.toUpperCase()} $${trade.strike}` : trade.type.toUpperCase())}
               </span>
               <span style={{
                 padding: "2px 8px", borderRadius: "4px", fontSize: "11px", fontWeight: "600",
@@ -387,13 +387,13 @@ export default function TradePanel({ trade, onClose, onSave }: Props) {
                 fontSize: "13px", fontWeight: "700",
                 color: isWin ? "var(--profit)" : "var(--loss)",
               }}>
-                {isWin ? "+" : ""}${trade.pnl}
+                {tr(isWin ? "+" : "")}${trade.pnl}
               </span>
             </div>
           </div>
           <button
             onClick={requestClose}
-            aria-label="Close trade panel"
+            aria-label={tr("Close trade panel")}
             style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)", padding: "4px" }}
           >
             <X size={20} />
@@ -424,8 +424,7 @@ export default function TradePanel({ trade, onClose, onSave }: Props) {
             }}
           >
             <ExternalLink size={14} />
-            Open Full Journal
-          </button>
+            {tr("Open Full Journal")}</button>
 
           {/* Journal preview */}
           {journalPreview && (
@@ -438,8 +437,7 @@ export default function TradePanel({ trade, onClose, onSave }: Props) {
                 fontSize: "10px", fontWeight: "600", color: "var(--text-muted)",
                 letterSpacing: "0.5px", marginBottom: "8px",
               }}>
-                JOURNAL PREVIEW
-              </div>
+                {tr("JOURNAL PREVIEW")}</div>
               <p style={{
                 fontSize: "13px", color: "var(--text-secondary)",
                 lineHeight: "1.6", margin: 0,
@@ -456,12 +454,12 @@ export default function TradePanel({ trade, onClose, onSave }: Props) {
           {/* Trade stats */}
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "10px", marginBottom: "22px" }}>
             {[
-              { label: "Entry",      value: `$${trade.entryPrice}` },
-              { label: "Exit",       value: `$${trade.exitPrice}`  },
-              { label: "Qty",        value: String(trade.quantity) },
-              { label: "Commission", value: `$${trade.commission}` },
-              { label: "Fees",       value: `$${trade.fees}`       },
-              { label: "Expiry",     value: trade.expiry || "—"    },
+              { label: tr("Entry"),      value: `$${trade.entryPrice}` },
+              { label: tr("Exit"),       value: `$${trade.exitPrice}`  },
+              { label: tr("Qty"),        value: String(trade.quantity) },
+              { label: tr("Commission"), value: `$${trade.commission}` },
+              { label: tr("Fees"),       value: `$${trade.fees}`       },
+              { label: tr("Expiry"),     value: trade.expiry || "—"    },
             ].map(({ label, value }) => (
               <div key={label} style={{
                 background: "var(--bg-card)", borderRadius: "8px",
@@ -480,8 +478,7 @@ export default function TradePanel({ trade, onClose, onSave }: Props) {
               display: "flex", alignItems: "center", gap: "6px", marginBottom: "8px",
             }}>
               <Library size={11} />
-              PLAYBOOK SETUP
-            </label>
+              {tr("PLAYBOOK SETUP")}</label>
             <PlaybookSelector trade={trade} />
           </div>
 
@@ -492,8 +489,7 @@ export default function TradePanel({ trade, onClose, onSave }: Props) {
               display: "flex", alignItems: "center", gap: "6px", marginBottom: "8px",
             }}>
               <Clock size={11} />
-              ENTRY & EXIT TIME
-            </label>
+              {tr("ENTRY & EXIT TIME")}</label>
             <div style={{ display: "flex", gap: "8px" }}>
               <input type="time" value={entryTime} onChange={(e) => setEntryTime(e.target.value)} style={fieldInput} />
               <input type="time" value={exitTime}  onChange={(e) => setExitTime(e.target.value)}  style={fieldInput} />
@@ -507,8 +503,7 @@ export default function TradePanel({ trade, onClose, onSave }: Props) {
               display: "flex", alignItems: "center", gap: "6px", marginBottom: "8px",
             }}>
               <TrendingUp size={11} />
-              R:R RATIO
-            </label>
+              {tr("R:R RATIO")}</label>
             <input
               type="text" value={rr}
               onChange={(e) => setRr(e.target.value)}
@@ -523,12 +518,11 @@ export default function TradePanel({ trade, onClose, onSave }: Props) {
               fontSize: "11px", color: "var(--text-muted)", fontWeight: "600",
               display: "block", marginBottom: "8px", letterSpacing: "0.4px",
             }}>
-              PLANNED RISK
-            </label>
+              {tr("PLANNED RISK")}</label>
             <div style={{ display: "flex", gap: "8px" }}>
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: "10px", color: "var(--text-muted)", marginBottom: "4px" }}>
-                  {trade.plannedRisk != null ? "From stop loss" : "Not recorded"}
+                  {tr(trade.plannedRisk != null ? "From stop loss" : "Not recorded")}
                 </div>
                 <input
                   type="number" step="0.01" min="0" value={plannedRisk}
@@ -538,18 +532,18 @@ export default function TradePanel({ trade, onClose, onSave }: Props) {
                 />
               </div>
               <div style={{ flex: 1 }}>
-                <div style={{ fontSize: "10px", color: "var(--text-muted)", marginBottom: "4px" }}>Held for</div>
+                <div style={{ fontSize: "10px", color: "var(--text-muted)", marginBottom: "4px" }}>{tr("Held for")}</div>
                 <div style={{
                   padding: "8px 10px", borderRadius: "6px", fontSize: "13px",
                   background: "var(--bg-secondary)", border: "1px solid var(--border)", color: "var(--text-primary)",
                 }}>
-                  {trade.durationMin != null ? formatHoldTime(trade.durationMin) : "—"}
+                  {tr(trade.durationMin != null ? formatHoldTime(trade.durationMin) : "—")}
                 </div>
               </div>
             </div>
             {trade.plannedRisk != null && trade.plannedRisk > 0 && (
               <div style={{ fontSize: "10px", color: "var(--text-muted)", marginTop: "6px" }}>
-                This trade closed at{" "}
+                {tr("This trade closed at")}{tr(" ")}
                 <span style={{
                   color: (trade.pnl / trade.plannedRisk) >= 0 ? "var(--profit)" : "var(--loss)",
                   fontWeight: "700",
@@ -566,15 +560,14 @@ export default function TradePanel({ trade, onClose, onSave }: Props) {
               fontSize: "11px", color: "var(--text-muted)", fontWeight: "600",
               display: "block", marginBottom: "8px", letterSpacing: "0.4px",
             }}>
-              MAE / MFE
-            </label>
+              {tr("MAE / MFE")}</label>
             <div style={{ display: "flex", gap: "8px" }}>
               <div style={{ flex: 1 }}>
-                <div style={{ fontSize: "10px", color: "var(--text-muted)", marginBottom: "4px" }}>Worst move against</div>
+                <div style={{ fontSize: "10px", color: "var(--text-muted)", marginBottom: "4px" }}>{tr("Worst move against")}</div>
                 <input type="number" step="0.01" min="0" value={mae} onChange={(e) => setMae(e.target.value)} placeholder="e.g. 1.25" style={fieldInput} />
               </div>
               <div style={{ flex: 1 }}>
-                <div style={{ fontSize: "10px", color: "var(--text-muted)", marginBottom: "4px" }}>Best move in favor</div>
+                <div style={{ fontSize: "10px", color: "var(--text-muted)", marginBottom: "4px" }}>{tr("Best move in favor")}</div>
                 <input type="number" step="0.01" min="0" value={mfe} onChange={(e) => setMfe(e.target.value)} placeholder="e.g. 3.50" style={fieldInput} />
               </div>
             </div>
@@ -586,8 +579,7 @@ export default function TradePanel({ trade, onClose, onSave }: Props) {
               fontSize: "11px", color: "var(--text-muted)", fontWeight: "600",
               display: "block", marginBottom: "8px", letterSpacing: "0.4px",
             }}>
-              TAGS
-            </label>
+              {tr("TAGS")}</label>
             <TagSelector selected={tags} onChange={setTags} maxHeight={200} />
           </div>
 
@@ -598,10 +590,9 @@ export default function TradePanel({ trade, onClose, onSave }: Props) {
               fontSize: "11px", color: "var(--text-muted)", fontWeight: "600",
               display: "block", marginBottom: "8px", letterSpacing: "0.4px",
             }}>
-              REVIEW
-            </label>
+              {tr("REVIEW")}</label>
 
-            <div style={{ fontSize: "10px", color: "var(--text-muted)", marginBottom: "5px" }}>Did this trade follow the plan?</div>
+            <div style={{ fontSize: "10px", color: "var(--text-muted)", marginBottom: "5px" }}>{tr("Did this trade follow the plan?")}</div>
             <div style={{ display: "flex", gap: "6px", marginBottom: "12px" }}>
               {([["yes", "Followed"], ["no", "Broke it"]] as const).map(([value, label]) => {
                 const active = followedPlan === value;
@@ -626,7 +617,7 @@ export default function TradePanel({ trade, onClose, onSave }: Props) {
               })}
             </div>
 
-            <div style={{ fontSize: "10px", color: "var(--text-muted)", marginBottom: "5px" }}>What went wrong (optional, multi-select)</div>
+            <div style={{ fontSize: "10px", color: "var(--text-muted)", marginBottom: "5px" }}>{tr("What went wrong (optional, multi-select)")}</div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", marginBottom: "12px" }}>
               {MISTAKES.map((tag) => {
                 const active = mistakes.includes(tag);
@@ -651,7 +642,7 @@ export default function TradePanel({ trade, onClose, onSave }: Props) {
 
             <div style={{ display: "flex", gap: "8px", marginBottom: "12px" }}>
               <div style={{ flex: 1 }}>
-                <div style={{ fontSize: "10px", color: "var(--text-muted)", marginBottom: "4px" }}>Confidence at entry</div>
+                <div style={{ fontSize: "10px", color: "var(--text-muted)", marginBottom: "4px" }}>{tr("Confidence at entry")}</div>
                 <div style={{ display: "flex", gap: "4px" }}>
                   {[1, 2, 3, 4, 5].map((n) => {
                     const active = confidence === String(n);
@@ -675,7 +666,7 @@ export default function TradePanel({ trade, onClose, onSave }: Props) {
                 </div>
               </div>
               <div style={{ width: "110px" }}>
-                <div style={{ fontSize: "10px", color: "var(--text-muted)", marginBottom: "4px" }}>Setup version</div>
+                <div style={{ fontSize: "10px", color: "var(--text-muted)", marginBottom: "4px" }}>{tr("Setup version")}</div>
                 <input
                   type="number" min={1} step={1} value={setupVersion}
                   onChange={(e) => setSetupVersion(e.target.value)}
@@ -691,8 +682,7 @@ export default function TradePanel({ trade, onClose, onSave }: Props) {
                 checked={forwardTest}
                 onChange={(e) => setForwardTest(e.target.checked)}
               />
-              Taken after a rule change (forward test)
-            </label>
+              {tr("Taken after a rule change (forward test)")}</label>
           </div>
 
           {/* Chart link */}
@@ -702,12 +692,11 @@ export default function TradePanel({ trade, onClose, onSave }: Props) {
               display: "flex", alignItems: "center", gap: "6px", marginBottom: "8px",
             }}>
               <Link size={11} />
-              CHART LINK
-            </label>
+              {tr("CHART LINK")}</label>
             <input
               type="url" value={link}
               onChange={(e) => setLink(e.target.value)}
-              placeholder="https://tradingview.com/..."
+              placeholder={tr("https://tradingview.com/...")}
               style={fieldInput}
             />
           </div>
@@ -719,8 +708,7 @@ export default function TradePanel({ trade, onClose, onSave }: Props) {
               display: "flex", alignItems: "center", gap: "6px", marginBottom: "8px",
             }}>
               <Image size={11} />
-              SCREENSHOTS
-            </label>
+              {tr("SCREENSHOTS")}</label>
             {images.length > 0 && (
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginBottom: "8px" }}>
                 {images.map((url) => (
@@ -728,7 +716,7 @@ export default function TradePanel({ trade, onClose, onSave }: Props) {
                     position: "relative", borderRadius: "8px", overflow: "hidden",
                     border: "1px solid var(--border)",
                   }}>
-                    <img src={url} alt="screenshot" style={{ width: "100%", height: "110px", objectFit: "cover", display: "block" }} />
+                    <img src={url} alt={tr("screenshot")} style={{ width: "100%", height: "110px", objectFit: "cover", display: "block" }} />
                     <button
                       onClick={() => removeImage(url)}
                       style={{
@@ -752,7 +740,7 @@ export default function TradePanel({ trade, onClose, onSave }: Props) {
               background: "var(--bg-card)",
             }}>
               <input type="file" accept="image/*" multiple onChange={handleImageUpload} style={{ display: "none" }} />
-              {uploading ? "Uploading..." : "Attach screenshots"}
+              {tr(uploading ? "Uploading..." : "Attach screenshots")}
             </label>
           </div>
         </div>
@@ -772,7 +760,7 @@ export default function TradePanel({ trade, onClose, onSave }: Props) {
             }}
           >
             <Save size={15} />
-            {saving ? "Saving..." : saved ? "Saved" : "Save Changes"}
+            {tr(saving ? "Saving..." : saved ? "Saved" : "Save Changes")}
           </button>
 
           <button
@@ -801,7 +789,7 @@ export default function TradePanel({ trade, onClose, onSave }: Props) {
             }}
           >
             {confirmDelete ? <AlertTriangle size={14} /> : <Trash2 size={14} />}
-            {confirmDelete ? "Confirm delete — cannot be undone" : "Delete trade"}
+            {tr(confirmDelete ? "Confirm delete — cannot be undone" : "Delete trade")}
           </button>
         </div>
       </div>

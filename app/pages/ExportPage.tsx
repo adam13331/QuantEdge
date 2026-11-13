@@ -1,4 +1,5 @@
 "use client";
+import { t as tr } from "../lib/i18n";
 import { useState, useMemo, useEffect } from "react";
 import dynamic from "next/dynamic";
 import { useApp } from "../context/AppContext";
@@ -9,7 +10,7 @@ import {
   durationMinutes, byDuration, byDirection, costProfile,
   recoveryFactor, rRiskProfile, stopQuality,
   byExitReason, byMagic, legStats, externalCashFlow,
-  challengeStatus, simulateChallenge, challengeROI,
+  challengeStatus, simulateChallenge, challengeROI, targetPctFor,
 } from "../lib/analytics";
 import { FileDown, Filter, Layout, Eye, ChevronDown } from "lucide-react";
 
@@ -26,8 +27,7 @@ const ExportPDFInner = dynamic(() => import("../components/ExportPDFInner"), {
       justifyContent: "center", gap: "8px",
     }}>
       <FileDown size={16} />
-      Loading...
-    </button>
+      {tr("Loading...")}</button>
   ),
 });
 
@@ -136,7 +136,7 @@ function SelectPill({
             transition: "all 0.15s ease",
           }}
         >
-          {opt.label}
+          {tr(opt.label)}
         </button>
       ))}
     </div>
@@ -173,11 +173,11 @@ function MultiSelect({
         }}
       >
         <span>
-          {selected.length === 0
+          {tr(selected.length === 0
             ? `All ${label}`
             : selected.length === 1
             ? selected[0]
-            : `${selected.length} ${label} selected`}
+            : `${selected.length} ${label} selected`)}
         </span>
         <ChevronDown
           size={12}
@@ -264,7 +264,7 @@ function LivePreview({ stats, options, challenge }: { stats: ReportStats; option
 
   const head = (title: string) => (
     <div style={{ marginTop: 10, marginBottom: 6 }}>
-      <div style={{ fontSize: "7px", fontWeight: "800", color: "#555", textTransform: "uppercase", letterSpacing: "0.5px" }}>{title}</div>
+      <div style={{ fontSize: "7px", fontWeight: "800", color: "#555", textTransform: "uppercase", letterSpacing: "0.5px" }}>{tr(title)}</div>
       <div style={{ height: "1px", background: "#e0e0f0", marginTop: 3 }} />
     </div>
   );
@@ -276,7 +276,7 @@ function LivePreview({ stats, options, challenge }: { stats: ReportStats; option
           flex: "1 1 28%", minWidth: 62, border: "1px solid #e0e0f0", borderRadius: "3px",
           padding: "4px", background: "#f8f8fd",
         }}>
-          <div style={{ fontSize: "5px", color: "#aaa", marginBottom: "2px" }}>{it.label}</div>
+          <div style={{ fontSize: "5px", color: "#aaa", marginBottom: "2px" }}>{tr(it.label)}</div>
           <div style={{ fontSize: "7px", fontWeight: "800", color: it.color || "#1a1a2e" }}>{it.value}</div>
         </div>
       ))}
@@ -290,7 +290,7 @@ function LivePreview({ stats, options, challenge }: { stats: ReportStats; option
   );
 
   const note = (text: string) => (
-    <div style={{ fontSize: "5px", color: "#999", padding: "4px 0", fontStyle: "italic" }}>{text}</div>
+    <div style={{ fontSize: "5px", color: "#999", padding: "4px 0", fontStyle: "italic" }}>{tr(text)}</div>
   );
 
   const kv = (label: string, value: string, color?: string) => (
@@ -298,7 +298,7 @@ function LivePreview({ stats, options, challenge }: { stats: ReportStats; option
       display: "flex", justifyContent: "space-between",
       padding: "3px 0", borderBottom: "1px solid #f0f0f8", fontSize: "6px",
     }}>
-      <span style={{ color: "#555", fontWeight: "700" }}>{label}</span>
+      <span style={{ color: "#555", fontWeight: "700" }}>{tr(label)}</span>
       <span style={{ color: color || "#1a1a2e", fontWeight: "800" }}>{value}</span>
     </div>
   );
@@ -316,8 +316,8 @@ function LivePreview({ stats, options, challenge }: { stats: ReportStats; option
     <div style={pageStyle}>
       {options.includeCover && (
         <div style={{ borderBottom: "2px solid #00c464", paddingBottom: "12px", marginBottom: "12px" }}>
-          <div style={{ fontSize: "11px", fontWeight: "800", color: "#0a0a1a", letterSpacing: "-0.3px" }}>QuantEdge</div>
-          <div style={{ fontSize: "8px", color: "#888" }}>Trading Performance Report</div>
+          <div style={{ fontSize: "11px", fontWeight: "800", color: "#0a0a1a", letterSpacing: "-0.3px" }}>{tr("QuantEdge")}</div>
+          <div style={{ fontSize: "8px", color: "#888" }}>{tr("Trading Performance Report")}</div>
         </div>
       )}
 
@@ -325,12 +325,12 @@ function LivePreview({ stats, options, challenge }: { stats: ReportStats; option
         <div>
           {head("Performance Summary")}
           {grid([
-            { label: "Net P&L", value: money(stats.totalPnl), color: stats.totalPnl >= 0 ? green : red },
-            { label: "Return", value: stats.returnPct === null ? "—" : `${stats.returnPct >= 0 ? "+" : ""}${stats.returnPct.toFixed(2)}%`, color: (stats.returnPct ?? 0) >= 0 ? green : red },
-            { label: "Win Rate", value: `${stats.winRate}%` },
-            { label: "Avg Realised R", value: stats.avgRR === null ? "—" : `${stats.avgRR >= 0 ? "+" : ""}${stats.avgRR.toFixed(2)}R`, color: stats.avgRR === null ? undefined : stats.avgRR > 0 ? green : red },
-            { label: "Expectancy", value: money(stats.expectancyDollars), color: stats.expectancyDollars >= 0 ? green : red },
-            { label: "$/Hour", value: stats.hourlyRate === null ? "—" : `$${stats.hourlyRate.toFixed(2)}` },
+            { label: tr("Net P&L"), value: money(stats.totalPnl), color: stats.totalPnl >= 0 ? green : red },
+            { label: tr("Return"), value: stats.returnPct === null ? "—" : `${stats.returnPct >= 0 ? "+" : ""}${stats.returnPct.toFixed(2)}%`, color: (stats.returnPct ?? 0) >= 0 ? green : red },
+            { label: tr("Win Rate"), value: `${stats.winRate}%` },
+            { label: tr("Avg Realised R"), value: stats.avgRR === null ? "—" : `${stats.avgRR >= 0 ? "+" : ""}${stats.avgRR.toFixed(2)}R`, color: stats.avgRR === null ? undefined : stats.avgRR > 0 ? green : red },
+            { label: tr("Expectancy"), value: money(stats.expectancyDollars), color: stats.expectancyDollars >= 0 ? green : red },
+            { label: tr("$/Hour"), value: stats.hourlyRate === null ? "—" : `$${stats.hourlyRate.toFixed(2)}` },
           ])}
         </div>
       )}
@@ -339,10 +339,10 @@ function LivePreview({ stats, options, challenge }: { stats: ReportStats; option
         <div>
           {head("Risk & Drawdown")}
           {grid([
-            { label: "Max DD", value: `${stats.maxDdPct.toFixed(1)}%`, color: red },
-            { label: "Sharpe", value: stats.sharpe === 0 ? "—" : stats.sharpe.toFixed(2) },
-            { label: "Sortino", value: stats.sortino === 0 ? "—" : stats.sortino.toFixed(2) },
-            { label: "Calmar", value: stats.calmar === 0 ? "—" : stats.calmar.toFixed(2) },
+            { label: tr("Max DD"), value: `${stats.maxDdPct.toFixed(1)}%`, color: red },
+            { label: tr("Sharpe"), value: stats.sharpe === 0 ? "—" : stats.sharpe.toFixed(2) },
+            { label: tr("Sortino"), value: stats.sortino === 0 ? "—" : stats.sortino.toFixed(2) },
+            { label: tr("Calmar"), value: stats.calmar === 0 ? "—" : stats.calmar.toFixed(2) },
           ])}
           {stats.riskCoverage > 0 ? (
             <>
@@ -359,9 +359,9 @@ function LivePreview({ stats, options, challenge }: { stats: ReportStats; option
         <div>
           {head("R-Multiple Distribution")}
           {grid([
-            { label: "Avg R", value: `${stats.avgR >= 0 ? "+" : ""}${stats.avgR.toFixed(2)}R`, color: stats.avgR >= 0 ? green : red },
-            { label: "1R Unit", value: stats.rUnit > 0 ? `$${stats.rUnit.toFixed(0)}` : "—" },
-            { label: "Expectancy", value: stats.expectancyR === null ? "—" : `${stats.expectancyR.toFixed(2)}R` },
+            { label: tr("Avg R"), value: `${stats.avgR >= 0 ? "+" : ""}${stats.avgR.toFixed(2)}R`, color: stats.avgR >= 0 ? green : red },
+            { label: tr("1R Unit"), value: stats.rUnit > 0 ? `$${stats.rUnit.toFixed(0)}` : "—" },
+            { label: tr("Expectancy"), value: stats.expectancyR === null ? "—" : `${stats.expectancyR.toFixed(2)}R` },
           ])}
           {stats.rBuckets.length > 0 ? stats.rBuckets.map((b) => (
             <div key={b.bucket} style={{ padding: "2px 0", borderBottom: "1px solid #f4f4fc" }}>
@@ -379,10 +379,10 @@ function LivePreview({ stats, options, challenge }: { stats: ReportStats; option
         <div>
           {head("Execution Quality")}
           {stats.execCoverage > 0 ? grid([
-            { label: "Avg MAE", value: `$${stats.avgMae.toFixed(0)}`, color: red },
-            { label: "Avg MFE", value: `$${stats.avgMfe.toFixed(0)}`, color: green },
-            { label: "Entry Eff", value: `${stats.entryEff.toFixed(0)}%` },
-            { label: "Exit Eff", value: `${stats.exitEff.toFixed(0)}%` },
+            { label: tr("Avg MAE"), value: `$${stats.avgMae.toFixed(0)}`, color: red },
+            { label: tr("Avg MFE"), value: `$${stats.avgMfe.toFixed(0)}`, color: green },
+            { label: tr("Entry Eff"), value: `${stats.entryEff.toFixed(0)}%` },
+            { label: tr("Exit Eff"), value: `${stats.exitEff.toFixed(0)}%` },
           ]) : note("No MAE/MFE data — re-run the exporter with excursion scanning.")}
         </div>
       )}
@@ -405,7 +405,7 @@ function LivePreview({ stats, options, challenge }: { stats: ReportStats; option
               <span style={{ fontSize: "6px", color: "#555", flex: "0 0 22px", textAlign: "right" }}>{r.trades}</span>
               <span style={{ fontSize: "6px", color: "#555", flex: "0 0 22px", textAlign: "right" }}>{r.winRate}%</span>
               <span style={{ fontSize: "6px", fontWeight: "800", color: r.pnl >= 0 ? green : red, flex: "0 0 22px", textAlign: "right" }}>{money(r.pnl)}</span>
-              <span style={{ fontSize: "6px", color: "#555", flex: "0 0 32px", textAlign: "right" }}>{r.avgR === null ? "—" : `${r.avgR.toFixed(2)}R`}</span>
+              <span style={{ fontSize: "6px", color: "#555", flex: "0 0 32px", textAlign: "right" }}>{tr(r.avgR === null ? "—" : `${r.avgR.toFixed(2)}R`)}</span>
             </div>
           ))}
         </div>
@@ -417,8 +417,8 @@ function LivePreview({ stats, options, challenge }: { stats: ReportStats; option
           {hours.slice(0, 6).map((h) => (
             <div key={h.hour} style={{ padding: "2px 0", borderBottom: "1px solid #f4f4fc" }}>
               <div style={{ display: "flex", justifyContent: "space-between", fontSize: "6px" }}>
-                <span style={{ fontWeight: "800", color: "#1a1a2e" }}>{h.label}</span>
-                <span style={{ color: "#555" }}>{h.count} trade{h.count === 1 ? "" : "s"} · {h.winRate}% · </span>
+                <span style={{ fontWeight: "800", color: "#1a1a2e" }}>{tr(h.label)}</span>
+                <span style={{ color: "#555" }}>{h.count}  {tr("trade")}{tr(h.count === 1 ? "" : "s")} · {h.winRate}% · </span>
                 <span style={{ fontWeight: "800", color: h.totalPnl >= 0 ? green : red }}>{money(h.totalPnl)}</span>
               </div>
               {bar((Math.abs(h.totalPnl) / peakHour) * 100, h.totalPnl >= 0)}
@@ -469,11 +469,11 @@ function LivePreview({ stats, options, challenge }: { stats: ReportStats; option
         <div>
           {head("Process & Execution")}
           {grid([
-            { label: "Recovery", value: proc.recovery.toFixed(2), color: proc.recovery >= 1 ? green : red },
-            { label: "R St Dev", value: proc.risk.sigma > 0 ? proc.risk.sigma.toFixed(2) : "—" },
-            { label: "Ruin", value: proc.risk.sigma > 0 ? `${(proc.risk.ruinApprox * 100).toFixed(1)}%` : "—" },
-            { label: "Cost %", value: `${proc.cost.costPctOfGross.toFixed(1)}%`, color: proc.cost.costPctOfGross <= 10 ? green : red },
-            { label: "Stop R", value: proc.stop.coverage > 0 ? proc.stop.avgRatio.toFixed(2) : "—" },
+            { label: tr("Recovery"), value: proc.recovery.toFixed(2), color: proc.recovery >= 1 ? green : red },
+            { label: tr("R St Dev"), value: proc.risk.sigma > 0 ? proc.risk.sigma.toFixed(2) : "—" },
+            { label: tr("Ruin"), value: proc.risk.sigma > 0 ? `${(proc.risk.ruinApprox * 100).toFixed(1)}%` : "—" },
+            { label: tr("Cost %"), value: `${proc.cost.costPctOfGross.toFixed(1)}%`, color: proc.cost.costPctOfGross <= 10 ? green : red },
+            { label: tr("Stop R"), value: proc.stop.coverage > 0 ? proc.stop.avgRatio.toFixed(2) : "—" },
           ])}
           {proc.durationCoverage > 0 && proc.duration.map((b) => kv(`Hold: ${b.bucket}`, `${b.trades} · ${money(b.pnl)}`, b.pnl >= 0 ? green : red))}
           {proc.execCoverage > 0 && proc.reasons.slice(0, 4).map((b) => kv(b.bucket, `${b.trades} · ${money(b.pnl)}`, b.pnl >= 0 ? green : red))}
@@ -487,11 +487,11 @@ function LivePreview({ stats, options, challenge }: { stats: ReportStats; option
           {challenge && prop ? (
             <>
               {grid([
-                { label: "Pass", value: `${(prop.sim.passRate * 100).toFixed(1)}%`, color: prop.sim.passRate >= 0.5 ? green : red },
-                { label: "Fail DD", value: `${(prop.sim.failDrawdown * 100).toFixed(1)}%`, color: red },
-                { label: "ROI", value: `${prop.roi.roiPct >= 0 ? "+" : ""}${prop.roi.roiPct.toFixed(1)}%`, color: prop.roi.roiPct >= 0 ? green : red },
+                { label: tr("Pass"), value: `${(prop.sim.passRate * 100).toFixed(1)}%`, color: prop.sim.passRate >= 0.5 ? green : red },
+                { label: tr("Fail DD"), value: `${(prop.sim.failDrawdown * 100).toFixed(1)}%`, color: red },
+                { label: tr("ROI"), value: `${prop.roi.roiPct >= 0 ? "+" : ""}${prop.roi.roiPct.toFixed(1)}%`, color: prop.roi.roiPct >= 0 ? green : red },
               ])}
-              {kv("Profit target", `${challenge.targetPct}% · ${prop.status.profitProgress.toFixed(1)}% there`)}
+              {kv("Profit target", `${targetPctFor(challenge)}% · ${prop.status.profitProgress.toFixed(1)}% there`)}
               {kv("Drawdown", `${challenge.maxDdPct}% ${challenge.ddMode}`, red)}
               {kv("Daily limit", challenge.dailyLimitPct > 0 ? `${challenge.dailyLimitPct}%` : "none")}
             </>
@@ -503,8 +503,7 @@ function LivePreview({ stats, options, challenge }: { stats: ReportStats; option
 
       {!anySelected && (
         <div style={{ textAlign: "center", padding: "32px", color: "#aaa", fontSize: "11px" }}>
-          No sections selected
-        </div>
+          {tr("No sections selected")}</div>
       )}
     </div>
   );
@@ -586,11 +585,9 @@ export default function ExportPage() {
     <div>
       <div style={{ marginBottom: "24px" }}>
         <h2 style={{ fontSize: "26px", fontWeight: "700", color: "var(--text-primary)", letterSpacing: "-0.5px" }}>
-          Export
-        </h2>
+          {tr("Export")}</h2>
         <p style={{ color: "var(--text-muted)", fontSize: "14px", marginTop: "4px" }}>
-          Build a PDF performance report from your trade history
-        </p>
+          {tr("Build a PDF performance report from your trade history")}</p>
       </div>
 
       <div style={{ display: "flex", gap: "24px", height: "calc(100vh - 168px)", overflow: "hidden" }}>
@@ -608,14 +605,12 @@ export default function ExportPage() {
           fontSize: "16px", fontWeight: "700", color: "var(--text-primary)",
           marginBottom: "4px",
         }}>
-          Report Builder
-        </h2>
+          {tr("Report Builder")}</h2>
         <p style={{ fontSize: "12px", color: "var(--text-muted)", marginBottom: "20px" }}>
-          {filteredTrades.length} trade{filteredTrades.length !== 1 ? "s" : ""} match your filters
-        </p>
+          {filteredTrades.length}  {tr("trade")}{tr(filteredTrades.length !== 1 ? "s" : "")} {tr("match your filters")}</p>
 
         {/* ── Filters ── */}
-        <SectionHeading icon={Filter} label="Filters" />
+        <SectionHeading icon={Filter} label={tr("Filters")} />
 
         {/* Date range. Seeded from the dashboard, and re-appliable here so a
             report can follow the period without retyping both dates. */}
@@ -631,8 +626,7 @@ export default function ExportPage() {
               fontFamily: "'DM Sans', sans-serif",
             }}
           >
-            Use dashboard period
-            <span style={{ color: "var(--text-muted)" }}>
+            {tr("Use dashboard period")}<span style={{ color: "var(--text-muted)" }}>
               {dateRange.from || "start"} → {dateRange.to || "today"}
             </span>
           </button>
@@ -641,8 +635,7 @@ export default function ExportPage() {
         <div style={{ display: "flex", gap: "8px", marginBottom: "12px" }}>
           <div style={{ flex: 1 }}>
             <label style={{ fontSize: "11px", color: "var(--text-muted)", display: "block", marginBottom: "4px" }}>
-              From
-            </label>
+              {tr("From")}</label>
             <input
               type="date"
               value={options.dateFrom}
@@ -657,8 +650,7 @@ export default function ExportPage() {
           </div>
           <div style={{ flex: 1 }}>
             <label style={{ fontSize: "11px", color: "var(--text-muted)", display: "block", marginBottom: "4px" }}>
-              To
-            </label>
+              {tr("To")}</label>
             <input
               type="date"
               value={options.dateTo}
@@ -675,7 +667,7 @@ export default function ExportPage() {
 
         {/* Tickers */}
         <MultiSelect
-          label="Tickers"
+          label={tr("Tickers")}
           options={availableTickers}
           selected={options.tickers}
           onChange={(v) => set("tickers", v)}
@@ -683,7 +675,7 @@ export default function ExportPage() {
 
         {/* Tags */}
         <MultiSelect
-          label="Tags"
+          label={tr("Tags")}
           options={availableTags}
           selected={options.tags}
           onChange={(v) => set("tags", v)}
@@ -692,16 +684,15 @@ export default function ExportPage() {
         {/* Status */}
         <div style={{ marginBottom: "12px" }}>
           <label style={{ fontSize: "11px", color: "var(--text-muted)", display: "block", marginBottom: "8px" }}>
-            Status
-          </label>
+            {tr("Status")}</label>
           <SelectPill
             value={options.status}
             onChange={(v) => set("status", v as ReportOptions["status"])}
             options={[
-              { label: "All", value: "all" },
-              { label: "Wins", value: "win" },
-              { label: "Losses", value: "loss" },
-              { label: "Breakeven", value: "breakeven" },
+              { label: tr("All"), value: "all" },
+              { label: tr("Wins"), value: "win" },
+              { label: tr("Losses"), value: "loss" },
+              { label: tr("Breakeven"), value: "breakeven" },
             ]}
           />
         </div>
@@ -709,52 +700,52 @@ export default function ExportPage() {
         <Divider />
 
         {/* ── Sections ── */}
-        <SectionHeading icon={Layout} label="Report Sections" />
+        <SectionHeading icon={Layout} label={tr("Report Sections")} />
 
-        <Toggle label="Cover Page"          checked={options.includeCover}          onChange={(v) => set("includeCover", v)} />
-        <Toggle label="Performance Summary" checked={options.includeStats}          onChange={(v) => set("includeStats", v)} />
+        <Toggle label={tr("Cover Page")}          checked={options.includeCover}          onChange={(v) => set("includeCover", v)} />
+        <Toggle label={tr("Performance Summary")} checked={options.includeStats}          onChange={(v) => set("includeStats", v)} />
         <Toggle
-          label="Risk &amp; Drawdown"
-          sub="Drawdown, Sharpe/Sortino/Calmar, planned risk, risk consistency"
+          label={tr("Risk & Drawdown")}
+          sub={tr("Drawdown, Sharpe/Sortino/Calmar, planned risk, risk consistency")}
           checked={options.includeRisk} onChange={(v) => set("includeRisk", v)}
         />
         <Toggle
-          label="R-Multiple Distribution"
-          sub="Average R, 1R unit and the outcome histogram"
+          label={tr("R-Multiple Distribution")}
+          sub={tr("Average R, 1R unit and the outcome histogram")}
           checked={options.includeRMultiples} onChange={(v) => set("includeRMultiples", v)}
         />
         <Toggle
-          label="Execution Quality"
-          sub="MAE, MFE, entry and exit efficiency"
+          label={tr("Execution Quality")}
+          sub={tr("MAE, MFE, entry and exit efficiency")}
           checked={options.includeExecution} onChange={(v) => set("includeExecution", v)}
         />
         <Toggle
-          label="Process Metrics"
-          sub="Recovery factor, R dispersion, cost ratio, hold time and execution detail"
+          label={tr("Process Metrics")}
+          sub={tr("Recovery factor, R dispersion, cost ratio, hold time and execution detail")}
           checked={options.includeProcess}
           onChange={(v) => set("includeProcess", v)}
         />
         <Toggle
-          label="Prop Firm Evaluation"
-          sub="Challenge rules, standing and simulated pass probability"
+          label={tr("Prop Firm Evaluation")}
+          sub={tr("Challenge rules, standing and simulated pass probability")}
           checked={options.includePropFirm}
           onChange={(v) => set("includePropFirm", v)}
         />
         <Toggle
-          label="Instrument Breakdown"
-          sub="Per-symbol trades, win rate, net P&L and average R"
+          label={tr("Instrument Breakdown")}
+          sub={tr("Per-symbol trades, win rate, net P&L and average R")}
           checked={options.includeInstruments} onChange={(v) => set("includeInstruments", v)}
         />
         <Toggle
-          label="Timing"
-          sub="Best and worst hours (24h) and weekdays"
+          label={tr("Timing")}
+          sub={tr("Best and worst hours (24h) and weekdays")}
           checked={options.includeTiming} onChange={(v) => set("includeTiming", v)}
         />
-        <Toggle label="Daily Breakdown"      checked={options.includeDailyBreakdown} onChange={(v) => set("includeDailyBreakdown", v)} />
-        <Toggle label="Trade History"        checked={options.includeTradeHistory}  onChange={(v) => set("includeTradeHistory", v)} />
+        <Toggle label={tr("Daily Breakdown")}      checked={options.includeDailyBreakdown} onChange={(v) => set("includeDailyBreakdown", v)} />
+        <Toggle label={tr("Trade History")}        checked={options.includeTradeHistory}  onChange={(v) => set("includeTradeHistory", v)} />
         <Toggle
-          label="Journal Entries"
-          sub="Requires journal entries to be written"
+          label={tr("Journal Entries")}
+          sub={tr("Requires journal entries to be written")}
           checked={options.includeJournal}
           onChange={(v) => set("includeJournal", v)}
         />
@@ -763,15 +754,14 @@ export default function ExportPage() {
         {options.includeJournal && (
           <div style={{ marginTop: "8px", marginBottom: "4px", paddingLeft: "12px", borderLeft: "2px solid var(--accent-green-dim)" }}>
             <label style={{ fontSize: "11px", color: "var(--text-muted)", display: "block", marginBottom: "8px" }}>
-              Entries per page
-            </label>
+              {tr("Entries per page")}</label>
             <SelectPill
               value={options.journalLayout}
               onChange={(v) => set("journalLayout", v as ReportOptions["journalLayout"])}
               options={[
-                { label: "1", value: "1" },
-                { label: "2", value: "2" },
-                { label: "4", value: "4" },
+                { label: tr("1"), value: "1" },
+                { label: tr("2"), value: "2" },
+                { label: tr("4"), value: "4" },
               ]}
             />
           </div>
@@ -806,8 +796,7 @@ export default function ExportPage() {
             fontSize: "11px", fontWeight: "700", letterSpacing: "0.8px",
             textTransform: "uppercase", color: "var(--text-muted)",
           }}>
-            Live Preview
-          </span>
+            {tr("Live Preview")}</span>
         </div>
 
         <LivePreview
@@ -820,8 +809,7 @@ export default function ExportPage() {
           fontSize: "11px", color: "var(--text-muted)", textAlign: "center",
           marginTop: "16px",
         }}>
-          Preview is approximate — the exported PDF will be full resolution
-        </p>
+          {tr("Preview is approximate — the exported PDF will be full resolution")}</p>
       </div>
       </div>
     </div>

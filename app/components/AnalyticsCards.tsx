@@ -1,4 +1,5 @@
 "use client";
+import { t as tr } from "../lib/i18n";
 import { useState, type ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
 import {
@@ -78,7 +79,7 @@ function GradeScale({ guideKey, showRanges = true }: { guideKey: GuideKey; showR
   return (
     <div
       role="img"
-      aria-label={`${guide.label} bands, worst to best: ${GRADE_AXIS.map((g) => `${g} ${guide.bands[g]}`).join(", ")}`}
+      aria-label={`${tr(guide.label)} — ${tr("bands, worst to best")}: ${GRADE_AXIS.map((g) => `${tr(g)} ${tr(guide.bands[g])}`).join(", ")}`}
       style={{ marginTop: "10px" }}
     >
       <div style={{ display: "flex", gap: "3px", alignItems: "flex-end" }}>
@@ -101,7 +102,7 @@ function GradeScale({ guideKey, showRanges = true }: { guideKey: GuideKey; showR
                 fontSize: "9.5px", color: "var(--text-muted)", lineHeight: 1.3,
                 fontVariantNumeric: "tabular-nums",
               }}>
-                {guide.bands[g]}
+                {tr(guide.bands[g])}
               </div>
             )}
           </div>
@@ -117,7 +118,7 @@ function NextStep({ guideKey }: { guideKey: GuideKey }) {
     <div style={{ display: "flex", gap: "6px", alignItems: "flex-start", marginTop: "10px" }}>
       <ArrowRight size={13} color="var(--accent-green)" style={{ marginTop: "2px", flexShrink: 0 }} />
       <span style={{ fontSize: "12.5px", color: "var(--text-primary)", lineHeight: 1.5 }}>
-        {LOOK_FOR[guideKey].action}
+        {tr(LOOK_FOR[guideKey].action)}
       </span>
     </div>
   );
@@ -136,7 +137,7 @@ function DetailToggle({ open, onClick }: { open: boolean; onClick: () => void })
         marginTop: "10px",
       }}
     >
-      {open ? "Hide detail" : "Why this matters"}
+      {tr(open ? "Hide detail" : "Why this matters")}
       <ChevronDown size={11} style={{ transform: open ? "rotate(180deg)" : "none", transition: "transform 0.15s ease" }} />
     </button>
   );
@@ -159,20 +160,20 @@ function HeroFinding({ item }: { item: Insight }) {
           fontSize: "10.5px", fontWeight: "800", letterSpacing: "0.7px",
           textTransform: "uppercase", color: s.color,
         }}>
-          {s.word}
+          {tr(s.word)}
         </span>
         {item.metric && (
           <span style={{
             marginLeft: "auto", fontSize: "19px", fontWeight: "800",
             color: s.color, lineHeight: 1, fontVariantNumeric: "tabular-nums",
           }}>
-            {item.metric}
+            {tr(item.metric)}
           </span>
         )}
       </div>
 
       <div style={{ fontSize: "17px", fontWeight: "700", color: "var(--text-primary)", lineHeight: 1.35 }}>
-        {item.title}
+        {tr(item.title)}
       </div>
 
       {guide && item.guide && (
@@ -186,11 +187,11 @@ function HeroFinding({ item }: { item: Insight }) {
       {open && (
         <div style={{ marginTop: "8px" }}>
           <p style={{ fontSize: "12.5px", color: "var(--text-muted)", lineHeight: 1.6, margin: 0 }}>
-            {item.detail}
+            {tr(item.detail)}
           </p>
           {guide && (
             <p style={{ fontSize: "11.5px", color: "var(--text-muted)", lineHeight: 1.5, margin: "8px 0 0" }}>
-              <strong style={{ color: "var(--text-secondary)" }}>{guide.label}:</strong> {guide.what}
+              <strong style={{ color: "var(--text-secondary)" }}>{tr(guide.label)}:</strong> {tr(guide.what)}
             </p>
           )}
         </div>
@@ -223,7 +224,7 @@ function FindingRow({ item }: { item: Insight }) {
           color: "var(--text-primary)", overflow: "hidden",
           textOverflow: "ellipsis", whiteSpace: "nowrap",
         }}>
-          {item.title}
+          {tr(item.title)}
         </span>
         {item.metric && (
           <span style={{
@@ -232,7 +233,7 @@ function FindingRow({ item }: { item: Insight }) {
             padding: "1px 7px", borderRadius: "20px", whiteSpace: "nowrap",
             flexShrink: 0, fontVariantNumeric: "tabular-nums",
           }}>
-            {item.metric}
+            {tr(item.metric)}
           </span>
         )}
         <ChevronDown
@@ -245,14 +246,14 @@ function FindingRow({ item }: { item: Insight }) {
       {open && (
         <div style={{ padding: "0 2px 14px 21px" }}>
           <p style={{ fontSize: "12.5px", color: "var(--text-muted)", lineHeight: 1.6, margin: "0 0 4px" }}>
-            {item.detail}
+            {tr(item.detail)}
           </p>
           {guide && item.guide && (
             <>
               <GradeScale guideKey={item.guide} />
               <NextStep guideKey={item.guide} />
               <p style={{ fontSize: "11.5px", color: "var(--text-muted)", lineHeight: 1.5, margin: "8px 0 0" }}>
-                <strong style={{ color: "var(--text-secondary)" }}>{guide.label}:</strong> {guide.what}
+                <strong style={{ color: "var(--text-secondary)" }}>{tr(guide.label)}:</strong> {tr(guide.what)}
               </p>
             </>
           )}
@@ -272,11 +273,10 @@ function BenchmarkPanel({ keys }: { keys: GuideKey[] }) {
     }}>
       <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px" }}>
         <BookOpen size={14} color="var(--accent-green)" />
-        <span style={{ fontSize: "15px", fontWeight: "700", color: "var(--text-primary)" }}>What good looks like</span>
+        <span style={{ fontSize: "15px", fontWeight: "700", color: "var(--text-primary)" }}>{tr("What good looks like")}</span>
       </div>
       <p style={{ fontSize: "13px", color: "var(--text-muted)", marginBottom: "16px" }}>
-        The benchmarks behind this tab. Findings are hidden, so grade the numbers yourself.
-      </p>
+        {tr("The benchmarks behind this tab. Findings are hidden, so grade the numbers yourself.")}</p>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: "12px" }}>
         {keys.map((key) => {
           const guide = LOOK_FOR[key];
@@ -286,10 +286,10 @@ function BenchmarkPanel({ keys }: { keys: GuideKey[] }) {
               border: "1px solid var(--border)", borderRadius: "12px",
             }}>
               <div style={{ fontSize: "12px", fontWeight: "700", color: "var(--text-primary)", marginBottom: "3px" }}>
-                {guide.label}
+                {tr(guide.label)}
               </div>
               <p style={{ fontSize: "11.5px", color: "var(--text-muted)", lineHeight: 1.5, margin: 0 }}>
-                {guide.what}
+                {tr(guide.what)}
               </p>
               <GradeScale guideKey={key} />
             </div>
@@ -344,8 +344,7 @@ export function InsightPanel({
         <span style={{ fontSize: "15px", fontWeight: "700", color: "var(--text-primary)" }}>{title}</span>
       </div>
       <p style={{ fontSize: "13px", color: "var(--text-muted)", marginBottom: "16px" }}>
-        Start with the top finding. Open any row for the reasoning and the scale it was judged on.
-      </p>
+        {tr("Start with the top finding. Open any row for the reasoning and the scale it was judged on.")}</p>
 
       {caveat && (
         <div style={{
@@ -357,10 +356,10 @@ export function InsightPanel({
           <Info size={14} color="var(--accent-blue)" style={{ flexShrink: 0, marginTop: "2px" }} />
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: "12.5px", fontWeight: "700", color: "var(--text-primary)" }}>
-              {caveat.title}
+              {tr(caveat.title)}
             </div>
             <div style={{ fontSize: "12px", color: "var(--text-muted)", lineHeight: 1.5, marginTop: "2px" }}>
-              {caveat.detail}
+              {tr(caveat.detail)}
             </div>
           </div>
           {caveat.metric && (
@@ -369,7 +368,7 @@ export function InsightPanel({
               background: "var(--accent-green-dim)", padding: "2px 8px",
               borderRadius: "20px", whiteSpace: "nowrap", flexShrink: 0,
             }}>
-              {caveat.metric}
+              {tr(caveat.metric)}
             </span>
           )}
         </div>
@@ -383,8 +382,7 @@ export function InsightPanel({
       )}
       {hidden > 0 && (
         <p style={{ fontSize: "11.5px", color: "var(--text-muted)", margin: "10px 0 0" }}>
-          {hidden} more below the cap — not shown here.
-        </p>
+          {hidden} {tr("more below the cap — not shown here.")}</p>
       )}
     </div>
   );

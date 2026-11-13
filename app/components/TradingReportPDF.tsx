@@ -1,4 +1,5 @@
 "use client";
+import { t as tr } from "../lib/i18n";
 import {
   Document, Page, Text, View, StyleSheet, Image,
 } from "@react-pdf/renderer";
@@ -8,7 +9,7 @@ import { buildReportStats,
   recoveryFactor, rRiskProfile, stopQuality,
   byExitReason, byMagic, legStats, externalCashFlow,
   challengeStatus, simulateChallenge, challengePlan, challengeROI,
-  ChallengeConfig,
+  ChallengeConfig, targetPctFor,
 } from "../lib/analytics";
 
 const styles = StyleSheet.create({
@@ -380,9 +381,9 @@ export default function TradingReportPDF({ trades, account, dateRange, logoUrl, 
             <View style={styles.coverBrand}>
               {logoUrl
                 ? <Image src={logoUrl} style={{ width: 210, height: 44 }} />
-                : <Text style={styles.brandWordmark}>QuantEdge</Text>
+                : <Text style={styles.brandWordmark}>{tr("QuantEdge")}</Text>
               }
-              <Text style={styles.brandSub}>Trading Performance Report</Text>
+              <Text style={styles.brandSub}>{tr("Trading Performance Report")}</Text>
             </View>
           </View>
         )}
@@ -392,25 +393,25 @@ export default function TradingReportPDF({ trades, account, dateRange, logoUrl, 
             {account && (
               <>
                 <View style={styles.coverMetaRow}>
-                  <Text style={styles.coverMetaLabel}>Account</Text>
+                  <Text style={styles.coverMetaLabel}>{tr("Account")}</Text>
                   <Text style={styles.coverMetaValue}>{account.name}</Text>
                 </View>
                 <View style={styles.coverMetaRow}>
-                  <Text style={styles.coverMetaLabel}>Platform</Text>
+                  <Text style={styles.coverMetaLabel}>{tr("Platform")}</Text>
                   <Text style={styles.coverMetaValue}>{account.platform}</Text>
                 </View>
               </>
             )}
             <View style={styles.coverMetaRow}>
-              <Text style={styles.coverMetaLabel}>Period</Text>
+              <Text style={styles.coverMetaLabel}>{tr("Period")}</Text>
               <Text style={styles.coverMetaValue}>{fromLabel} — {toLabel}</Text>
             </View>
             <View style={styles.coverMetaRow}>
-              <Text style={styles.coverMetaLabel}>Generated</Text>
+              <Text style={styles.coverMetaLabel}>{tr("Generated")}</Text>
               <Text style={styles.coverMetaValue}>{generatedDate}</Text>
             </View>
             <View style={styles.coverMetaRow}>
-              <Text style={styles.coverMetaLabel}>Total Trades</Text>
+              <Text style={styles.coverMetaLabel}>{tr("Total Trades")}</Text>
               <Text style={styles.coverMetaValue}>{trades.length}</Text>
             </View>
           </View>
@@ -418,54 +419,54 @@ export default function TradingReportPDF({ trades, account, dateRange, logoUrl, 
 
         {includeStats && (
           <>
-            <Text style={styles.sectionTitle}>Performance Summary</Text>
+            <Text style={styles.sectionTitle}>{tr("Performance Summary")}</Text>
             <View style={styles.statRow}>
               <View style={styles.statCard}>
-                <Text style={styles.statLabel}>Net P&L</Text>
+                <Text style={styles.statLabel}>{tr("Net P&L")}</Text>
                 <Text style={s.totalPnl >= 0 ? styles.statValueGreen : styles.statValueRed}>{fmt(s.totalPnl)}</Text>
                 <Text style={styles.statSub}>
-                  {s.returnPct === null ? `${trades.length} trades` : `${s.returnPct >= 0 ? "+" : ""}${s.returnPct.toFixed(2)}% · ${trades.length} trades`}
+                  {tr(s.returnPct === null ? `${trades.length} trades` : `${s.returnPct >= 0 ? "+" : ""}${s.returnPct.toFixed(2)}% · ${trades.length} trades`)}
                 </Text>
               </View>
               <View style={styles.statCard}>
-                <Text style={styles.statLabel}>Win Rate</Text>
+                <Text style={styles.statLabel}>{tr("Win Rate")}</Text>
                 <Text style={s.winRate >= 50 ? styles.statValueGreen : styles.statValueRed}>{s.winRate}%</Text>
                 <Text style={styles.statSub}>{s.wins.length}W / {s.losses.length}L</Text>
               </View>
               <View style={styles.statCard}>
-                <Text style={styles.statLabel}>Avg Realised R</Text>
+                <Text style={styles.statLabel}>{tr("Avg Realised R")}</Text>
                 <Text style={(s.avgRR ?? 0) > 0 ? styles.statValueGreen : styles.statValueRed}>
-                  {s.avgRR === null ? "—" : `${s.avgRR >= 0 ? "+" : ""}${s.avgRR.toFixed(2)}R`}
+                  {tr(s.avgRR === null ? "—" : `${s.avgRR >= 0 ? "+" : ""}${s.avgRR.toFixed(2)}R`)}
                 </Text>
                 <Text style={styles.statSub}>
-                  {s.rrCoverage > 0 ? `${s.rrCoverage} of ${trades.length} rated · BE = 0R` : "Not recorded"}
+                  {tr(s.rrCoverage > 0 ? `${s.rrCoverage} of ${trades.length} rated · BE = 0R` : "Not recorded")}
                 </Text>
               </View>
               <View style={styles.statCard}>
-                <Text style={styles.statLabel}>Expectancy</Text>
+                <Text style={styles.statLabel}>{tr("Expectancy")}</Text>
                 <Text style={s.expectancyDollars >= 0 ? styles.statValueGreen : styles.statValueRed}>
                   {fmt(s.expectancyDollars)}
                 </Text>
                 <Text style={styles.statSub}>
-                  {s.expectancyR === null ? "per trade" : `${s.expectancyR >= 0 ? "+" : ""}${s.expectancyR.toFixed(2)}R per trade`}
+                  {tr(s.expectancyR === null ? "per trade" : `${s.expectancyR >= 0 ? "+" : ""}${s.expectancyR.toFixed(2)}R per trade`)}
                 </Text>
               </View>
               <View style={styles.statCard}>
-                <Text style={styles.statLabel}>$/Hour</Text>
+                <Text style={styles.statLabel}>{tr("$/Hour")}</Text>
                 <Text style={(s.hourlyRate ?? 0) >= 0 ? styles.statValueGreen : styles.statValueRed}>
-                  {s.hourlyRate === null ? "—" : `${s.hourlyRate >= 0 ? "+" : ""}$${s.hourlyRate.toFixed(2)}`}
+                  {tr(s.hourlyRate === null ? "—" : `${s.hourlyRate >= 0 ? "+" : ""}$${s.hourlyRate.toFixed(2)}`)}
                 </Text>
                 <Text style={styles.statSub}>
-                  {s.hourlyRate === null ? "Needs entry/exit times" : `over ${s.totalHours.toFixed(1)}h in market`}
+                  {tr(s.hourlyRate === null ? "Needs entry/exit times" : `over ${s.totalHours.toFixed(1)}h in market`)}
                 </Text>
               </View>
               <View style={styles.statCard}>
-                <Text style={styles.statLabel}>Streaks</Text>
+                <Text style={styles.statLabel}>{tr("Streaks")}</Text>
                 <Text style={styles.statValueGreen}>
                   {s.maxWinStreak}W / {s.maxLossStreak}L
                 </Text>
                 <Text style={styles.statSub}>
-                  {s.currentType ? `now ${s.currentStreak} ${s.currentType}${s.currentStreak !== 1 ? "s" : ""}` : "longest run"}
+                  {tr(s.currentType ? `now ${s.currentStreak} ${s.currentType}${s.currentStreak !== 1 ? "s" : ""}` : "longest run")}
                 </Text>
               </View>
             </View>
@@ -474,7 +475,7 @@ export default function TradingReportPDF({ trades, account, dateRange, logoUrl, 
 
         {includeDailyBreakdown && (
           <>
-            <Text style={styles.sectionTitle}>Daily Breakdown</Text>
+            <Text style={styles.sectionTitle}>{tr("Daily Breakdown")}</Text>
             {days.map(([date, dayTrades]) => {
               const dayPnl  = dayTrades.reduce((s, t) => s + t.pnl, 0);
               const dayWins = dayTrades.filter((t) => t.status === "win").length;
@@ -482,7 +483,7 @@ export default function TradingReportPDF({ trades, account, dateRange, logoUrl, 
                 <View key={date} style={styles.dayRow}>
                   <Text style={styles.dayDate}>{date}</Text>
                   <Text style={styles.dayTrades}>
-                    {dayTrades.length} trade{dayTrades.length !== 1 ? "s" : ""} · {dayWins}W / {dayTrades.length - dayWins}L
+                    {dayTrades.length}  {tr("trade")}{tr(dayTrades.length !== 1 ? "s" : "")} · {dayWins}W / {dayTrades.length - dayWins}L
                   </Text>
                   <Text style={[styles.dayPnl, { color: dayPnl >= 0 ? "#00b85e" : "#cc3355" }]}>
                     {fmt(dayPnl)}
@@ -495,43 +496,43 @@ export default function TradingReportPDF({ trades, account, dateRange, logoUrl, 
 
         {includeRisk && (
           <>
-            <Text style={styles.sectionTitle}>Risk &amp; Drawdown</Text>
+            <Text style={styles.sectionTitle}>{tr("Risk & Drawdown")}</Text>
 
             <View style={styles.statRow}>
               <View style={styles.statCard}>
-                <Text style={styles.statLabel}>Max Drawdown</Text>
+                <Text style={styles.statLabel}>{tr("Max Drawdown")}</Text>
                 <Text style={styles.statValueRed}>{fmt(s.maxDd)}</Text>
-                <Text style={styles.statSub}>{s.maxDdPct.toFixed(2)}% from peak</Text>
+                <Text style={styles.statSub}>{s.maxDdPct.toFixed(2)}{tr("% from peak")}</Text>
               </View>
               <View style={styles.statCard}>
-                <Text style={styles.statLabel}>Sharpe</Text>
+                <Text style={styles.statLabel}>{tr("Sharpe")}</Text>
                 <Text style={s.sharpe > 1 ? styles.statValueGreen : styles.statValueRed}>
-                  {s.sharpe === 0 ? "—" : s.sharpe.toFixed(2)}
+                  {tr(s.sharpe === 0 ? "—" : s.sharpe.toFixed(2))}
                 </Text>
-                <Text style={styles.statSub}>{s.sharpe === 0 ? "Needs 5+ trading days" : "Risk-adjusted return"}</Text>
+                <Text style={styles.statSub}>{tr(s.sharpe === 0 ? "Needs 5+ trading days" : "Risk-adjusted return")}</Text>
               </View>
               <View style={styles.statCard}>
-                <Text style={styles.statLabel}>Sortino</Text>
+                <Text style={styles.statLabel}>{tr("Sortino")}</Text>
                 <Text style={s.sortino > 1 ? styles.statValueGreen : styles.statValueRed}>
-                  {s.sortino === 0 ? "—" : s.sortino.toFixed(2)}
+                  {tr(s.sortino === 0 ? "—" : s.sortino.toFixed(2))}
                 </Text>
-                <Text style={styles.statSub}>Downside-adjusted</Text>
+                <Text style={styles.statSub}>{tr("Downside-adjusted")}</Text>
               </View>
               <View style={styles.statCard}>
-                <Text style={styles.statLabel}>Calmar</Text>
+                <Text style={styles.statLabel}>{tr("Calmar")}</Text>
                 <Text style={s.calmar > 1 ? styles.statValueGreen : styles.statValueRed}>
-                  {s.calmar === 0 ? "—" : s.calmar.toFixed(2)}
+                  {tr(s.calmar === 0 ? "—" : s.calmar.toFixed(2))}
                 </Text>
-                <Text style={styles.statSub}>Return / max drawdown</Text>
+                <Text style={styles.statSub}>{tr("Return / max drawdown")}</Text>
               </View>
             </View>
 
             {s.riskCoverage > 0 ? (
               <>
                 <View style={styles.dataHeader}>
-                  <Text style={[styles.dh, COLS.label]}>Position Sizing</Text>
-                  <Text style={[styles.dh, COLS.numWide]}>Value</Text>
-                  <Text style={styles.dh}>Basis</Text>
+                  <Text style={[styles.dh, COLS.label]}>{tr("Position Sizing")}</Text>
+                  <Text style={[styles.dh, COLS.numWide]}>{tr("Value")}</Text>
+                  <Text style={styles.dh}>{tr("Basis")}</Text>
                 </View>
                 {[
                   ["Avg planned risk", `$${s.avgRisk.toFixed(2)}`, `${s.riskPctAvg.toFixed(2)}% of balance`],
@@ -546,50 +547,49 @@ export default function TradingReportPDF({ trades, account, dateRange, logoUrl, 
                   </View>
                 ))}
                 <SectionNote>
-                  {`1R = $${s.avgRisk.toFixed(2)} across ${s.riskCoverage} of ${trades.length} trades. Set a stop loss in MetaTrader and re-run the exporter to raise this coverage.`}
+                  {tr(`1R = $${s.avgRisk.toFixed(2)} across ${s.riskCoverage} of ${trades.length} trades. Set a stop loss in MetaTrader and re-run the exporter to raise this coverage.`)}
                 </SectionNote>
               </>
             ) : (
               <MissingData>
-                No stop loss recorded on these trades — planned risk, risk consistency and stop breaches need QuantEdgeExport.mq5 to be re-run with a stop set.
-              </MissingData>
+                {tr("No stop loss recorded on these trades — planned risk, risk consistency and stop breaches need QuantEdgeExport.mq5 to be re-run with a stop set.")}</MissingData>
             )}
           </>
         )}
 
         {includeRMultiples && (
           <>
-            <Text style={styles.sectionTitle}>R-Multiple Distribution</Text>
+            <Text style={styles.sectionTitle}>{tr("R-Multiple Distribution")}</Text>
             <View style={styles.statRow}>
               <View style={styles.statCard}>
-                <Text style={styles.statLabel}>Avg R-Multiple</Text>
+                <Text style={styles.statLabel}>{tr("Avg R-Multiple")}</Text>
                 <Text style={s.avgR >= 0 ? styles.statValueGreen : styles.statValueRed}>
-                  {s.avgR >= 0 ? "+" : ""}{s.avgR.toFixed(2)}R
+                  {tr(s.avgR >= 0 ? "+" : "")}{s.avgR.toFixed(2)}R
                 </Text>
-                <Text style={styles.statSub}>Mean outcome in R-units</Text>
+                <Text style={styles.statSub}>{tr("Mean outcome in R-units")}</Text>
               </View>
               <View style={styles.statCard}>
-                <Text style={styles.statLabel}>1R Unit</Text>
+                <Text style={styles.statLabel}>{tr("1R Unit")}</Text>
                 <Text style={styles.statValueGreen}>
-                  {s.rUnit > 0 ? `$${s.rUnit.toFixed(2)}` : "—"}
+                  {tr(s.rUnit > 0 ? `$${s.rUnit.toFixed(2)}` : "—")}
                 </Text>
-                <Text style={styles.statSub}>{s.rUnitSource === "planned" ? "From your stop loss" : "Average loss (fallback)"}</Text>
+                <Text style={styles.statSub}>{tr(s.rUnitSource === "planned" ? "From your stop loss" : "Average loss (fallback)")}</Text>
               </View>
               <View style={styles.statCard}>
-                <Text style={styles.statLabel}>Expectancy</Text>
+                <Text style={styles.statLabel}>{tr("Expectancy")}</Text>
                 <Text style={(s.expectancyR ?? 0) >= 0 ? styles.statValueGreen : styles.statValueRed}>
-                  {s.expectancyR === null ? "—" : `${s.expectancyR >= 0 ? "+" : ""}${s.expectancyR.toFixed(2)}R`}
+                  {tr(s.expectancyR === null ? "—" : `${s.expectancyR >= 0 ? "+" : ""}${s.expectancyR.toFixed(2)}R`)}
                 </Text>
-                <Text style={styles.statSub}>Expected R per trade</Text>
+                <Text style={styles.statSub}>{tr("Expected R per trade")}</Text>
               </View>
             </View>
 
             {s.rBuckets.length > 0 ? (
               <>
                 <View style={styles.dataHeader}>
-                  <Text style={[styles.dh, COLS.labelSm]}>Bucket</Text>
-                  <Text style={[styles.dh, COLS.num]}>Trades</Text>
-                  <Text style={styles.dh}>Share</Text>
+                  <Text style={[styles.dh, COLS.labelSm]}>{tr("Bucket")}</Text>
+                  <Text style={[styles.dh, COLS.num]}>{tr("Trades")}</Text>
+                  <Text style={styles.dh}>{tr("Share")}</Text>
                 </View>
                 {s.rBuckets.map((b, i) => (
                   <View key={b.bucket} style={i % 2 === 0 ? styles.dataRow : styles.dataRowAlt}>
@@ -611,93 +611,91 @@ export default function TradingReportPDF({ trades, account, dateRange, logoUrl, 
                 ))}
               </>
             ) : (
-              <MissingData>No R-multiples available for this period.</MissingData>
+              <MissingData>{tr("No R-multiples available for this period.")}</MissingData>
             )}
           </>
         )}
 
         {includeExecution && (
           <>
-            <Text style={styles.sectionTitle}>Execution Quality</Text>
+            <Text style={styles.sectionTitle}>{tr("Execution Quality")}</Text>
             {s.execCoverage > 0 ? (
               <>
                 <View style={styles.statRow}>
                   <View style={styles.statCard}>
-                    <Text style={styles.statLabel}>Avg MAE</Text>
+                    <Text style={styles.statLabel}>{tr("Avg MAE")}</Text>
                     <Text style={styles.statValueRed}>${s.avgMae.toFixed(2)}</Text>
-                    <Text style={styles.statSub}>Worst excursion against</Text>
+                    <Text style={styles.statSub}>{tr("Worst excursion against")}</Text>
                   </View>
                   <View style={styles.statCard}>
-                    <Text style={styles.statLabel}>Avg MFE</Text>
+                    <Text style={styles.statLabel}>{tr("Avg MFE")}</Text>
                     <Text style={styles.statValueGreen}>${s.avgMfe.toFixed(2)}</Text>
-                    <Text style={styles.statSub}>Best excursion in favour</Text>
+                    <Text style={styles.statSub}>{tr("Best excursion in favour")}</Text>
                   </View>
                   <View style={styles.statCard}>
-                    <Text style={styles.statLabel}>Entry Efficiency</Text>
+                    <Text style={styles.statLabel}>{tr("Entry Efficiency")}</Text>
                     <Text style={s.entryEff >= 60 ? styles.statValueGreen : styles.statValueRed}>{s.entryEff.toFixed(1)}%</Text>
-                    <Text style={styles.statSub}>MFE / (MFE + MAE)</Text>
+                    <Text style={styles.statSub}>{tr("MFE / (MFE + MAE)")}</Text>
                   </View>
                   <View style={styles.statCard}>
-                    <Text style={styles.statLabel}>Exit Efficiency</Text>
+                    <Text style={styles.statLabel}>{tr("Exit Efficiency")}</Text>
                     <Text style={s.exitEff >= 60 ? styles.statValueGreen : styles.statValueRed}>{s.exitEff.toFixed(1)}%</Text>
-                    <Text style={styles.statSub}>P&amp;L / MFE on wins</Text>
+                    <Text style={styles.statSub}>{tr("P&L / MFE on wins")}</Text>
                   </View>
                 </View>
                 <SectionNote>
-                  Entry efficiency measures how close to optimal you entered. Exit efficiency measures how much of the available move you actually captured on winners.
-                </SectionNote>
+                  {tr("Entry efficiency measures how close to optimal you entered. Exit efficiency measures how much of the available move you actually captured on winners.")}</SectionNote>
               </>
             ) : (
               <MissingData>
-                No MAE/MFE data for this period. Run QuantEdgeExport.mq5 with excursion scanning enabled to populate it.
-              </MissingData>
+                {tr("No MAE/MFE data for this period. Run QuantEdgeExport.mq5 with excursion scanning enabled to populate it.")}</MissingData>
             )}
           </>
         )}
 
         {includeProcess && (
           <>
-            <Text style={styles.sectionTitle}>Process Metrics</Text>
+            <Text style={styles.sectionTitle}>{tr("Process Metrics")}</Text>
             <View style={styles.statRow}>
               <View style={styles.statCard}>
-                <Text style={styles.statLabel}>Recovery Factor</Text>
+                <Text style={styles.statLabel}>{tr("Recovery Factor")}</Text>
                 <Text style={proc.recovery >= 1 ? styles.statValueGreen : styles.statValueRed}>{proc.recovery.toFixed(2)}</Text>
-                <Text style={styles.statSub}>Net profit / max drawdown</Text>
+                <Text style={styles.statSub}>{tr("Net profit / max drawdown")}</Text>
               </View>
               <View style={styles.statCard}>
-                <Text style={styles.statLabel}>R Std Dev</Text>
-                <Text style={styles.statValueGreen}>{proc.risk.sigma > 0 ? proc.risk.sigma.toFixed(2) : "—"}</Text>
-                <Text style={styles.statSub}>Spread of R outcomes</Text>
+                <Text style={styles.statLabel}>{tr("R Std Dev")}</Text>
+                <Text style={styles.statValueGreen}>{tr(proc.risk.sigma > 0 ? proc.risk.sigma.toFixed(2) : "—")}</Text>
+                <Text style={styles.statSub}>{tr("Spread of R outcomes")}</Text>
               </View>
               <View style={styles.statCard}>
-                <Text style={styles.statLabel}>Ruin (approx)</Text>
+                <Text style={styles.statLabel}>{tr("Ruin (approx)")}</Text>
                 <Text style={proc.risk.sigma > 0 && proc.risk.ruinApprox * 100 <= 10 ? styles.statValueGreen : styles.statValueRed}>
-                  {proc.risk.sigma > 0 ? `${(proc.risk.ruinApprox * 100).toFixed(1)}%` : "—"}
+                  {tr(proc.risk.sigma > 0 ? `${(proc.risk.ruinApprox * 100).toFixed(1)}%` : "—")}
                 </Text>
-                <Text style={styles.statSub}>Fixed-sizing approximation</Text>
+                <Text style={styles.statSub}>{tr("Fixed-sizing approximation")}</Text>
               </View>
               <View style={styles.statCard}>
-                <Text style={styles.statLabel}>Cost Ratio</Text>
+                <Text style={styles.statLabel}>{tr("Cost Ratio")}</Text>
                 <Text style={proc.cost.costPctOfGross <= 10 ? styles.statValueGreen : styles.statValueRed}>{proc.cost.costPctOfGross.toFixed(2)}%</Text>
-                <Text style={styles.statSub}>{fmt(-proc.cost.costs)} in costs</Text>
+                <Text style={styles.statSub}>{fmt(-proc.cost.costs)}  {tr("in costs")}</Text>
               </View>
               <View style={styles.statCard}>
-                <Text style={styles.statLabel}>Stop Discipline</Text>
+                <Text style={styles.statLabel}>{tr("Stop Discipline")}</Text>
                 <Text style={proc.stop.coverage > 0 && proc.stop.avgRatio < 1 ? styles.statValueGreen : styles.statValueRed}>
-                  {proc.stop.coverage > 0 ? `${proc.stop.avgRatio.toFixed(2)} R` : "—"}
+                  {tr(proc.stop.coverage > 0 ? `${proc.stop.avgRatio.toFixed(2)} R` : "—")}
                 </Text>
-                <Text style={styles.statSub}>Avg MAE / planned risk</Text>
+                <Text style={styles.statSub}>{tr("Avg MAE / planned risk")}</Text>
               </View>
             </View>
 
             {proc.durationCoverage > 0 && (
               <>
                 <View style={styles.dataHeader}>
-                  <Text style={[styles.dh, COLS.label]}>Hold time</Text>
-                  <Text style={[styles.dh, COLS.num]}>Trades</Text>
-                  <Text style={[styles.dh, COLS.pct]}>Win %</Text>
-                  <Text style={[styles.dh, COLS.numWide]}>Avg P&L</Text>
-                  <Text style={[styles.dh, COLS.numWide]}>Net P&L</Text>
+                  <Text style={[styles.dh, COLS.label]}>{tr("Hold time")}</Text>
+                  <Text style={[styles.dh, COLS.num]}>{tr("Trades")}</Text>
+                  <Text style={[styles.dh, COLS.pct]}>{tr("Win %")}</Text>
+                  <Text style={[styles.dh, COLS.numWide]}>{tr("Avg P&L")}</Text>
+                  <Text style={[styles.dh, COLS.numWide]}>{tr("Net P&L")}</Text>
                 </View>
                 {proc.duration.map((b, i) => (
                   <View key={b.bucket} style={i % 2 === 0 ? styles.dataRow : styles.dataRowAlt}>
@@ -714,11 +712,11 @@ export default function TradingReportPDF({ trades, account, dateRange, logoUrl, 
             {proc.direction.some((d) => d.trades > 0) && (
               <>
                 <View style={[styles.dataHeader, { marginTop: 14 }]}>
-                  <Text style={[styles.dh, COLS.label]}>Direction</Text>
-                  <Text style={[styles.dh, COLS.num]}>Trades</Text>
-                  <Text style={[styles.dh, COLS.pct]}>Win %</Text>
-                  <Text style={[styles.dh, COLS.numWide]}>Avg P&L</Text>
-                  <Text style={[styles.dh, COLS.numWide]}>Net P&L</Text>
+                  <Text style={[styles.dh, COLS.label]}>{tr("Direction")}</Text>
+                  <Text style={[styles.dh, COLS.num]}>{tr("Trades")}</Text>
+                  <Text style={[styles.dh, COLS.pct]}>{tr("Win %")}</Text>
+                  <Text style={[styles.dh, COLS.numWide]}>{tr("Avg P&L")}</Text>
+                  <Text style={[styles.dh, COLS.numWide]}>{tr("Net P&L")}</Text>
                 </View>
                 {proc.direction.map((b, i) => (
                   <View key={b.bucket} style={i % 2 === 0 ? styles.dataRow : styles.dataRowAlt}>
@@ -735,9 +733,9 @@ export default function TradingReportPDF({ trades, account, dateRange, logoUrl, 
             {proc.gapCoverage > 1 && (
               <>
                 <View style={[styles.dataHeader, { marginTop: 14 }]}>
-                  <Text style={[styles.dh, COLS.label]}>Re-entry gap</Text>
-                  <Text style={[styles.dh, COLS.num]}>After W</Text>
-                  <Text style={[styles.dh, COLS.num]}>After L</Text>
+                  <Text style={[styles.dh, COLS.label]}>{tr("Re-entry gap")}</Text>
+                  <Text style={[styles.dh, COLS.num]}>{tr("After W")}</Text>
+                  <Text style={[styles.dh, COLS.num]}>{tr("After L")}</Text>
                   <Text style={[styles.dh, COLS.numWide]}>W P&L</Text>
                   <Text style={[styles.dh, COLS.numWide]}>L P&L</Text>
                 </View>
@@ -753,20 +751,19 @@ export default function TradingReportPDF({ trades, account, dateRange, logoUrl, 
               </>
             )}
 
-            <Text style={[styles.sectionTitle, { marginTop: 20 }]}>Execution Detail</Text>
+            <Text style={[styles.sectionTitle, { marginTop: 20 }]}>{tr("Execution Detail")}</Text>
             {proc.execCoverage === 0 ? (
               <MissingData>
-                No execution data in this period. Re-run QuantEdgeExport.mq5 and re-import to populate exit reason, magic number, entry legs and balance.
-              </MissingData>
+                {tr("No execution data in this period. Re-run QuantEdgeExport.mq5 and re-import to populate exit reason, magic number, entry legs and balance.")}</MissingData>
             ) : (
               <>
                 {proc.reasons.length > 0 && (
                   <>
                     <View style={styles.dataHeader}>
-                      <Text style={[styles.dh, COLS.label]}>How it ended</Text>
-                      <Text style={[styles.dh, COLS.num]}>Trades</Text>
-                      <Text style={[styles.dh, COLS.pct]}>Win %</Text>
-                      <Text style={[styles.dh, COLS.numWide]}>Net P&L</Text>
+                      <Text style={[styles.dh, COLS.label]}>{tr("How it ended")}</Text>
+                      <Text style={[styles.dh, COLS.num]}>{tr("Trades")}</Text>
+                      <Text style={[styles.dh, COLS.pct]}>{tr("Win %")}</Text>
+                      <Text style={[styles.dh, COLS.numWide]}>{tr("Net P&L")}</Text>
                     </View>
                     {proc.reasons.map((b, i) => (
                       <View key={b.bucket} style={i % 2 === 0 ? styles.dataRow : styles.dataRowAlt}>
@@ -782,10 +779,10 @@ export default function TradingReportPDF({ trades, account, dateRange, logoUrl, 
                 {proc.magic.length > 0 && (
                   <>
                     <View style={[styles.dataHeader, { marginTop: 14 }]}>
-                      <Text style={[styles.dh, COLS.label]}>Manual / EA</Text>
-                      <Text style={[styles.dh, COLS.num]}>Trades</Text>
-                      <Text style={[styles.dh, COLS.pct]}>Win %</Text>
-                      <Text style={[styles.dh, COLS.numWide]}>Net P&L</Text>
+                      <Text style={[styles.dh, COLS.label]}>{tr("Manual / EA")}</Text>
+                      <Text style={[styles.dh, COLS.num]}>{tr("Trades")}</Text>
+                      <Text style={[styles.dh, COLS.pct]}>{tr("Win %")}</Text>
+                      <Text style={[styles.dh, COLS.numWide]}>{tr("Net P&L")}</Text>
                     </View>
                     {proc.magic.map((b, i) => (
                       <View key={b.bucket} style={i % 2 === 0 ? styles.dataRow : styles.dataRowAlt}>
@@ -801,10 +798,10 @@ export default function TradingReportPDF({ trades, account, dateRange, logoUrl, 
                 {proc.legs.coverage > 0 && (
                   <>
                     <View style={[styles.dataHeader, { marginTop: 14 }]}>
-                      <Text style={[styles.dh, COLS.label]}>Position building</Text>
-                      <Text style={[styles.dh, COLS.num]}>Trades</Text>
-                      <Text style={[styles.dh, COLS.pct]}>Win %</Text>
-                      <Text style={[styles.dh, COLS.numWide]}>Net P&L</Text>
+                      <Text style={[styles.dh, COLS.label]}>{tr("Position building")}</Text>
+                      <Text style={[styles.dh, COLS.num]}>{tr("Trades")}</Text>
+                      <Text style={[styles.dh, COLS.pct]}>{tr("Win %")}</Text>
+                      <Text style={[styles.dh, COLS.numWide]}>{tr("Net P&L")}</Text>
                     </View>
                     {[proc.legs.singleLeg, proc.legs.multiLeg, proc.legs.averagedDown].map((b, i) => (
                       <View key={b.bucket} style={i % 2 === 0 ? styles.dataRow : styles.dataRowAlt}>
@@ -820,8 +817,8 @@ export default function TradingReportPDF({ trades, account, dateRange, logoUrl, 
                 {proc.cash.coverage > 0 && (
                   <>
                     <View style={[styles.dataHeader, { marginTop: 14 }]}>
-                      <Text style={[styles.dh, COLS.label]}>Account reconciliation</Text>
-                      <Text style={styles.dh}>Value</Text>
+                      <Text style={[styles.dh, COLS.label]}>{tr("Account reconciliation")}</Text>
+                      <Text style={styles.dh}>{tr("Value")}</Text>
                     </View>
                     {[
                       ["Net external flow", fmt(proc.cash.netFlow), proc.cash.netFlow === 0 ? "#1a1a2e" : proc.cash.netFlow > 0 ? "#00b85e" : "#cc3355"],
@@ -837,8 +834,7 @@ export default function TradingReportPDF({ trades, account, dateRange, logoUrl, 
                 )}
 
                 <SectionNote>
-                  Exit reason and magic number are recorded by MetaTrader, not inferred. Reconciliation compares the balance the exporter recorded against each trade&apos;s own P&L, so a non-zero flow means cash moved outside trading.
-                </SectionNote>
+                  {tr("Exit reason and magic number are recorded by MetaTrader, not inferred. Reconciliation compares the balance the exporter recorded against each trade's own P&L, so a non-zero flow means cash moved outside trading.")}</SectionNote>
               </>
             )}
           </>
@@ -846,14 +842,14 @@ export default function TradingReportPDF({ trades, account, dateRange, logoUrl, 
 
         {includePropFirm && prop && challenge && (
           <>
-            <Text style={styles.sectionTitle}>Prop Firm Evaluation</Text>
+            <Text style={styles.sectionTitle}>{tr("Prop Firm Evaluation")}</Text>
             <View style={styles.dataHeader}>
-              <Text style={[styles.dh, { width: 110 }]}>Rule</Text>
-              <Text style={[styles.dh, { width: 150 }]}>Setting</Text>
-              <Text style={styles.dh}>Standing</Text>
+              <Text style={[styles.dh, { width: 110 }]}>{tr("Rule")}</Text>
+              <Text style={[styles.dh, { width: 150 }]}>{tr("Setting")}</Text>
+              <Text style={styles.dh}>{tr("Standing")}</Text>
             </View>
             {[
-              ["Profit target", `${challenge.targetPct}% · $${prop.status.targetAmount.toFixed(2)}`, `${prop.status.profitProgress.toFixed(1)}% reached`],
+              ["Profit target", `${targetPctFor(challenge)}% · $${prop.status.targetAmount.toFixed(2)}`, `${prop.status.profitProgress.toFixed(1)}% reached`],
               ["Max drawdown", `${challenge.maxDdPct}% ${challenge.ddMode}`, `$${prop.status.ddUsed.toFixed(2)} of $${prop.status.ddAllowed.toFixed(2)}`],
               ["Daily limit", challenge.dailyLimitPct > 0 ? `${challenge.dailyLimitPct}%` : "none", challenge.dailyLimitPct > 0 ? `worst ${fmt(prop.status.worstDayPnl)}` : "—"],
               ["Min trading days", challenge.minDays > 0 ? `${challenge.minDays} days` : "none", `${prop.status.tradingDays} days`],
@@ -869,54 +865,53 @@ export default function TradingReportPDF({ trades, account, dateRange, logoUrl, 
 
             <View style={[styles.statRow, { marginTop: 16 }]}>
               <View style={styles.statCard}>
-                <Text style={styles.statLabel}>Pass Probability</Text>
+                <Text style={styles.statLabel}>{tr("Pass Probability")}</Text>
                 <Text style={prop.sim.passRate >= 0.5 ? styles.statValueGreen : styles.statValueRed}>{(prop.sim.passRate * 100).toFixed(1)}%</Text>
-                <Text style={styles.statSub}>{prop.sim.runs} simulated attempts</Text>
+                <Text style={styles.statSub}>{prop.sim.runs}  {tr("simulated attempts")}</Text>
               </View>
               <View style={styles.statCard}>
-                <Text style={styles.statLabel}>Fail: Drawdown</Text>
+                <Text style={styles.statLabel}>{tr("Fail: Drawdown")}</Text>
                 <Text style={styles.statValueRed}>{(prop.sim.failDrawdown * 100).toFixed(1)}%</Text>
-                <Text style={styles.statSub}>Daily limit {(prop.sim.failDaily * 100).toFixed(1)}%</Text>
+                <Text style={styles.statSub}>{tr("Daily limit")} {(prop.sim.failDaily * 100).toFixed(1)}%</Text>
               </View>
               <View style={styles.statCard}>
-                <Text style={styles.statLabel}>Median Days</Text>
-                <Text style={styles.statValueGreen}>{prop.sim.medianDaysToPass != null ? `${prop.sim.medianDaysToPass}` : "—"}</Text>
-                <Text style={styles.statSub}>Trading days to pass</Text>
+                <Text style={styles.statLabel}>{tr("Median Days")}</Text>
+                <Text style={styles.statValueGreen}>{tr(prop.sim.medianDaysToPass != null ? `${prop.sim.medianDaysToPass}` : "—")}</Text>
+                <Text style={styles.statSub}>{tr("Trading days to pass")}</Text>
               </View>
               <View style={styles.statCard}>
-                <Text style={styles.statLabel}>ROI on Fee</Text>
+                <Text style={styles.statLabel}>{tr("ROI on Fee")}</Text>
                 <Text style={prop.roi.roiPct >= 0 ? styles.statValueGreen : styles.statValueRed}>
-                  {prop.roi.roiPct >= 0 ? "+" : ""}{prop.roi.roiPct.toFixed(1)}%
+                  {tr(prop.roi.roiPct >= 0 ? "+" : "")}{prop.roi.roiPct.toFixed(1)}%
                 </Text>
-                <Text style={styles.statSub}>${prop.roi.expectedPayout.toFixed(2)} expected payout</Text>
+                <Text style={styles.statSub}>${prop.roi.expectedPayout.toFixed(2)}  {tr("expected payout")}</Text>
               </View>
             </View>
 
             <SectionNote>
-              {prop.sim.tooFew
+              {tr(prop.sim.tooFew
                 ? `Only ${prop.sim.sampleTrades} trades sampled across ${prop.sim.sampleDays} days — treat the pass rate as a direction, not a number.`
-                : `Bootstrap over ${prop.sim.sampleTrades} trades across ${prop.sim.sampleDays} days, walked through every rule. Intraday drawdown is approximated from closed trades.`}
+                : `Bootstrap over ${prop.sim.sampleTrades} trades across ${prop.sim.sampleDays} days, walked through every rule. Intraday drawdown is approximated from closed trades.`)}
             </SectionNote>
           </>
         )}
 
         {includePropFirm && !(prop && challenge) && (
           <MissingData>
-            No prop-firm rules saved. Configure the Prop Firm tab in Analytics, then export again.
-          </MissingData>
+            {tr("No prop-firm rules saved. Configure the Prop Firm tab in Analytics, then export again.")}</MissingData>
         )}
 
         {includeInstruments && s.instruments.length > 0 && (
           <>
-            <Text style={styles.sectionTitle}>Instrument Breakdown</Text>
+            <Text style={styles.sectionTitle}>{tr("Instrument Breakdown")}</Text>
             <View style={styles.dataHeader}>
-              <Text style={[styles.dh, COLS.label]}>Instrument</Text>
-              <Text style={[styles.dh, COLS.num]}>Trades</Text>
-              <Text style={[styles.dh, COLS.pct]}>Win %</Text>
-              <Text style={[styles.dh, COLS.numWide]}>Net P&amp;L</Text>
-              <Text style={[styles.dh, COLS.numWide]}>Avg R</Text>
-              <Text style={[styles.dh, COLS.numWide]}>Best</Text>
-              <Text style={[styles.dh, COLS.numWide]}>Worst</Text>
+              <Text style={[styles.dh, COLS.label]}>{tr("Instrument")}</Text>
+              <Text style={[styles.dh, COLS.num]}>{tr("Trades")}</Text>
+              <Text style={[styles.dh, COLS.pct]}>{tr("Win %")}</Text>
+              <Text style={[styles.dh, COLS.numWide]}>{tr("Net P&L")}</Text>
+              <Text style={[styles.dh, COLS.numWide]}>{tr("Avg R")}</Text>
+              <Text style={[styles.dh, COLS.numWide]}>{tr("Best")}</Text>
+              <Text style={[styles.dh, COLS.numWide]}>{tr("Worst")}</Text>
             </View>
             {s.instruments.map((r, i) => (
               <View key={r.symbol} style={i % 2 === 0 ? styles.dataRow : styles.dataRowAlt}>
@@ -926,7 +921,7 @@ export default function TradingReportPDF({ trades, account, dateRange, logoUrl, 
                 <Text style={[styles.dcRightBold, COLS.numWide, { color: r.pnl >= 0 ? "#00b85e" : "#cc3355" }]}>
                   {fmt(r.pnl)}
                 </Text>
-                <Text style={[styles.dcRight, COLS.numWide]}>{r.avgR === null ? "—" : `${r.avgR >= 0 ? "+" : ""}${r.avgR.toFixed(2)}R`}</Text>
+                <Text style={[styles.dcRight, COLS.numWide]}>{tr(r.avgR === null ? "—" : `${r.avgR >= 0 ? "+" : ""}${r.avgR.toFixed(2)}R`)}</Text>
                 <Text style={[styles.dcRight, COLS.numWide]}>{fmt(r.best)}</Text>
                 <Text style={[styles.dcRight, COLS.numWide]}>{fmt(r.worst)}</Text>
               </View>
@@ -936,22 +931,22 @@ export default function TradingReportPDF({ trades, account, dateRange, logoUrl, 
 
         {includeTiming && (s.hourData.length > 0 || s.dowData.some((d) => d.count > 0)) && (
           <>
-            <Text style={styles.sectionTitle}>Timing</Text>
+            <Text style={styles.sectionTitle}>{tr("Timing")}</Text>
 
             {s.hourData.length > 0 && (
               <>
                 <View style={styles.dataHeader}>
-                  <Text style={[styles.dh, COLS.labelSm]}>Hour (24h)</Text>
-                  <Text style={[styles.dh, COLS.num]}>Trades</Text>
-                  <Text style={[styles.dh, COLS.pct]}>Win %</Text>
-                  <Text style={[styles.dh, COLS.numWide]}>Net P&amp;L</Text>
-                  <Text style={styles.dh}>Relative strength</Text>
+                  <Text style={[styles.dh, COLS.labelSm]}>{tr("Hour (24h)")}</Text>
+                  <Text style={[styles.dh, COLS.num]}>{tr("Trades")}</Text>
+                  <Text style={[styles.dh, COLS.pct]}>{tr("Win %")}</Text>
+                  <Text style={[styles.dh, COLS.numWide]}>{tr("Net P&L")}</Text>
+                  <Text style={styles.dh}>{tr("Relative strength")}</Text>
                 </View>
                 {[...s.hourData].sort((a, b) => b.totalPnl - a.totalPnl).map((h, i) => {
                   const peak = Math.max(...s.hourData.map((x) => Math.abs(x.totalPnl)), 1);
                   return (
                     <View key={h.hour} style={i % 2 === 0 ? styles.dataRow : styles.dataRowAlt}>
-                      <Text style={[styles.dcBold, COLS.labelSm]}>{h.label}</Text>
+                      <Text style={[styles.dcBold, COLS.labelSm]}>{tr(h.label)}</Text>
                       <Text style={[styles.dcRight, COLS.num]}>{h.count}</Text>
                       <Text style={[styles.dcRight, COLS.pct]}>{h.winRate}%</Text>
                       <Text style={[styles.dcRightBold, COLS.numWide, { color: h.totalPnl >= 0 ? "#00b85e" : "#cc3355" }]}>
@@ -973,11 +968,11 @@ export default function TradingReportPDF({ trades, account, dateRange, logoUrl, 
             {s.dowData.some((d) => d.count > 0) && (
               <>
                 <View style={[styles.dataHeader, { marginTop: 14 }]}>
-                  <Text style={[styles.dh, COLS.labelSm]}>Weekday</Text>
-                  <Text style={[styles.dh, COLS.num]}>Trades</Text>
-                  <Text style={[styles.dh, COLS.pct]}>Win %</Text>
-                  <Text style={[styles.dh, COLS.numWide]}>Net P&amp;L</Text>
-                  <Text style={styles.dh}>Relative strength</Text>
+                  <Text style={[styles.dh, COLS.labelSm]}>{tr("Weekday")}</Text>
+                  <Text style={[styles.dh, COLS.num]}>{tr("Trades")}</Text>
+                  <Text style={[styles.dh, COLS.pct]}>{tr("Win %")}</Text>
+                  <Text style={[styles.dh, COLS.numWide]}>{tr("Net P&L")}</Text>
+                  <Text style={styles.dh}>{tr("Relative strength")}</Text>
                 </View>
                 {[...s.dowData].filter((d) => d.count > 0).map((d, i) => {
                   const peak = Math.max(...s.dowData.map((x) => Math.abs(x.pnl)), 1);
@@ -1001,31 +996,31 @@ export default function TradingReportPDF({ trades, account, dateRange, logoUrl, 
                 })}
               </>
             )}
-            <SectionNote>Ranked by net contribution. Hours are shown in the 24-hour clock, matching MetaTrader.</SectionNote>
+            <SectionNote>{tr("Ranked by net contribution. Hours are shown in the 24-hour clock, matching MetaTrader.")}</SectionNote>
           </>
         )}
 
         <View style={styles.footer} fixed>
-          <Text style={styles.footerText}>QuantEdge — Trading Performance Report</Text>
+          <Text style={styles.footerText}>{tr("QuantEdge — Trading Performance Report")}</Text>
           <Text style={styles.footerText}>{generatedDate}</Text>
         </View>
       </Page>
 
       {includeTradeHistory && (
         <Page size="A4" style={{ ...styles.page, paddingTop: 36 }}>
-          <Text style={styles.sectionTitle}>Trade History</Text>
+          <Text style={styles.sectionTitle}>{tr("Trade History")}</Text>
 
           <View style={styles.tableHeader}>
-            <Text style={[styles.colDate,   styles.colHeaderText]}>Date</Text>
-            <Text style={[styles.colSymbol, styles.colHeaderText]}>Symbol</Text>
-            <Text style={[styles.colType,   styles.colHeaderText]}>Type</Text>
-            <Text style={[styles.colStrike, styles.colHeaderText]}>Strike</Text>
-            <Text style={[styles.colExpiry, styles.colHeaderText]}>Expiry</Text>
-            <Text style={[styles.colQty,    styles.colHeaderText]}>Qty</Text>
-            <Text style={[styles.colEntry,  styles.colHeaderText]}>Entry</Text>
-            <Text style={[styles.colExit,   styles.colHeaderText]}>Exit</Text>
+            <Text style={[styles.colDate,   styles.colHeaderText]}>{tr("Date")}</Text>
+            <Text style={[styles.colSymbol, styles.colHeaderText]}>{tr("Symbol")}</Text>
+            <Text style={[styles.colType,   styles.colHeaderText]}>{tr("Type")}</Text>
+            <Text style={[styles.colStrike, styles.colHeaderText]}>{tr("Strike")}</Text>
+            <Text style={[styles.colExpiry, styles.colHeaderText]}>{tr("Expiry")}</Text>
+            <Text style={[styles.colQty,    styles.colHeaderText]}>{tr("Qty")}</Text>
+            <Text style={[styles.colEntry,  styles.colHeaderText]}>{tr("Entry")}</Text>
+            <Text style={[styles.colExit,   styles.colHeaderText]}>{tr("Exit")}</Text>
             <Text style={[styles.colPnl,    styles.colHeaderText]}>P&L</Text>
-            <Text style={[styles.colStatus, styles.colHeaderText]}>Result</Text>
+            <Text style={[styles.colStatus, styles.colHeaderText]}>{tr("Result")}</Text>
           </View>
 
           {trades.map((t, i) => (
@@ -1039,7 +1034,7 @@ export default function TradingReportPDF({ trades, account, dateRange, logoUrl, 
               <Text style={styles.colType}>
                 {t.optionType ? t.optionType.toUpperCase() : t.type.toUpperCase()}
               </Text>
-              <Text style={styles.colStrike}>{t.strike ? `$${t.strike}` : "—"}</Text>
+              <Text style={styles.colStrike}>{tr(t.strike ? `$${t.strike}` : "—")}</Text>
               <Text style={styles.colExpiry}>{t.expiry || "—"}</Text>
               <Text style={styles.colQty}>{t.quantity}</Text>
               <Text style={styles.colEntry}>${t.entryPrice}</Text>
@@ -1054,7 +1049,7 @@ export default function TradingReportPDF({ trades, account, dateRange, logoUrl, 
           ))}
 
           <View style={styles.footer} fixed>
-            <Text style={styles.footerText}>QuantEdge — Trading Performance Report</Text>
+            <Text style={styles.footerText}>{tr("QuantEdge — Trading Performance Report")}</Text>
             <Text
               style={styles.footerText}
               render={({ pageNumber, totalPages }) => `Page ${pageNumber} of ${totalPages}`}
@@ -1069,10 +1064,9 @@ export default function TradingReportPDF({ trades, account, dateRange, logoUrl, 
         if (journalTrades.length === 0) return null;
         return (
           <Page size="A4" style={{ ...styles.page, paddingTop: 36 }}>
-            <Text style={styles.sectionTitle}>Journal Entries</Text>
+            <Text style={styles.sectionTitle}>{tr("Journal Entries")}</Text>
             <Text style={{ fontSize: 9, color: "#888", marginBottom: 16 }}>
-              {journalTrades.length} trade{journalTrades.length !== 1 ? "s" : ""} with journal notes
-            </Text>
+              {journalTrades.length}  {tr("trade")}{tr(journalTrades.length !== 1 ? "s" : "")} {tr("with journal notes")}</Text>
 
             {journalTrades.map((t) => {
               const tags = Array.isArray(t.tags) ? t.tags as string[] : [];
@@ -1083,17 +1077,17 @@ export default function TradingReportPDF({ trades, account, dateRange, logoUrl, 
                       <Text style={styles.journalSymbol}>{t.underlying}</Text>
                       <Text style={{ fontSize: 8, color: "#888" }}>
                         {t.optionType ? t.optionType.toUpperCase() : t.type.toUpperCase()}
-                        {t.strike ? ` · $${t.strike}` : ""}
-                        {t.expiry ? ` · ${t.expiry}` : ""}
+                        {tr(t.strike ? ` · $${t.strike}` : "")}
+                        {tr(t.expiry ? ` · ${t.expiry}` : "")}
                       </Text>
                     </View>
                     <Text style={[styles.journalPnl, { color: t.pnl >= 0 ? "#00b85e" : "#cc3355" }]}>
-                      {t.pnl >= 0 ? "+" : ""}${t.pnl.toFixed(2)}
+                      {tr(t.pnl >= 0 ? "+" : "")}${t.pnl.toFixed(2)}
                     </Text>
                   </View>
 
                   <Text style={styles.journalMeta}>
-                    {t.date}{t.entryTime ? ` · Entry ${formatTime(t.entryTime, timeFormat)}` : ""}{t.exitTime ? ` · Exit ${formatTime(t.exitTime, timeFormat)}` : ""}{t.rr ? ` · R:R ${t.rr}` : ""}
+                    {t.date}{tr(t.entryTime ? ` · Entry ${formatTime(t.entryTime, timeFormat)}` : "")}{tr(t.exitTime ? ` · Exit ${formatTime(t.exitTime, timeFormat)}` : "")}{tr(t.rr ? ` · R:R ${t.rr}` : "")}
                   </Text>
 
                   {tags.length > 0 && (
@@ -1110,7 +1104,7 @@ export default function TradingReportPDF({ trades, account, dateRange, logoUrl, 
             })}
 
             <View style={styles.footer} fixed>
-              <Text style={styles.footerText}>QuantEdge — Trading Performance Report</Text>
+              <Text style={styles.footerText}>{tr("QuantEdge — Trading Performance Report")}</Text>
               <Text
                 style={styles.footerText}
                 render={({ pageNumber, totalPages }) => `Page ${pageNumber} of ${totalPages}`}

@@ -1,4 +1,5 @@
 "use client";
+import { t as tr } from "../lib/i18n";
 import { useState, useMemo, Fragment } from "react";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -349,56 +350,56 @@ export function OverviewMetrics({ stats }: {
   return (
     <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: "16px", marginBottom: "32px" }}>
       <MetricCard
-        label="Net P&L"
+        label={tr("Net P&L")}
         value={`${stats.totalPnl >= 0 ? "+" : ""}$${stats.totalPnl.toFixed(2)}`}
         positive={stats.totalPnl >= 0}
         icon={TrendingUp}
-        sub={returnPct === null
+        sub={tr(returnPct === null
           ? `${totalTrades} trades · set an initial balance`
-          : `${returnPct >= 0 ? "+" : ""}${returnPct.toFixed(2)}% of $${stats.initBal.toLocaleString()}`}
+          : `${returnPct >= 0 ? "+" : ""}${returnPct.toFixed(2)}% of $${stats.initBal.toLocaleString()}`)}
       />
       <MetricCard
-        label="Expectancy"
+        label={tr("Expectancy")}
         value={`${stats.avgR >= 0 ? "+" : ""}${stats.avgR.toFixed(2)}R`}
         positive={stats.avgR > 0}
         icon={Activity}
-        sub={`${perTrade >= 0 ? "+" : ""}$${perTrade.toFixed(2)} per trade · BE = 0R`}
+        sub={tr(`${perTrade >= 0 ? "+" : ""}$${perTrade.toFixed(2)} per trade · BE = 0R`)}
       />
       <MetricCard
-        label="Profit Factor"
+        label={tr("Profit Factor")}
         value={pfLabel}
         positive={stats.profitFactor >= 1}
         icon={Zap}
-        sub={`$${grossWins.toFixed(0)} gross win / $${grossLosses.toFixed(0)} gross loss`}
+        sub={tr(`$${grossWins.toFixed(0)} gross win / $${grossLosses.toFixed(0)} gross loss`)}
       />
       <MetricCard
-        label="Drawdown"
+        label={tr("Drawdown")}
         value={stats.maxDdPct === 0 ? "0.00%" : `-${Math.abs(stats.maxDdPct).toFixed(2)}%`}
         positive={false}
         neutral={stats.maxDdPct === 0}
         icon={TrendingDown}
-        sub={stats.currentDdDays > 0
+        sub={tr(stats.currentDdDays > 0
           ? `$${Math.abs(stats.maxDd).toFixed(0)} peak-to-trough · ${stats.currentDdDays}d current`
-          : `$${Math.abs(stats.maxDd).toFixed(0)} peak-to-trough · at high-water mark`}
+          : `$${Math.abs(stats.maxDd).toFixed(0)} peak-to-trough · at high-water mark`)}
       />
       <MetricCard
-        label="Risk per Trade"
+        label={tr("Risk per Trade")}
         value={stats.riskPctAvg > 0 ? `${stats.riskPctAvg.toFixed(2)}%` : "—"}
         neutral
         icon={Shield}
-        sub={stats.avgRisk <= 0
+        sub={tr(stats.avgRisk <= 0
           ? "Add a stop loss to size risk"
           : stats.initBal <= 0
           ? `$${stats.avgRisk.toFixed(0)} average risk · set an initial balance`
-          : `$${stats.avgRisk.toFixed(0)} average · ${stats.riskCoverage}/${totalTrades} sized`}
+          : `$${stats.avgRisk.toFixed(0)} average · ${stats.riskCoverage}/${totalTrades} sized`)}
       />
       <MetricCard
-        label="Win Rate"
+        label={tr("Win Rate")}
         value={`${stats.winRate.toFixed(1)}%`}
         positive={stats.profitFactor > 1}
         neutral={stats.profitFactor === 1}
         icon={Target}
-        sub={`${payoff.toFixed(2)}:1 payoff · ${stats.wins.length}W/${stats.losses.length}L`}
+        sub={tr(`${payoff.toFixed(2)}:1 payoff · ${stats.wins.length}W/${stats.losses.length}L`)}
       />
     </div>
   );
@@ -430,7 +431,7 @@ function HoldVsProfitScatter({ trades }: { trades: Trade[] }) {
   if (points.length === 0) return null;
 
   return (
-    <SectionCard title="Hold Time vs P&L" subtitle="Each dot is one trade. Longer holds should justify the time — if not, you are cut early or the runner is not there.">
+    <SectionCard title={tr("Hold Time vs P&L")} subtitle={tr("Each dot is one trade. Longer holds should justify the time — if not, you are cut early or the runner is not there.")}>
       <ResponsiveContainer width="100%" height={300}>
         <ScatterChart margin={{ top: 8, right: 16, bottom: 24, left: 8 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" />
@@ -587,12 +588,12 @@ export default function AnalyticsSections() {
           </div>
           <div style={{ textAlign: "center" }}>
             <h2 style={{ fontSize: "22px", fontWeight: "700", color: "var(--text-primary)", marginBottom: "8px" }}>
-              {hasRange ? "No trades in this range" : "No trades yet"}
+              {tr(hasRange ? "No trades in this range" : "No trades yet")}
             </h2>
             <p style={{ color: "var(--text-muted)", fontSize: "14px", marginBottom: hasRange ? "16px" : 0 }}>
-              {hasRange
+              {tr(hasRange
                 ? `Nothing was traded between ${dateFrom || "the start"} and ${dateTo || "today"}.`
-                : "Import trades to unlock analytics"}
+                : "Import trades to unlock analytics")}
             </p>
             {hasRange && (
               <button
@@ -603,8 +604,7 @@ export default function AnalyticsSections() {
                   fontFamily: "'DM Sans', sans-serif", cursor: "pointer",
                 }}
               >
-                Clear date range
-              </button>
+                {tr("Clear date range")}</button>
             )}
           </div>
         </div>
@@ -622,32 +622,30 @@ export default function AnalyticsSections() {
     <div>
       {/* Scope line: which slice of the journal every tab below describes. */}
       <p style={{ color: "var(--text-muted)", fontSize: "12px", marginBottom: "16px" }}>
-        Showing <strong style={{ color: "var(--text-secondary)" }}>{trades.length}</strong>
-        {allTrades.length !== trades.length ? ` of ${allTrades.length}` : ""} trade
-        {trades.length !== 1 ? "s" : ""} · {stats.tradingDays} trading days
-        {symbolFilter ? ` · ${symbolFilter}` : ""}
-        {hasRange && (dateFrom || dateTo) ? ` · ${dateFrom || "start"} to ${dateTo || "today"}` : ""}
+        {tr("Showing")}{" "}<strong style={{ color: "var(--text-secondary)" }}>{trades.length}</strong>
+        {tr(allTrades.length !== trades.length ? ` of ${allTrades.length}` : "")} {tr("trade")}{tr(trades.length !== 1 ? "s" : "")} · {stats.tradingDays} {tr("trading days")}{tr(symbolFilter ? ` · ${symbolFilter}` : "")}
+        {tr(hasRange && (dateFrom || dateTo) ? ` · ${dateFrom || "start"} to ${dateTo || "today"}` : "")}
       </p>
 
       {/* Tabs */}
       {/* Sticky so switching tabs does not require scrolling back to the top
           of a long analytics body. */}
       <div style={{ position: "sticky", top: 0, zIndex: 20, display: "flex", gap: "4px", marginBottom: "24px", background: "var(--bg-card)", borderRadius: "10px", padding: "4px", border: "1px solid var(--border)", width: "fit-content", flexWrap: "wrap" }}>
-        <Tab label="Overview"    active={activeTab === "overview"}    onClick={() => setActiveTab("overview")} />
-        <Tab label="Risk"        active={activeTab === "risk"}        onClick={() => setActiveTab("risk")} />
-        <Tab label="Time"        active={activeTab === "time"}        onClick={() => setActiveTab("time")} />
-        <Tab label="Heatmap"     active={activeTab === "heatmap"}     onClick={() => setActiveTab("heatmap")} />
-        <Tab label="Execution"   active={activeTab === "execution"}   onClick={() => setActiveTab("execution")} />
-        <Tab label="Behavior"    active={activeTab === "behavior"}    onClick={() => setActiveTab("behavior")} />
-        <Tab label="Process"     active={activeTab === "process"}     onClick={() => setActiveTab("process")} />
-        <Tab label="Compare"     active={activeTab === "compare"}     onClick={() => setActiveTab("compare")} />
+        <Tab label={tr("Overview")}    active={activeTab === "overview"}    onClick={() => setActiveTab("overview")} />
+        <Tab label={tr("Risk")}        active={activeTab === "risk"}        onClick={() => setActiveTab("risk")} />
+        <Tab label={tr("Time")}        active={activeTab === "time"}        onClick={() => setActiveTab("time")} />
+        <Tab label={tr("Heatmap")}     active={activeTab === "heatmap"}     onClick={() => setActiveTab("heatmap")} />
+        <Tab label={tr("Execution")}   active={activeTab === "execution"}   onClick={() => setActiveTab("execution")} />
+        <Tab label={tr("Behavior")}    active={activeTab === "behavior"}    onClick={() => setActiveTab("behavior")} />
+        <Tab label={tr("Process")}     active={activeTab === "process"}     onClick={() => setActiveTab("process")} />
+        <Tab label={tr("Compare")}     active={activeTab === "compare"}     onClick={() => setActiveTab("compare")} />
       </div>
 
       {/* Overview */}
       {activeTab === "overview" && (
         <>
           {sectionInsights("overview")}
-          <SectionCard title="Equity Curve" subtitle={`Starts at ${stats.initBal.toLocaleString()}, axis scaled to your trade range`}>
+          <SectionCard title={tr("Equity Curve")} subtitle={tr(`Starts at ${stats.initBal.toLocaleString()}, axis scaled to your trade range`)}>
             <ResponsiveContainer width="100%" height={240}>
               <AreaChart data={stats.equityCurve}>
                 <defs>
@@ -680,7 +678,7 @@ export default function AnalyticsSections() {
           </SectionCard>
 
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: "20px" }}>
-            <SectionCard title="P&L by Symbol">
+            <SectionCard title={tr("P&L by Symbol")}>
               <ResponsiveContainer width="100%" height={200}>
                 <BarChart data={stats.symbolData.slice(0, 10)}>
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" vertical={false} />
@@ -695,7 +693,7 @@ export default function AnalyticsSections() {
             </SectionCard>
 
             {stats.tagData.length > 0 ? (
-              <SectionCard title="P&L by Tag">
+              <SectionCard title={tr("P&L by Tag")}>
                 <ResponsiveContainer width="100%" height={200}>
                   <BarChart data={stats.tagData}>
                     <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" vertical={false} />
@@ -709,11 +707,11 @@ export default function AnalyticsSections() {
                 </ResponsiveContainer>
               </SectionCard>
             ) : (
-              <SectionCard title="Win / Loss Breakdown">
+              <SectionCard title={tr("Win / Loss Breakdown")}>
                 <div style={{ display: "flex", alignItems: "center", gap: "24px" }}>
                   <ResponsiveContainer width="50%" height={200}>
                     <PieChart>
-                      <Pie data={[{ name: "Wins", value: stats.wins.length }, { name: "Losses", value: stats.losses.length }]}
+                      <Pie data={[{ name: tr("Wins"), value: stats.wins.length }, { name: tr("Losses"), value: stats.losses.length }]}
                         cx="50%" cy="50%" innerRadius={50} outerRadius={80} dataKey="value">
                         <Cell fill="var(--profit)" />
                         <Cell fill="var(--loss)" />
@@ -723,14 +721,14 @@ export default function AnalyticsSections() {
                   </ResponsiveContainer>
                   <div style={{ flex: 1 }}>
                     <div style={{ marginBottom: "16px" }}>
-                      <div style={{ fontSize: "11px", color: "var(--text-secondary)", marginBottom: "4px" }}>Wins</div>
+                      <div style={{ fontSize: "11px", color: "var(--text-secondary)", marginBottom: "4px" }}>{tr("Wins")}</div>
                       <div style={{ fontSize: "26px", fontWeight: "800", color: "var(--profit)" }}>{stats.wins.length}</div>
-                      <div style={{ fontSize: "11px", color: "var(--text-secondary)" }}>Avg +${stats.avgWin.toFixed(2)}</div>
+                      <div style={{ fontSize: "11px", color: "var(--text-secondary)" }}>{tr("Avg +$")}{stats.avgWin.toFixed(2)}</div>
                     </div>
                     <div>
-                      <div style={{ fontSize: "11px", color: "var(--text-secondary)", marginBottom: "4px" }}>Losses</div>
+                      <div style={{ fontSize: "11px", color: "var(--text-secondary)", marginBottom: "4px" }}>{tr("Losses")}</div>
                       <div style={{ fontSize: "26px", fontWeight: "800", color: "var(--loss)" }}>{stats.losses.length}</div>
-                      <div style={{ fontSize: "11px", color: "var(--text-secondary)" }}>Avg -${stats.avgLoss.toFixed(2)}</div>
+                      <div style={{ fontSize: "11px", color: "var(--text-secondary)" }}>{tr("Avg -$")}{stats.avgLoss.toFixed(2)}</div>
                     </div>
                   </div>
                 </div>
@@ -741,17 +739,17 @@ export default function AnalyticsSections() {
           <HoldVsProfitScatter trades={trades} />
 
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: "12px", marginTop: "20px" }}>
-            <MetricCard label="Max Win Streak"  value={`${stats.streak.maxWinStreak}`} positive neutral={stats.streak.maxWinStreak === 0} icon={TrendingUp} sub="Consecutive wins" />
-            <MetricCard label="Max Loss Streak" value={`${stats.streak.maxLossStreak}`} positive={stats.streak.maxLossStreak <= 2} icon={TrendingDown} sub="Consecutive losses" />
+            <MetricCard label={tr("Max Win Streak")}  value={`${stats.streak.maxWinStreak}`} positive neutral={stats.streak.maxWinStreak === 0} icon={TrendingUp} sub={tr("Consecutive wins")} />
+            <MetricCard label={tr("Max Loss Streak")} value={`${stats.streak.maxLossStreak}`} positive={stats.streak.maxLossStreak <= 2} icon={TrendingDown} sub={tr("Consecutive losses")} />
             <MetricCard
-              label="Current Streak"
+              label={tr("Current Streak")}
               value={`${stats.streak.currentStreak}${stats.streak.currentType === "win" ? "W" : stats.streak.currentType === "loss" ? "L" : ""}`}
               positive={stats.streak.currentType === "win"}
               neutral={stats.streak.currentType === null}
               icon={Activity}
-              sub={stats.streak.currentType === "win" ? "Winning" : stats.streak.currentType === "loss" ? "Losing" : "—"}
+              sub={tr(stats.streak.currentType === "win" ? "Winning" : stats.streak.currentType === "loss" ? "Losing" : "—")}
             />
-            <MetricCard label="Trades / Day" value={(trades.length / Math.max(stats.tradingDays, 1)).toFixed(1)} neutral icon={Clock} sub="Avg per trading day" />
+            <MetricCard label={tr("Trades / Day")} value={(trades.length / Math.max(stats.tradingDays, 1)).toFixed(1)} neutral icon={Clock} sub={tr("Avg per trading day")} />
           </div>
         </>
       )}
@@ -761,34 +759,34 @@ export default function AnalyticsSections() {
         <>
           {sectionInsights("risk")}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "12px", marginBottom: "20px" }}>
-            <MetricCard label="Sharpe Ratio"  value={stats.sharpe.toFixed(2)}  positive={stats.sharpe > 1}  neutral={stats.sharpe === 0}  icon={Activity}
-              sub={stats.sharpe > 2 ? "Excellent" : stats.sharpe > 1 ? "Good" : stats.sharpe > 0 ? "Below avg" : "N/A (<5 days)"} />
-            <MetricCard label="Sortino Ratio" value={stats.sortino.toFixed(2)} positive={stats.sortino > 1} neutral={stats.sortino === 0} icon={TrendingUp}
-              sub={stats.sortino > 2 ? "Strong downside protection" : stats.sortino > 1 ? "Acceptable" : "Review loss management"} />
-            <MetricCard label="Calmar Ratio"  value={stats.calmar === 0 ? "N/A" : stats.calmar.toFixed(2)} positive={stats.calmar > 1} neutral={stats.calmar === 0} icon={Zap} sub="Annualized return / Max DD" />
+            <MetricCard label={tr("Sharpe Ratio")}  value={stats.sharpe.toFixed(2)}  positive={stats.sharpe > 1}  neutral={stats.sharpe === 0}  icon={Activity}
+              sub={tr(stats.sharpe > 2 ? "Excellent" : stats.sharpe > 1 ? "Good" : stats.sharpe > 0 ? "Below avg" : "N/A (<5 days)")} />
+            <MetricCard label={tr("Sortino Ratio")} value={stats.sortino.toFixed(2)} positive={stats.sortino > 1} neutral={stats.sortino === 0} icon={TrendingUp}
+              sub={tr(stats.sortino > 2 ? "Strong downside protection" : stats.sortino > 1 ? "Acceptable" : "Review loss management")} />
+            <MetricCard label={tr("Calmar Ratio")}  value={stats.calmar === 0 ? "N/A" : stats.calmar.toFixed(2)} positive={stats.calmar > 1} neutral={stats.calmar === 0} icon={Zap} sub={tr("Annualized return / Max DD")} />
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "12px", marginBottom: "20px" }}>
-            <MetricCard label="Max Drawdown"       value={`$${Math.abs(stats.maxDd).toFixed(2)}`} positive={false} neutral={stats.maxDd === 0} icon={TrendingDown}
-              sub={stats.maxDdPct !== 0 ? `${stats.maxDdPct.toFixed(2)}% from peak` : "No drawdown"} />
-            <MetricCard label="Max DD Duration"    value={stats.longestDdDays === 0 ? "0 days" : `${stats.longestDdDays}d`} positive={stats.longestDdDays < 7} neutral={stats.longestDdDays === 0} icon={Calendar} sub="Longest peak → recovery" />
-            <MetricCard label="Current DD Duration" value={stats.currentDdDays === 0 ? "None" : `${stats.currentDdDays}d`} positive={stats.currentDdDays === 0} icon={AlertTriangle}
-              sub={stats.currentDdDays > 0 ? "Still in drawdown" : "At or above high water mark"} />
+            <MetricCard label={tr("Max Drawdown")}       value={`$${Math.abs(stats.maxDd).toFixed(2)}`} positive={false} neutral={stats.maxDd === 0} icon={TrendingDown}
+              sub={tr(stats.maxDdPct !== 0 ? `${stats.maxDdPct.toFixed(2)}% from peak` : "No drawdown")} />
+            <MetricCard label={tr("Max DD Duration")}    value={stats.longestDdDays === 0 ? "0 days" : `${stats.longestDdDays}d`} positive={stats.longestDdDays < 7} neutral={stats.longestDdDays === 0} icon={Calendar} sub={tr("Longest peak → recovery")} />
+            <MetricCard label={tr("Current DD Duration")} value={stats.currentDdDays === 0 ? "None" : `${stats.currentDdDays}d`} positive={stats.currentDdDays === 0} icon={AlertTriangle}
+              sub={tr(stats.currentDdDays > 0 ? "Still in drawdown" : "At or above high water mark")} />
           </div>
 
           {stats.riskCoverage > 0 ? (
             <>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: "12px", marginBottom: "20px" }}>
-                <MetricCard label="Planned Risk"   value={`$${stats.avgRisk.toFixed(2)}`} neutral={false} positive={stats.riskPctAvg <= 2} icon={Shield}
-                  sub={`${stats.riskPctAvg.toFixed(2)}% of balance per trade`} />
-                <MetricCard label="Risk Range"     value={`$${stats.minRisk.toFixed(0)} – $${stats.maxRisk.toFixed(0)}`} neutral icon={SlidersHorizontal}
-                  sub="Smallest to largest stop" />
-                <MetricCard label="Risk Consistency" value={`${stats.riskConsistency.toFixed(0)}%`} positive={stats.riskConsistency >= 80} neutral={stats.riskConsistency === 0} icon={Target}
-                  sub={stats.riskConsistency >= 80 ? "Sizing is deliberate" : "Sizing drifts between trades"} />
-                <MetricCard label="Stop Breaches"  value={String(stats.stopBreaches)} positive={stats.stopBreaches === 0} neutral={stats.stopBreaches === 0} icon={AlertTriangle}
-                  sub={stats.stopBreaches === 0 ? "No loss exceeded planned risk" : "Losses past planned risk"} />
+                <MetricCard label={tr("Planned Risk")}   value={`$${stats.avgRisk.toFixed(2)}`} neutral={false} positive={stats.riskPctAvg <= 2} icon={Shield}
+                  sub={tr(`${stats.riskPctAvg.toFixed(2)}% of balance per trade`)} />
+                <MetricCard label={tr("Risk Range")}     value={`$${stats.minRisk.toFixed(0)} – $${stats.maxRisk.toFixed(0)}`} neutral icon={SlidersHorizontal}
+                  sub={tr("Smallest to largest stop")} />
+                <MetricCard label={tr("Risk Consistency")} value={`${stats.riskConsistency.toFixed(0)}%`} positive={stats.riskConsistency >= 80} neutral={stats.riskConsistency === 0} icon={Target}
+                  sub={tr(stats.riskConsistency >= 80 ? "Sizing is deliberate" : "Sizing drifts between trades")} />
+                <MetricCard label={tr("Stop Breaches")}  value={String(stats.stopBreaches)} positive={stats.stopBreaches === 0} neutral={stats.stopBreaches === 0} icon={AlertTriangle}
+                  sub={tr(stats.stopBreaches === 0 ? "No loss exceeded planned risk" : "Losses past planned risk")} />
               </div>
 
-              <SectionCard title="Risk Per Trade" subtitle="Dollars committed at entry, from the stop loss recorded in MetaTrader. A flat band means consistent sizing.">
+              <SectionCard title={tr("Risk Per Trade")} subtitle={tr("Dollars committed at entry, from the stop loss recorded in MetaTrader. A flat band means consistent sizing.")}>
                 <ResponsiveContainer width="100%" height={200}>
                   <AreaChart data={stats.riskPctVals.map((pct, i) => ({ i, pct }))}>
                     <defs>
@@ -807,19 +805,16 @@ export default function AnalyticsSections() {
               </SectionCard>
             </>
           ) : (
-            <SectionCard title="Planned Risk">
+            <SectionCard title={tr("Planned Risk")}>
               <div style={{ textAlign: "center", padding: "24px 16px" }}>
                 <Shield size={22} color="var(--text-secondary)" style={{ marginBottom: "10px" }} />
                 <p style={{ fontSize: "13px", color: "var(--text-muted)", maxWidth: "440px", margin: "0 auto" }}>
-                  None of these trades have a stop loss recorded. Set a stop on your MetaTrader
-                  positions and re-run QuantEdgeExport.mq5 to unlock risk sizing, risk
-                  consistency, and true R-multiples instead of an average-loss estimate.
-                </p>
+                  {tr("None of these trades have a stop loss recorded. Set a stop on your MetaTrader positions and re-run QuantEdgeExport.mq5 to unlock risk sizing, risk consistency, and true R-multiples instead of an average-loss estimate.")}</p>
               </div>
             </SectionCard>
           )}
 
-          <SectionCard title="Drawdown Over Time" subtitle="% deviation from the rolling equity high-water mark. Zero = new all-time high.">
+          <SectionCard title={tr("Drawdown Over Time")} subtitle={tr("% deviation from the rolling equity high-water mark. Zero = new all-time high.")}>
             <ResponsiveContainer width="100%" height={220}>
               <AreaChart data={stats.ddCurve}>
                 <defs>
@@ -839,7 +834,7 @@ export default function AnalyticsSections() {
           </SectionCard>
 
           {stats.rolling.length > 0 && (
-            <SectionCard title="Rolling 20-Trade Win Rate" subtitle="Win rate over a sliding window of 20 trades. Reveals consistency trends.">
+            <SectionCard title={tr("Rolling 20-Trade Win Rate")} subtitle={tr("Win rate over a sliding window of 20 trades. Reveals consistency trends.")}>
               <ResponsiveContainer width="100%" height={200}>
                 <LineChart data={stats.rolling}>
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" vertical={false} />
@@ -853,13 +848,13 @@ export default function AnalyticsSections() {
             </SectionCard>
           )}
 
-          <SectionCard title="Metric Definitions">
+          <SectionCard title={tr("Metric Definitions")}>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: "16px" }}>
               {[
-                { name: "Sharpe Ratio",  formula: "(Mean Daily P&L / Std Dev Daily P&L) × √252", what: "Risk-adjusted return per unit of total volatility. >1 = good, >2 = excellent." },
-                { name: "Sortino Ratio", formula: "(Mean Daily P&L / Downside Std Dev) × √252",  what: "Like Sharpe but only penalises downside volatility. More relevant for traders." },
-                { name: "Calmar Ratio",  formula: "Annualized Return % / |Max Drawdown %|",      what: "How much return you earn per unit of max drawdown risk. >1 = acceptable." },
-                { name: "Expectancy",    formula: "(Win% × Avg Win) − (Loss% × Avg Loss)",       what: "Expected dollar profit per trade. The single most important metric to be positive." },
+                { name: tr("Sharpe Ratio"),  formula: "(Mean Daily P&L / Std Dev Daily P&L) × √252", what: tr("Risk-adjusted return per unit of total volatility. >1 = good, >2 = excellent.") },
+                { name: tr("Sortino Ratio"), formula: "(Mean Daily P&L / Downside Std Dev) × √252",  what: tr("Like Sharpe but only penalises downside volatility. More relevant for traders.") },
+                { name: tr("Calmar Ratio"),  formula: "Annualized Return % / |Max Drawdown %|",      what: tr("How much return you earn per unit of max drawdown risk. >1 = acceptable.") },
+                { name: tr("Expectancy"),    formula: "(Win% × Avg Win) − (Loss% × Avg Loss)",       what: tr("Expected dollar profit per trade. The single most important metric to be positive.") },
               ].map(({ name, formula, what }) => (
                 <div key={name} style={{ background: "var(--bg-secondary)", borderRadius: "10px", padding: "14px 16px" }}>
                   <div style={{ fontSize: "13px", fontWeight: "700", color: "var(--text-primary)", marginBottom: "6px" }}>{name}</div>
@@ -876,15 +871,15 @@ export default function AnalyticsSections() {
       {activeTab === "time" && (
         <>
           {sectionInsights("time")}
-          <SectionCard title="P&L by Day of Week" subtitle="Which days are most profitable.">
+          <SectionCard title={tr("P&L by Day of Week")} subtitle={tr("Which days are most profitable.")}>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: "12px", marginBottom: "24px" }}>
               {stats.dowData.map(({ day, pnl, count, wr }) => (
                 <div key={day} style={{ background: "var(--bg-secondary)", borderRadius: "12px", padding: "16px", borderTop: `3px solid ${pnl >= 0 ? "var(--profit)" : "var(--loss)"}`, textAlign: "center" }}>
                   <div style={{ fontSize: "13px", fontWeight: "700", color: "var(--text-muted)", marginBottom: "8px" }}>{day}</div>
                   <div style={{ fontSize: "20px", fontWeight: "800", color: pnl >= 0 ? "var(--profit)" : "var(--loss)", marginBottom: "4px" }}>
-                    {pnl >= 0 ? "+" : ""}${pnl.toFixed(0)}
+                    {tr(pnl >= 0 ? "+" : "")}${pnl.toFixed(0)}
                   </div>
-                  <div style={{ fontSize: "10px", color: "var(--text-muted)" }}>{count} trades · {wr}% WR</div>
+                  <div style={{ fontSize: "10px", color: "var(--text-muted)" }}>{count}  {tr("trades ·")} {wr}{tr("% WR")}</div>
                 </div>
               ))}
             </div>
@@ -902,7 +897,7 @@ export default function AnalyticsSections() {
             </ResponsiveContainer>
           </SectionCard>
 
-          <SectionCard title="Daily P&L Distribution" subtitle="Each bar = one trading day. Reveals consistency vs spike dependency.">
+          <SectionCard title={tr("Daily P&L Distribution")} subtitle={tr("Each bar = one trading day. Reveals consistency vs spike dependency.")}>
             <ResponsiveContainer width="100%" height={200}>
               <BarChart data={stats.daily}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" vertical={false} />
@@ -918,7 +913,7 @@ export default function AnalyticsSections() {
           </SectionCard>
 
           {stats.tagData.length > 0 && (
-            <SectionCard title="Win Rate by Tag" subtitle="Which setups convert at the highest rate.">
+            <SectionCard title={tr("Win Rate by Tag")} subtitle={tr("Which setups convert at the highest rate.")}>
               <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
                 {stats.tagData.map(({ tag, wr, count, pnl }) => (
                   <div key={tag} style={{ display: "flex", alignItems: "center", gap: "12px" }}>
@@ -927,9 +922,9 @@ export default function AnalyticsSections() {
                       <div style={{ width: `${wr}%`, height: "100%", background: wr >= 60 ? "var(--profit)" : wr >= 40 ? "var(--accent-blue)" : "var(--loss)", borderRadius: "4px", transition: "width 0.3s ease" }} />
                     </div>
                     <div style={{ fontSize: "12px", fontWeight: "700", color: wr >= 50 ? "var(--profit)" : "var(--loss)", width: "36px", textAlign: "right" }}>{wr}%</div>
-                    <div style={{ fontSize: "11px", color: "var(--text-muted)", width: "70px", textAlign: "right" }}>{count} trades</div>
+                    <div style={{ fontSize: "11px", color: "var(--text-muted)", width: "70px", textAlign: "right" }}>{count}  {tr("trades")}</div>
                     <div style={{ fontSize: "11px", fontWeight: "600", color: pnl >= 0 ? "var(--profit)" : "var(--loss)", width: "70px", textAlign: "right" }}>
-                      {pnl >= 0 ? "+" : ""}${pnl.toFixed(2)}
+                      {tr(pnl >= 0 ? "+" : "")}${pnl.toFixed(2)}
                     </div>
                   </div>
                 ))}
@@ -957,11 +952,9 @@ export default function AnalyticsSections() {
                 <Clock size={24} color="var(--accent-green)" />
               </div>
               <h3 style={{ fontSize: "18px", fontWeight: "700", color: "var(--text-primary)", marginBottom: "8px" }}>
-                No time data yet
-              </h3>
+                {tr("No time data yet")}</h3>
               <p style={{ color: "var(--text-muted)", fontSize: "14px", maxWidth: "400px", margin: "0 auto" }}>
-                Log entry times on your trades to unlock hour-of-day performance analysis. Entry time is captured automatically on import if your broker CSV includes it.
-              </p>
+                {tr("Log entry times on your trades to unlock hour-of-day performance analysis. Entry time is captured automatically on import if your broker CSV includes it.")}</p>
             </div>
           ) : (
             <>
@@ -973,10 +966,10 @@ export default function AnalyticsSections() {
                 const withTime = trades.filter((t) => t.hourOfDay != null).length;
                 return (
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: "12px", marginBottom: "24px" }}>
-                    <MetricCard label="Hours Tracked"  value={String(stats.hourData.length)}     neutral icon={Clock}       sub={`${withTime} of ${trades.length} trades`} />
-                    <MetricCard label="Best Hour"      value={best.label}                         positive icon={TrendingUp}  sub={`+$${best.totalPnl.toFixed(0)} · ${best.winRate}% WR`} />
-                    <MetricCard label="Worst Hour"     value={worst.label}                        positive={false} icon={TrendingDown} sub={`$${worst.totalPnl.toFixed(0)} · ${worst.winRate}% WR`} />
-                    <MetricCard label="Busiest Hour"   value={busiest.label}                      neutral icon={BarChart2}   sub={`${busiest.count} trades`} />
+                    <MetricCard label={tr("Hours Tracked")}  value={String(stats.hourData.length)}     neutral icon={Clock}       sub={tr(`${withTime} of ${trades.length} trades`)} />
+                    <MetricCard label={tr("Best Hour")}      value={best.label}                         positive icon={TrendingUp}  sub={tr(`+$${best.totalPnl.toFixed(0)} · ${best.winRate}% WR`)} />
+                    <MetricCard label={tr("Worst Hour")}     value={worst.label}                        positive={false} icon={TrendingDown} sub={tr(`$${worst.totalPnl.toFixed(0)} · ${worst.winRate}% WR`)} />
+                    <MetricCard label={tr("Busiest Hour")}   value={busiest.label}                      neutral icon={BarChart2}   sub={tr(`${busiest.count} trades`)} />
                   </div>
                 );
               })()}
@@ -984,9 +977,9 @@ export default function AnalyticsSections() {
               {/* Metric toggle */}
               <div style={{ display: "flex", gap: "8px", marginBottom: "20px" }}>
                 {([
-                  { id: "pnl",     label: "Total P&L"  },
-                  { id: "winrate", label: "Win Rate"    },
-                  { id: "count",   label: "Trade Count" },
+                  { id: "pnl",     label: tr("Total P&L")  },
+                  { id: "winrate", label: tr("Win Rate")    },
+                  { id: "count",   label: tr("Trade Count") },
                 ] as const).map(({ id, label }) => (
                   <button
                     key={id}
@@ -1007,7 +1000,7 @@ export default function AnalyticsSections() {
 
               {/* Bar chart */}
               <SectionCard
-                title="Hour-of-Day Performance"
+                title={tr("Hour-of-Day Performance")}
                 subtitle={
                   heatmapMetric === "pnl"
                     ? "Total P&L by hour. Identifies your most and least profitable trading windows."
@@ -1053,7 +1046,7 @@ export default function AnalyticsSections() {
               </SectionCard>
 
               {/* Hour detail table */}
-              <SectionCard title="Breakdown by Hour">
+              <SectionCard title={tr("Breakdown by Hour")}>
                 <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
                   {stats.hourData.map((h) => (
                     <div key={h.hour} style={{
@@ -1062,7 +1055,7 @@ export default function AnalyticsSections() {
                       borderRadius: "8px",
                     }}>
                       <div style={{ width: "56px", fontSize: "13px", fontWeight: "700", color: "var(--text-primary)", flexShrink: 0 }}>
-                        {h.label}
+                        {tr(h.label)}
                       </div>
                       {/* P&L bar */}
                       <div style={{ flex: 1, display: "flex", alignItems: "center", gap: "8px" }}>
@@ -1075,14 +1068,13 @@ export default function AnalyticsSections() {
                           }} />
                         </div>
                         <div style={{ fontSize: "12px", fontWeight: "700", color: h.totalPnl >= 0 ? "var(--profit)" : "var(--loss)", width: "72px", textAlign: "right", flexShrink: 0 }}>
-                          {h.totalPnl >= 0 ? "+" : ""}${h.totalPnl.toFixed(0)}
+                          {tr(h.totalPnl >= 0 ? "+" : "")}${h.totalPnl.toFixed(0)}
                         </div>
                       </div>
                       <div style={{ fontSize: "12px", fontWeight: "600", color: h.winRate >= 50 ? "var(--profit)" : "var(--loss)", width: "44px", textAlign: "center", flexShrink: 0 }}>
-                        {h.winRate}% WR
-                      </div>
+                        {h.winRate}{tr("% WR")}</div>
                       <div style={{ fontSize: "11px", color: "var(--text-muted)", width: "60px", textAlign: "right", flexShrink: 0 }}>
-                        {h.count} trade{h.count !== 1 ? "s" : ""}
+                        {h.count}  {tr("trade")}{tr(h.count !== 1 ? "s" : "")}
                       </div>
                     </div>
                   ))}
@@ -1102,24 +1094,22 @@ export default function AnalyticsSections() {
               <div style={{ width: "56px", height: "56px", borderRadius: "14px", background: "var(--accent-green-dim)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
                 <Target size={24} color="var(--accent-green)" />
               </div>
-              <h3 style={{ fontSize: "18px", fontWeight: "700", color: "var(--text-primary)", marginBottom: "8px" }}>No MAE/MFE data yet</h3>
+              <h3 style={{ fontSize: "18px", fontWeight: "700", color: "var(--text-primary)", marginBottom: "8px" }}>{tr("No MAE/MFE data yet")}</h3>
               <p style={{ color: "var(--text-muted)", fontSize: "14px", maxWidth: "400px", margin: "0 auto" }}>
-                Log MAE and MFE on trades using the quick view panel or add trade form.
-              </p>
+                {tr("Log MAE and MFE on trades using the quick view panel or add trade form.")}</p>
             </div>
           ) : (
             <>
               <div style={{ marginBottom: "12px", fontSize: "12px", color: "var(--text-muted)" }}>
-                {stats.maeFdCount} of {trades.length} trades have MAE/MFE logged
-              </div>
+                {stats.maeFdCount}  {tr("of")} {trades.length} {tr("trades have MAE/MFE logged")}</div>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: "12px", marginBottom: "20px" }}>
-                <MetricCard label="Avg MAE"          value={`$${stats.avgMae.toFixed(2)}`}    positive={false} icon={TrendingDown} sub="Avg worst excursion" />
-                <MetricCard label="Avg MFE"          value={`$${stats.avgMfe.toFixed(2)}`}    positive icon={TrendingUp} sub="Avg best excursion" />
-                <MetricCard label="Entry Efficiency" value={`${stats.entryEff.toFixed(1)}%`}  positive={stats.entryEff >= 60} icon={Target} sub="MFE / (MFE + MAE) — higher is better" />
-                <MetricCard label="Exit Efficiency"  value={`${stats.exitEff.toFixed(1)}%`}   positive={stats.exitEff >= 60} icon={Zap} sub="PnL / MFE on wins — higher = less left on table" />
+                <MetricCard label={tr("Avg MAE")}          value={`$${stats.avgMae.toFixed(2)}`}    positive={false} icon={TrendingDown} sub={tr("Avg worst excursion")} />
+                <MetricCard label={tr("Avg MFE")}          value={`$${stats.avgMfe.toFixed(2)}`}    positive icon={TrendingUp} sub={tr("Avg best excursion")} />
+                <MetricCard label={tr("Entry Efficiency")} value={`${stats.entryEff.toFixed(1)}%`}  positive={stats.entryEff >= 60} icon={Target} sub={tr("MFE / (MFE + MAE) — higher is better")} />
+                <MetricCard label={tr("Exit Efficiency")}  value={`${stats.exitEff.toFixed(1)}%`}   positive={stats.exitEff >= 60} icon={Zap} sub={tr("PnL / MFE on wins — higher = less left on table")} />
               </div>
 
-              <SectionCard title="MAE vs MFE Per Trade" subtitle="Each bar pair shows how far the trade went against you (MAE) vs in your favor (MFE).">
+              <SectionCard title={tr("MAE vs MFE Per Trade")} subtitle={tr("Each bar pair shows how far the trade went against you (MAE) vs in your favor (MFE).")}>
                 <ResponsiveContainer width="100%" height={260}>
                   <BarChart data={stats.maeMfeChart} barGap={2}>
                     <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" vertical={false} />
@@ -1135,13 +1125,13 @@ export default function AnalyticsSections() {
                 </ResponsiveContainer>
               </SectionCard>
 
-              <SectionCard title="How to Use These Numbers">
+              <SectionCard title={tr("How to Use These Numbers")}>
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: "16px" }}>
                   {[
-                    { name: "Entry Efficiency", formula: "MFE / (MFE + MAE) × 100",        what: "Measures how close to the optimal entry price you got. 100% = entered at the exact low for a long. Below 50% means MAE is dominating." },
-                    { name: "Exit Efficiency",  formula: "PnL / MFE × 100 (winning trades)", what: "How much of the maximum available gain you captured. Below 60% means leaving money on the table consistently." },
-                    { name: "MAE as Risk Proxy", formula: "Avg MAE vs Avg Loss",            what: "If avg MAE >> avg loss, you're stopping out near the worst point. If avg MAE << avg loss, stops may be too tight." },
-                    { name: "MFE as Target Proxy", formula: "Avg MFE vs Avg Win",           what: "If avg MFE >> avg win, you're exiting winners far too early. This is where most traders lose their edge." },
+                    { name: tr("Entry Efficiency"), formula: "MFE / (MFE + MAE) × 100",        what: tr("Measures how close to the optimal entry price you got. 100% = entered at the exact low for a long. Below 50% means MAE is dominating.") },
+                    { name: tr("Exit Efficiency"),  formula: "PnL / MFE × 100 (winning trades)", what: tr("How much of the maximum available gain you captured. Below 60% means leaving money on the table consistently.") },
+                    { name: tr("MAE as Risk Proxy"), formula: "Avg MAE vs Avg Loss",            what: tr("If avg MAE >> avg loss, you're stopping out near the worst point. If avg MAE << avg loss, stops may be too tight.") },
+                    { name: tr("MFE as Target Proxy"), formula: "Avg MFE vs Avg Win",           what: tr("If avg MFE >> avg win, you're exiting winners far too early. This is where most traders lose their edge.") },
                   ].map(({ name, formula, what }) => (
                     <div key={name} style={{ background: "var(--bg-secondary)", borderRadius: "10px", padding: "14px 16px" }}>
                       <div style={{ fontSize: "13px", fontWeight: "700", color: "var(--text-primary)", marginBottom: "6px" }}>{name}</div>
@@ -1163,25 +1153,24 @@ export default function AnalyticsSections() {
         <>
           {sectionInsights("behavior")}
           <div style={{ marginBottom: "8px" }}>
-            <h3 style={{ fontSize: "16px", fontWeight: "700", color: "var(--text-primary)", marginBottom: "4px" }}>Overtrading Detection</h3>
+            <h3 style={{ fontSize: "16px", fontWeight: "700", color: "var(--text-primary)", marginBottom: "4px" }}>{tr("Overtrading Detection")}</h3>
             <p style={{ fontSize: "12px", color: "var(--text-muted)" }}>
-              Flags days where trade count exceeds your personal baseline by a statistically significant margin.
-            </p>
+              {tr("Flags days where trade count exceeds your personal baseline by a statistically significant margin.")}</p>
           </div>
 
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: "12px", marginBottom: "20px" }}>
-            <MetricCard label="Discipline Score" value={`${stats.disciplineScore}/100`} positive={stats.disciplineScore >= 70} neutral={stats.disciplineScore === 100} icon={Brain}
-              sub={stats.disciplineScore >= 80 ? "Consistent" : stats.disciplineScore >= 60 ? "Some red flags" : "Needs review"} />
-            <MetricCard label="Flagged Days"    value={String(stats.overtradingDays.length)} positive={stats.overtradingDays.length === 0} neutral={stats.overtradingDays.length === 0} icon={AlertTriangle}
-              sub={`Threshold: >${Math.round(stats.meanDailyTrades + 1.5 * stats.sdDailyTrades)} trades/day`} />
-            <MetricCard label="Max Single Day"  value={String(stats.maxDayTrades)} positive={stats.maxDayTrades <= Math.round(stats.meanDailyTrades * 2)} icon={BarChart2}
-              sub={`Avg: ${stats.meanDailyTrades.toFixed(1)} trades/day`} />
-            <MetricCard label="Revenge Sequences" value={String(stats.revengeCount)} positive={stats.revengeCount === 0} neutral={stats.revengeCount === 0} icon={Activity}
-              sub="Trades after a loss, same day" />
+            <MetricCard label={tr("Discipline Score")} value={`${stats.disciplineScore}/100`} positive={stats.disciplineScore >= 70} neutral={stats.disciplineScore === 100} icon={Brain}
+              sub={tr(stats.disciplineScore >= 80 ? "Consistent" : stats.disciplineScore >= 60 ? "Some red flags" : "Needs review")} />
+            <MetricCard label={tr("Flagged Days")}    value={String(stats.overtradingDays.length)} positive={stats.overtradingDays.length === 0} neutral={stats.overtradingDays.length === 0} icon={AlertTriangle}
+              sub={tr(`Threshold: >${Math.round(stats.meanDailyTrades + 1.5 * stats.sdDailyTrades)} trades/day`)} />
+            <MetricCard label={tr("Max Single Day")}  value={String(stats.maxDayTrades)} positive={stats.maxDayTrades <= Math.round(stats.meanDailyTrades * 2)} icon={BarChart2}
+              sub={tr(`Avg: ${stats.meanDailyTrades.toFixed(1)} trades/day`)} />
+            <MetricCard label={tr("Revenge Sequences")} value={String(stats.revengeCount)} positive={stats.revengeCount === 0} neutral={stats.revengeCount === 0} icon={Activity}
+              sub={tr("Trades after a loss, same day")} />
           </div>
 
           {stats.overtradingDays.length > 0 ? (
-            <SectionCard title="Flagged Sessions" subtitle="Days where trade count significantly exceeded your baseline.">
+            <SectionCard title={tr("Flagged Sessions")} subtitle={tr("Days where trade count significantly exceeded your baseline.")}>
               <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
                 {stats.overtradingDays.slice(0, 10).map(({ date, count }) => (
                   <div key={date} style={{
@@ -1194,49 +1183,44 @@ export default function AnalyticsSections() {
                         {new Date(date + "T12:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}
                       </div>
                       <div style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "2px" }}>
-                        {Math.round(((count - stats.meanDailyTrades) / stats.meanDailyTrades) * 100)}% above your average
-                      </div>
+                        {Math.round(((count - stats.meanDailyTrades) / stats.meanDailyTrades) * 100)}{tr("% above your average")}</div>
                     </div>
                     <div style={{ fontSize: "20px", fontWeight: "800", color: "var(--loss)", background: "rgba(255,77,106,0.1)", padding: "4px 12px", borderRadius: "8px" }}>
-                      {count} trades
-                    </div>
+                      {count} {tr("trades")}</div>
                   </div>
                 ))}
               </div>
               <div style={{ marginTop: "16px", padding: "14px 16px", background: "var(--bg-secondary)", borderRadius: "10px" }}>
                 <p style={{ fontSize: "12px", color: "var(--text-muted)", lineHeight: 1.6, margin: 0 }}>
-                  Overtrading sessions are flagged when your daily count exceeds your mean by 1.5 standard deviations.
-                  High-frequency days often produce lower per-trade quality due to fatigue, revenge trading, or deviating from your setup criteria.
-                </p>
+                  {tr("Overtrading sessions are flagged when your daily count exceeds your mean by 1.5 standard deviations. High-frequency days often produce lower per-trade quality due to fatigue, revenge trading, or deviating from your setup criteria.")}</p>
               </div>
             </SectionCard>
           ) : (
             <div style={{ background: "rgba(0,229,122,0.06)", border: "1px solid rgba(0,229,122,0.2)", borderRadius: "12px", padding: "20px 24px", marginBottom: "20px", display: "flex", alignItems: "center", gap: "12px" }}>
               <Shield size={20} color="var(--accent-green)" style={{ flexShrink: 0 }} />
               <div>
-                <div style={{ fontSize: "14px", fontWeight: "700", color: "var(--accent-green)" }}>No overtrading detected</div>
-                <div style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "2px" }}>Your daily trade counts are consistent with your baseline.</div>
+                <div style={{ fontSize: "14px", fontWeight: "700", color: "var(--accent-green)" }}>{tr("No overtrading detected")}</div>
+                <div style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "2px" }}>{tr("Your daily trade counts are consistent with your baseline.")}</div>
               </div>
             </div>
           )}
 
           {/* Risk of Ruin */}
           <div style={{ marginBottom: "8px", marginTop: "8px" }}>
-            <h3 style={{ fontSize: "16px", fontWeight: "700", color: "var(--text-primary)", marginBottom: "4px" }}>Risk of Ruin Calculator</h3>
+            <h3 style={{ fontSize: "16px", fontWeight: "700", color: "var(--text-primary)", marginBottom: "4px" }}>{tr("Risk of Ruin Calculator")}</h3>
             <p style={{ fontSize: "12px", color: "var(--text-muted)" }}>
-              Probability of losing your entire account given your historical edge and position sizing.
-            </p>
+              {tr("Probability of losing your entire account given your historical edge and position sizing.")}</p>
           </div>
 
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: "20px", marginBottom: "20px" }}>
             <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: "16px", padding: "24px" }}>
-              <h4 style={{ fontSize: "14px", fontWeight: "700", color: "var(--text-primary)", marginBottom: "16px" }}>Inputs</h4>
+              <h4 style={{ fontSize: "14px", fontWeight: "700", color: "var(--text-primary)", marginBottom: "16px" }}>{tr("Inputs")}</h4>
               <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
                 {[
-                  { label: "Win Rate",     value: `${stats.winRate.toFixed(1)}%`,                                            note: "from your trade history" },
-                  { label: "Avg Win",      value: `$${stats.avgWin.toFixed(2)}`,                                             note: "from your trade history" },
-                  { label: "Avg Loss",     value: `$${stats.avgLoss.toFixed(2)}`,                                            note: "from your trade history" },
-                  { label: "Payoff Ratio", value: `${(stats.avgWin / Math.max(stats.avgLoss, 0.01)).toFixed(2)}:1`,          note: "avg win / avg loss" },
+                  { label: tr("Win Rate"),     value: `${stats.winRate.toFixed(1)}%`,                                            note: tr("from your trade history") },
+                  { label: tr("Avg Win"),      value: `$${stats.avgWin.toFixed(2)}`,                                             note: tr("from your trade history") },
+                  { label: tr("Avg Loss"),     value: `$${stats.avgLoss.toFixed(2)}`,                                            note: tr("from your trade history") },
+                  { label: tr("Payoff Ratio"), value: `${(stats.avgWin / Math.max(stats.avgLoss, 0.01)).toFixed(2)}:1`,          note: tr("avg win / avg loss") },
                 ].map(({ label, value, note }) => (
                   <div key={label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 14px", background: "var(--bg-secondary)", borderRadius: "8px" }}>
                     <div>
@@ -1249,8 +1233,8 @@ export default function AnalyticsSections() {
                 <div style={{ padding: "14px", background: "var(--bg-secondary)", borderRadius: "8px", border: "1px solid var(--accent-green)" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
                     <div>
-                      <div style={{ fontSize: "12px", fontWeight: "600", color: "var(--text-primary)" }}>Risk Per Trade</div>
-                      <div style={{ fontSize: "10px", color: "var(--text-muted)" }}>% of account — adjust to see impact</div>
+                      <div style={{ fontSize: "12px", fontWeight: "600", color: "var(--text-primary)" }}>{tr("Risk Per Trade")}</div>
+                      <div style={{ fontSize: "10px", color: "var(--text-muted)" }}>{tr("% of account — adjust to see impact")}</div>
                     </div>
                     <div style={{ fontSize: "18px", fontWeight: "800", color: "var(--accent-green)" }}>{riskPct}%</div>
                   </div>
@@ -1268,30 +1252,30 @@ export default function AnalyticsSections() {
             </div>
 
             <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: "16px", padding: "24px" }}>
-              <h4 style={{ fontSize: "14px", fontWeight: "700", color: "var(--text-primary)", marginBottom: "16px" }}>Results</h4>
+              <h4 style={{ fontSize: "14px", fontWeight: "700", color: "var(--text-primary)", marginBottom: "16px" }}>{tr("Results")}</h4>
               {rorData && (
                 <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
                   <div style={{ padding: "20px", background: "var(--bg-secondary)", borderRadius: "12px", textAlign: "center", border: `1px solid ${rorColor}30` }}>
-                    <div style={{ fontSize: "11px", fontWeight: "600", color: "var(--text-muted)", letterSpacing: "0.5px", marginBottom: "8px" }}>RISK OF RUIN</div>
+                    <div style={{ fontSize: "11px", fontWeight: "600", color: "var(--text-muted)", letterSpacing: "0.5px", marginBottom: "8px" }}>{tr("RISK OF RUIN")}</div>
                     <div style={{ fontSize: "48px", fontWeight: "800", color: rorColor, lineHeight: 1 }}>
-                      {rorData.ror < 0.01 ? "<0.01" : rorData.ror.toFixed(2)}%
+                      {tr(rorData.ror < 0.01 ? "<0.01" : rorData.ror.toFixed(2))}%
                     </div>
                     <div style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "6px" }}>
-                      {rorData.ror < 1 ? "Low risk" : rorData.ror < 5 ? "Acceptable" : rorData.ror < 20 ? "Elevated — consider reducing size" : "High — reduce position size"}
+                      {tr(rorData.ror < 1 ? "Low risk" : rorData.ror < 5 ? "Acceptable" : rorData.ror < 20 ? "Elevated — consider reducing size" : "High — reduce position size")}
                     </div>
                     <div style={{ marginTop: "12px", background: "var(--bg-card)", borderRadius: "6px", height: "8px", overflow: "hidden" }}>
                       <div style={{ width: `${Math.min(100, rorData.ror)}%`, height: "100%", background: `linear-gradient(90deg, var(--profit), ${rorColor})`, borderRadius: "6px", transition: "width 0.3s ease" }} />
                     </div>
                   </div>
                   {[
-                    { label: "Kelly Criterion",      value: `${rorData.kelly.toFixed(1)}%`,  sub: "Theoretically optimal risk fraction",    color: rorData.kelly > 0 ? "var(--accent-blue)" : "var(--loss)" },
-                    { label: "Recommended Max Risk", value: `${rorData.maxSafeRisk.toFixed(1)}%`, sub: "Half-Kelly — balances growth and safety", color: "var(--accent-green)" },
+                    { label: tr("Kelly Criterion"),      value: `${rorData.kelly.toFixed(1)}%`,  sub: tr("Theoretically optimal risk fraction"),    color: rorData.kelly > 0 ? "var(--accent-blue)" : "var(--loss)" },
+                    { label: tr("Recommended Max Risk"), value: `${rorData.maxSafeRisk.toFixed(1)}%`, sub: tr("Half-Kelly — balances growth and safety"), color: "var(--accent-green)" },
                     {
-                      label: "Current vs Kelly",
+                      label: tr("Current vs Kelly"),
                       value: riskPct > rorData.kelly && rorData.kelly > 0
                         ? `${((riskPct / rorData.kelly - 1) * 100).toFixed(0)}% above Kelly`
                         : rorData.kelly > 0 ? `${((1 - riskPct / rorData.kelly) * 100).toFixed(0)}% below Kelly` : "—",
-                      sub: riskPct > rorData.kelly && rorData.kelly > 0 ? "Over-leveraged relative to your edge" : "Within safe range",
+                      sub: tr(riskPct > rorData.kelly && rorData.kelly > 0 ? "Over-leveraged relative to your edge" : "Within safe range"),
                       color: riskPct > rorData.kelly && rorData.kelly > 0 ? "var(--loss)" : "var(--profit)",
                     },
                   ].map(({ label, value, sub, color }) => (
@@ -1310,10 +1294,7 @@ export default function AnalyticsSections() {
 
           <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: "12px", padding: "16px 20px" }}>
             <p style={{ fontSize: "12px", color: "var(--text-muted)", lineHeight: 1.7, margin: 0 }}>
-              <strong style={{ color: "var(--text-primary)" }}>How this is calculated:</strong> Risk of ruin uses the normalized edge from your win rate and payoff ratio to estimate the probability of drawdown to zero.
-              Kelly Criterion gives the theoretically optimal fraction of capital to risk per trade given your edge.
-              Half-Kelly is recommended in practice — it provides ~75% of Kelly growth rate with significantly lower variance and ruin risk.
-            </p>
+              <strong style={{ color: "var(--text-primary)" }}>{tr("How this is calculated:")}</strong> {tr("Risk of ruin uses the normalized edge from your win rate and payoff ratio to estimate the probability of drawdown to zero. Kelly Criterion gives the theoretically optimal fraction of capital to risk per trade given your edge. Half-Kelly is recommended in practice — it provides ~75% of Kelly growth rate with significantly lower variance and ruin risk.")}</p>
           </div>
         </>
       )}
@@ -1323,20 +1304,20 @@ export default function AnalyticsSections() {
         <>
           {sectionInsights("process")}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: "12px", marginBottom: "20px" }}>
-            <MetricCard label="Recovery Factor" value={stats.recFactor === 0 ? "—" : stats.recFactor.toFixed(2)}
+            <MetricCard label={tr("Recovery Factor")} value={stats.recFactor === 0 ? "—" : stats.recFactor.toFixed(2)}
               positive={stats.recFactor >= 3} neutral={stats.recFactor === 0} icon={Activity}
-              sub={stats.recFactor >= 3 ? "Earns its drawdown back well" : stats.recFactor >= 1 ? "Just ahead of its drawdown" : "Has not earned back its drawdown"} />
-            <MetricCard label="R Std Dev" value={stats.rRisk.sigma === 0 ? "—" : stats.rRisk.sigma.toFixed(2)}
-              neutral icon={BarChart2} sub="Spread of outcomes around your average R" />
-            <MetricCard label="Risk of Ruin (R)" value={stats.rRisk.sigma === 0 ? "—" : `${(stats.rRisk.ruinApprox * 100).toFixed(2)}%`}
+              sub={tr(stats.recFactor >= 3 ? "Earns its drawdown back well" : stats.recFactor >= 1 ? "Just ahead of its drawdown" : "Has not earned back its drawdown")} />
+            <MetricCard label={tr("R Std Dev")} value={stats.rRisk.sigma === 0 ? "—" : stats.rRisk.sigma.toFixed(2)}
+              neutral icon={BarChart2} sub={tr("Spread of outcomes around your average R")} />
+            <MetricCard label={tr("Risk of Ruin (R)")} value={stats.rRisk.sigma === 0 ? "—" : `${(stats.rRisk.ruinApprox * 100).toFixed(2)}%`}
               positive={stats.rRisk.ruinApprox < 0.05} neutral={stats.rRisk.sigma === 0} icon={Shield}
-              sub={stats.rRisk.sigma === 0 ? "Needs 3+ trades" : "From your R dispersion, approximate"} />
-            <MetricCard label="Costs / Gross Profit" value={`${stats.costs.costPctOfGross.toFixed(2)}%`}
+              sub={tr(stats.rRisk.sigma === 0 ? "Needs 3+ trades" : "From your R dispersion, approximate")} />
+            <MetricCard label={tr("Costs / Gross Profit")} value={`${stats.costs.costPctOfGross.toFixed(2)}%`}
               positive={stats.costs.costPctOfGross < 10} neutral={stats.costs.costPctOfGross === 0} icon={Zap}
-              sub={`$${stats.costs.costs.toFixed(2)} total · $${stats.costs.costPerTrade.toFixed(2)}/trade`} />
+              sub={tr(`$${stats.costs.costs.toFixed(2)} total · $${stats.costs.costPerTrade.toFixed(2)}/trade`)} />
           </div>
 
-          <SectionCard title="Outcome by Hold Time" subtitle="Do your fastest trades pay, or bleed? For a scalper this is often the single most actionable number in the journal.">
+          <SectionCard title={tr("Outcome by Hold Time")} subtitle={tr("Do your fastest trades pay, or bleed? For a scalper this is often the single most actionable number in the journal.")}>
             <ResponsiveContainer width="100%" height={220}>
               <BarChart data={stats.durationData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" vertical={false} />
@@ -1358,22 +1339,22 @@ export default function AnalyticsSections() {
                 <div key={d.bucket} style={{ background: "var(--bg-secondary)", borderRadius: "10px", padding: "12px 14px" }}>
                   <div style={{ fontSize: "11px", fontWeight: "600", color: "var(--text-muted)", marginBottom: "6px" }}>{d.bucket}</div>
                   <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", color: "var(--text-muted)" }}>
-                    <span>{d.trades} trades</span><span>{d.winRate}% win</span>
+                    <span>{d.trades}  {tr("trades")}</span><span>{d.winRate}{tr("% win")}</span>
                   </div>
                   <div style={{ fontSize: "14px", fontWeight: "700", marginTop: "6px", color: d.pnl >= 0 ? "var(--profit)" : "var(--loss)" }}>
-                    {d.pnl >= 0 ? "+" : ""}${d.pnl.toFixed(2)}
+                    {tr(d.pnl >= 0 ? "+" : "")}${d.pnl.toFixed(2)}
                   </div>
-                  <div style={{ fontSize: "10px", color: "var(--text-muted)", marginTop: "2px" }}>{d.avgPnl >= 0 ? "+" : ""}${d.avgPnl.toFixed(2)} avg</div>
+                  <div style={{ fontSize: "10px", color: "var(--text-muted)", marginTop: "2px" }}>{tr(d.avgPnl >= 0 ? "+" : "")}${d.avgPnl.toFixed(2)}  {tr("avg")}</div>
                 </div>
               ))}
             </div>
           </SectionCard>
 
-          <SectionCard title="Re-entry Timing" subtitle="Performance by how long after your previous trade you entered, split by whether that previous trade won or lost. Chasing a loser quickly is a distinct habit from trading often.">
+          <SectionCard title={tr("Re-entry Timing")} subtitle={tr("Performance by how long after your previous trade you entered, split by whether that previous trade won or lost. Chasing a loser quickly is a distinct habit from trading often.")}>
             <div style={{ display: "grid", gridTemplateColumns: "120px 1fr 1fr", gap: "8px 12px", alignItems: "center" }}>
               <div />
-              <div style={{ fontSize: "11px", fontWeight: "700", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>After a win</div>
-              <div style={{ fontSize: "11px", fontWeight: "700", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>After a loss</div>
+              <div style={{ fontSize: "11px", fontWeight: "700", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>{tr("After a win")}</div>
+              <div style={{ fontSize: "11px", fontWeight: "700", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>{tr("After a loss")}</div>
               {stats.gapData.map((g) => (
                 <Fragment key={g.bucket}>
                   <div style={{ fontSize: "12px", fontWeight: "600", color: "var(--text-primary)" }}>{g.bucket}</div>
@@ -1383,12 +1364,12 @@ export default function AnalyticsSections() {
                       padding: "9px 12px", background: "var(--bg-secondary)", borderRadius: "8px",
                     }}>
                       {c.trades === 0 ? (
-                        <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>no trades</span>
+                        <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>{tr("no trades")}</span>
                       ) : (
                         <>
                           <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>{c.trades} · {c.winRate}%W</span>
                           <span style={{ fontSize: "12px", fontWeight: "700", color: c.pnl >= 0 ? "var(--profit)" : "var(--loss)" }}>
-                            {c.pnl >= 0 ? "+" : ""}${c.pnl.toFixed(2)}
+                            {tr(c.pnl >= 0 ? "+" : "")}${c.pnl.toFixed(2)}
                           </span>
                         </>
                       )}
@@ -1399,20 +1380,17 @@ export default function AnalyticsSections() {
             </div>
             <div style={{ marginTop: "16px", padding: "14px 16px", background: "var(--bg-secondary)", borderRadius: "10px" }}>
               <p style={{ fontSize: "12px", color: "var(--text-muted)", lineHeight: 1.7, margin: 0 }}>
-                Read the two columns against each other. Fast re-entries after a loss that keep losing are the signature of
-                revenge trading; fast re-entries after a win that hold up are simply momentum. The same gap can mean opposite
-                things depending on which column it sits in.
-              </p>
+                {tr("Read the two columns against each other. Fast re-entries after a loss that keep losing are the signature of revenge trading; fast re-entries after a win that hold up are simply momentum. The same gap can mean opposite things depending on which column it sits in.")}</p>
             </div>
           </SectionCard>
 
-          <SectionCard title="Long vs Short" subtitle="Where your edge actually lives. An asymmetric split is worth knowing even on a small sample.">
+          <SectionCard title={tr("Long vs Short")} subtitle={tr("Where your edge actually lives. An asymmetric split is worth knowing even on a small sample.")}>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "12px" }}>
               {stats.directionData.map((d) => (
                 <div key={d.bucket} style={{ background: "var(--bg-secondary)", borderRadius: "12px", padding: "16px 18px" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "12px" }}>
                     <span style={{ fontSize: "13px", fontWeight: "700", color: "var(--text-primary)" }}>{d.bucket}</span>
-                    <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>{d.trades} trade{d.trades !== 1 ? "s" : ""}</span>
+                    <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>{d.trades}  {tr("trade")}{tr(d.trades !== 1 ? "s" : "")}</span>
                   </div>
                   {[
                     { k: "Win rate",      v: `${d.winRate}%`,                              c: "var(--text-primary)" },
@@ -1420,7 +1398,7 @@ export default function AnalyticsSections() {
                     { k: "Avg per trade", v: `${d.avgPnl >= 0 ? "+" : ""}$${d.avgPnl.toFixed(2)}`, c: d.avgPnl >= 0 ? "var(--profit)" : "var(--loss)" },
                   ].map((row) => (
                     <div key={row.k} style={{ display: "flex", justifyContent: "space-between", marginTop: "6px" }}>
-                      <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>{row.k}</span>
+                      <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>{tr(row.k)}</span>
                       <span style={{ fontSize: "13px", fontWeight: "700", color: row.c }}>{row.v}</span>
                     </div>
                   ))}
@@ -1430,33 +1408,33 @@ export default function AnalyticsSections() {
           </SectionCard>
 
           {stats.stop.coverage > 0 && (
-            <SectionCard title="Stop Quality" subtitle="How your stop loss actually behaves, from the worst price each trade saw (MAE) against the risk you planned.">
+            <SectionCard title={tr("Stop Quality")} subtitle={tr("How your stop loss actually behaves, from the worst price each trade saw (MAE) against the risk you planned.")}>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "12px", marginBottom: "16px" }}>
-                <MetricCard label="Avg Excursion" value={`${stats.stop.avgRatio.toFixed(2)}R`} neutral icon={Target}
-                  sub="Worst price vs planned risk" />
-                <MetricCard label="Winners Go Against" value={`${stats.stop.winnerRatio.toFixed(2)}R`}
+                <MetricCard label={tr("Avg Excursion")} value={`${stats.stop.avgRatio.toFixed(2)}R`} neutral icon={Target}
+                  sub={tr("Worst price vs planned risk")} />
+                <MetricCard label={tr("Winners Go Against")} value={`${stats.stop.winnerRatio.toFixed(2)}R`}
                   positive={stats.stop.winnerRatio < 0.5} icon={TrendingUp}
-                  sub={`${stats.stop.cleanWinners} of ${stats.stop.wins} stayed under 0.5R`} />
-                <MetricCard label="Losers Reach Stop" value={`${stats.stop.losersTouchingStop}/${stats.stop.losses}`}
-                  positive={false} icon={TrendingDown} sub="Losses that used 90%+ of planned risk" />
+                  sub={tr(`${stats.stop.cleanWinners} of ${stats.stop.wins} stayed under 0.5R`)} />
+                <MetricCard label={tr("Losers Reach Stop")} value={`${stats.stop.losersTouchingStop}/${stats.stop.losses}`}
+                  positive={false} icon={TrendingDown} sub={tr("Losses that used 90%+ of planned risk")} />
               </div>
               <div style={{ background: "var(--bg-secondary)", borderRadius: "10px", padding: "14px 16px" }}>
                 <p style={{ fontSize: "12px", color: "var(--text-muted)", lineHeight: 1.7, margin: 0 }}>
-                  {stats.stop.winnerRatio < 0.5
+                  {tr(stats.stop.winnerRatio < 0.5
                     ? "Winners rarely move against you before working, which points to well-timed entries. "
-                    : "Winners routinely move against you first, which points to entries taken too early. "}
-                  {stats.stop.losses === 0
+                    : "Winners routinely move against you first, which points to entries taken too early. ")}
+                  {tr(stats.stop.losses === 0
                     ? "No losers in this range yet."
                     : stats.stop.losersTouchingStop >= stats.stop.losses * 0.8
                       ? "Losers consistently reach the stop, so stops are being tested rather than pre-empted — risk is set honestly and respected."
-                      : "A meaningful share of losers never reach the stop, so some of your exits are discretionary rather than the stop doing the work."}
+                      : "A meaningful share of losers never reach the stop, so some of your exits are discretionary rather than the stop doing the work.")}
                 </p>
               </div>
             </SectionCard>
           )}
 
           {stats.exitReasons.length > 0 && (
-            <SectionCard title="How Trades Ended" subtitle="Why each position closed, straight from MetaTrader's deal reasons. The split between a stop doing its job and a hand closing the trade is the honest measure of how systematic your exits are.">
+            <SectionCard title={tr("How Trades Ended")} subtitle={tr("Why each position closed, straight from MetaTrader's deal reasons. The split between a stop doing its job and a hand closing the trade is the honest measure of how systematic your exits are.")}>
               <ResponsiveContainer width="100%" height={220}>
                 <BarChart data={stats.exitReasons}>
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" vertical={false} />
@@ -1478,10 +1456,10 @@ export default function AnalyticsSections() {
                   <div key={d.bucket} style={{ background: "var(--bg-secondary)", borderRadius: "10px", padding: "12px 14px" }}>
                     <div style={{ fontSize: "11px", fontWeight: "600", color: "var(--text-muted)", marginBottom: "6px" }}>{d.bucket}</div>
                     <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", color: "var(--text-muted)" }}>
-                      <span>{d.trades} trades</span><span>{d.winRate}% win</span>
+                      <span>{d.trades}  {tr("trades")}</span><span>{d.winRate}{tr("% win")}</span>
                     </div>
                     <div style={{ fontSize: "14px", fontWeight: "700", marginTop: "6px", color: d.pnl >= 0 ? "var(--profit)" : "var(--loss)" }}>
-                      {d.pnl >= 0 ? "+" : ""}${d.pnl.toFixed(2)}
+                      {tr(d.pnl >= 0 ? "+" : "")}${d.pnl.toFixed(2)}
                     </div>
                   </div>
                 ))}
@@ -1490,13 +1468,13 @@ export default function AnalyticsSections() {
           )}
 
           {stats.magicData.length > 0 && (
-            <SectionCard title="Manual vs Automated" subtitle="Trades grouped by the magic number that placed them. Zero is your own hand; anything else identifies the expert advisor that opened the trade.">
+            <SectionCard title={tr("Manual vs Automated")} subtitle={tr("Trades grouped by the magic number that placed them. Zero is your own hand; anything else identifies the expert advisor that opened the trade.")}>
               <div style={{ display: "grid", gridTemplateColumns: `repeat(${Math.min(3, stats.magicData.length)}, 1fr)`, gap: "12px" }}>
                 {stats.magicData.map((d) => (
                   <div key={d.bucket} style={{ background: "var(--bg-secondary)", borderRadius: "12px", padding: "16px 18px" }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "12px" }}>
                       <span style={{ fontSize: "13px", fontWeight: "700", color: "var(--text-primary)" }}>{d.bucket}</span>
-                      <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>{d.trades} trade{d.trades !== 1 ? "s" : ""}</span>
+                      <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>{d.trades}  {tr("trade")}{tr(d.trades !== 1 ? "s" : "")}</span>
                     </div>
                     {[
                       { k: "Win rate",      v: `${d.winRate}%`,                              c: "var(--text-primary)" },
@@ -1504,7 +1482,7 @@ export default function AnalyticsSections() {
                       { k: "Avg per trade", v: `${d.avgPnl >= 0 ? "+" : ""}$${d.avgPnl.toFixed(2)}`, c: d.avgPnl >= 0 ? "var(--profit)" : "var(--loss)" },
                     ].map((row) => (
                       <div key={row.k} style={{ display: "flex", justifyContent: "space-between", marginTop: "6px" }}>
-                        <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>{row.k}</span>
+                        <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>{tr(row.k)}</span>
                         <span style={{ fontSize: "13px", fontWeight: "700", color: row.c }}>{row.v}</span>
                       </div>
                     ))}
@@ -1515,53 +1493,51 @@ export default function AnalyticsSections() {
           )}
 
           {stats.legData.coverage > 0 && (
-            <SectionCard title="Position Building" subtitle="How each position was assembled, from MetaTrader's entry-deal count. One entry is a plan executed; several are a plan changed mid-flight.">
+            <SectionCard title={tr("Position Building")} subtitle={tr("How each position was assembled, from MetaTrader's entry-deal count. One entry is a plan executed; several are a plan changed mid-flight.")}>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "12px", marginBottom: "16px" }}>
                 {[stats.legData.singleLeg, stats.legData.multiLeg, stats.legData.averagedDown].map((d) => (
                   <div key={d.bucket} style={{ background: "var(--bg-secondary)", borderRadius: "12px", padding: "16px 18px" }}>
                     <div style={{ fontSize: "12px", fontWeight: "700", color: "var(--text-primary)", marginBottom: "10px" }}>{d.bucket}</div>
                     <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", color: "var(--text-muted)" }}>
-                      <span>{d.trades} trade{d.trades !== 1 ? "s" : ""}</span><span>{d.winRate}% win</span>
+                      <span>{d.trades}  {tr("trade")}{tr(d.trades !== 1 ? "s" : "")}</span><span>{d.winRate}{tr("% win")}</span>
                     </div>
                     <div style={{ fontSize: "16px", fontWeight: "700", marginTop: "8px", color: d.trades === 0 ? "var(--text-muted)" : d.pnl >= 0 ? "var(--profit)" : "var(--loss)" }}>
-                      {d.trades === 0 ? "—" : `${d.pnl >= 0 ? "+" : ""}$${d.pnl.toFixed(2)}`}
+                      {tr(d.trades === 0 ? "—" : `${d.pnl >= 0 ? "+" : ""}$${d.pnl.toFixed(2)}`)}
                     </div>
                   </div>
                 ))}
               </div>
               <div style={{ background: "var(--bg-secondary)", borderRadius: "10px", padding: "14px 16px" }}>
                 <p style={{ fontSize: "12px", color: "var(--text-muted)", lineHeight: 1.7, margin: 0 }}>
-                  {stats.legData.averagedDown.trades === 0
+                  {tr(stats.legData.averagedDown.trades === 0
                     ? "Every position was a single clean entry in this range — no scaling, no adding into a move."
-                    : `${stats.legData.averagedDown.trades} position${stats.legData.averagedDown.trades !== 1 ? "s were" : " was"} added to at a worse price than the first entry (${stats.legData.averagedDownPnl >= 0 ? "+" : ""}$${stats.legData.averagedDownPnl.toFixed(2)} net). Averaging down widens risk exactly when the market is proving you wrong.`}
-                  {` ${stats.legData.avgLegs.toFixed(2)} entries per position on average.`}
+                    : `${stats.legData.averagedDown.trades} position${stats.legData.averagedDown.trades !== 1 ? "s were" : " was"} added to at a worse price than the first entry (${stats.legData.averagedDownPnl >= 0 ? "+" : ""}$${stats.legData.averagedDownPnl.toFixed(2)} net). Averaging down widens risk exactly when the market is proving you wrong.`)}
+                  {tr(` ${stats.legData.avgLegs.toFixed(2)} entries per position on average.`)}
                 </p>
               </div>
             </SectionCard>
           )}
 
           {stats.cashFlow.coverage >= 2 && (
-            <SectionCard title="Account Reconciliation" subtitle="The exporter records the account balance after every trade. Comparing that to each trade's own P&L shows whether deposits or withdrawals are flattering the equity curve.">
+            <SectionCard title={tr("Account Reconciliation")} subtitle={tr("The exporter records the account balance after every trade. Comparing that to each trade's own P&L shows whether deposits or withdrawals are flattering the equity curve.")}>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "12px", marginBottom: "16px" }}>
-                <MetricCard label="Net Cash Flow" value={`${stats.cashFlow.netFlow >= 0 ? "+" : ""}$${stats.cashFlow.netFlow.toFixed(2)}`}
+                <MetricCard label={tr("Net Cash Flow")} value={`${stats.cashFlow.netFlow >= 0 ? "+" : ""}$${stats.cashFlow.netFlow.toFixed(2)}`}
                   positive={false} neutral={stats.cashFlow.netFlow === 0} icon={Activity}
-                  sub={stats.cashFlow.netFlow === 0 ? "No external cash detected" : "Deposits minus withdrawals"} />
-                <MetricCard label="Deposits" value={`$${stats.cashFlow.deposits.toFixed(2)}`} neutral icon={TrendingUp} sub="Cash paid into the account" />
-                <MetricCard label="Withdrawals" value={`$${Math.abs(stats.cashFlow.withdrawals).toFixed(2)}`} neutral icon={TrendingDown} sub="Cash taken out of the account" />
+                  sub={tr(stats.cashFlow.netFlow === 0 ? "No external cash detected" : "Deposits minus withdrawals")} />
+                <MetricCard label={tr("Deposits")} value={`$${stats.cashFlow.deposits.toFixed(2)}`} neutral icon={TrendingUp} sub={tr("Cash paid into the account")} />
+                <MetricCard label={tr("Withdrawals")} value={`$${Math.abs(stats.cashFlow.withdrawals).toFixed(2)}`} neutral icon={TrendingDown} sub={tr("Cash taken out of the account")} />
               </div>
               <div style={{ background: "var(--bg-secondary)", borderRadius: "10px", padding: "14px 16px" }}>
                 {stats.cashFlow.points.length === 0 ? (
                   <p style={{ fontSize: "12px", color: "var(--text-muted)", lineHeight: 1.7, margin: 0 }}>
-                    Every balance change is explained by your own trades, so the trade curve and the account curve are the same thing.
-                    {" "}Reconciled across {stats.cashFlow.coverage} trades.
-                  </p>
+                    {tr("Every balance change is explained by your own trades, so the trade curve and the account curve are the same thing.")}{tr(" ")}{tr("Reconciled across")} {stats.cashFlow.coverage} {tr("trades.")}</p>
                 ) : (
                   <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
                     {stats.cashFlow.points.map((p, i) => (
                       <div key={i} style={{ display: "flex", justifyContent: "space-between", fontSize: "12px" }}>
                         <span style={{ color: "var(--text-muted)" }}>{p.date}</span>
                         <span style={{ fontWeight: "700", color: p.flow >= 0 ? "var(--profit)" : "var(--loss)" }}>
-                          {p.flow >= 0 ? "+" : ""}${p.flow.toFixed(2)}
+                          {tr(p.flow >= 0 ? "+" : "")}${p.flow.toFixed(2)}
                         </span>
                       </div>
                     ))}
@@ -1571,17 +1547,17 @@ export default function AnalyticsSections() {
             </SectionCard>
           )}
 
-          <SectionCard title="Reading These Numbers">
+          <SectionCard title={tr("Reading These Numbers")}>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: "16px" }}>
               {[
-                { name: "Recovery Factor", formula: "Net Profit / |Max Drawdown|", what: "How many times over the account has earned back its worst decline. Above 3 is healthy; below 1 means the drawdown was never recovered by net profit." },
-                { name: "R Std Dev",       formula: "σ of R multiples",            what: "How wide your outcomes scatter around the average R. With fixed sizing this dispersion, not the mean, is what determines survival." },
-                { name: "Re-entry Gap",    formula: "entry(n) − exit(n−1)",        what: "Time between closing one trade and opening the next. Bucketed and split by the previous result, it separates momentum re-entries from loss-chasing." },
-                { name: "Cost Ratio",      formula: "Costs / Gross Profit × 100",  what: "Commission and fees as a share of everything won. Above ~10% it eats the edge for a high-frequency book; below 1% it is noise." },
-                { name: "Exit Reason",     formula: "DEAL_REASON of the closing deal", what: "Whether the stop or the target took the trade out, or you closed it by hand. Discretionary exits that cluster on losers is the pattern worth watching." },
-                { name: "Magic Number",    formula: "DEAL_MAGIC (0 = manual)",       what: "Separates hand-placed trades from those opened by an expert advisor, so you can see which method actually earns." },
-                { name: "Entry Legs",      formula: "count of DEAL_ENTRY_IN deals",  what: "One entry is a plan executed; several are a plan changed mid-flight. Adding at a worse price than the first fill is averaging into a loser." },
-                { name: "Reconciliation",  formula: "Δbalance − trade P&L",          what: "Cash the account paid in or took out between trades. Non-zero means the account curve and your trade curve are not the same thing." },
+                { name: tr("Recovery Factor"), formula: "Net Profit / |Max Drawdown|", what: tr("How many times over the account has earned back its worst decline. Above 3 is healthy; below 1 means the drawdown was never recovered by net profit.") },
+                { name: tr("R Std Dev"),       formula: "σ of R multiples",            what: tr("How wide your outcomes scatter around the average R. With fixed sizing this dispersion, not the mean, is what determines survival.") },
+                { name: tr("Re-entry Gap"),    formula: "entry(n) − exit(n−1)",        what: tr("Time between closing one trade and opening the next. Bucketed and split by the previous result, it separates momentum re-entries from loss-chasing.") },
+                { name: tr("Cost Ratio"),      formula: "Costs / Gross Profit × 100",  what: tr("Commission and fees as a share of everything won. Above ~10% it eats the edge for a high-frequency book; below 1% it is noise.") },
+                { name: tr("Exit Reason"),     formula: "DEAL_REASON of the closing deal", what: tr("Whether the stop or the target took the trade out, or you closed it by hand. Discretionary exits that cluster on losers is the pattern worth watching.") },
+                { name: tr("Magic Number"),    formula: "DEAL_MAGIC (0 = manual)",       what: tr("Separates hand-placed trades from those opened by an expert advisor, so you can see which method actually earns.") },
+                { name: tr("Entry Legs"),      formula: "count of DEAL_ENTRY_IN deals",  what: tr("One entry is a plan executed; several are a plan changed mid-flight. Adding at a worse price than the first fill is averaging into a loser.") },
+                { name: tr("Reconciliation"),  formula: "Δbalance − trade P&L",          what: tr("Cash the account paid in or took out between trades. Non-zero means the account curve and your trade curve are not the same thing.") },
               ].map(({ name, formula, what }) => (
                 <div key={name} style={{ background: "var(--bg-secondary)", borderRadius: "10px", padding: "14px 16px" }}>
                   <div style={{ fontSize: "13px", fontWeight: "700", color: "var(--text-primary)", marginBottom: "6px" }}>{name}</div>
@@ -1630,31 +1606,31 @@ function applyRule(trades: Trade[], rule: CohortRule): Trade[] {
 function useCohortOptions(trades: Trade[]) {
   return useMemo(() => {
     const options: { key: string; label: string; rule: CohortRule }[] = [
-      { key: "all", label: "All trades", rule: { kind: "all" } },
+      { key: "all", label: tr("All trades"), rule: { kind: "all" } },
     ];
     const tags = new Set<string>();
     for (const t of trades) for (const tag of (Array.isArray(t.tags) ? t.tags : [])) tags.add(tag);
     for (const tag of [...tags].sort()) {
-      options.push({ key: `tag:${tag}`, label: `Tag · ${tag}`, rule: { kind: "tag", value: tag } });
+      options.push({ key: `tag:${tag}`, label: tr(`Tag · ${tag}`), rule: { kind: "tag", value: tag } });
     }
     if (trades.some((t) => (t.direction || "").toLowerCase() === "long")) {
-      options.push({ key: "dir:long", label: "Direction · Long", rule: { kind: "direction", value: "long" } });
+      options.push({ key: "dir:long", label: tr("Direction · Long"), rule: { kind: "direction", value: "long" } });
     }
     if (trades.some((t) => (t.direction || "").toLowerCase() === "short")) {
-      options.push({ key: "dir:short", label: "Direction · Short", rule: { kind: "direction", value: "short" } });
+      options.push({ key: "dir:short", label: tr("Direction · Short"), rule: { kind: "direction", value: "short" } });
     }
     if (trades.some((t) => t.followedPlan === true)) {
-      options.push({ key: "plan:followed", label: "Reviewed · Followed the plan", rule: { kind: "plan", value: "followed" } });
+      options.push({ key: "plan:followed", label: tr("Reviewed · Followed the plan"), rule: { kind: "plan", value: "followed" } });
     }
     if (trades.some((t) => t.followedPlan === false)) {
-      options.push({ key: "plan:broke", label: "Reviewed · Broke the plan", rule: { kind: "plan", value: "broke" } });
+      options.push({ key: "plan:broke", label: tr("Reviewed · Broke the plan"), rule: { kind: "plan", value: "broke" } });
     }
     if (trades.some((t) => t.isForwardTest === true)) {
-      options.push({ key: "forward", label: "Forward test trades", rule: { kind: "forward" } });
+      options.push({ key: "forward", label: tr("Forward test trades"), rule: { kind: "forward" } });
     }
     const versions = [...new Set(trades.map((t) => t.setupVersion).filter((v): v is number => v != null))].sort((a, b) => a - b);
     for (const v of versions) {
-      options.push({ key: `v:${v}`, label: `Setup version ${v}`, rule: { kind: "version", value: v } });
+      options.push({ key: `v:${v}`, label: tr(`Setup version ${v}`), rule: { kind: "version", value: v } });
     }
     return options;
   }, [trades]);
@@ -1719,20 +1695,20 @@ function CompareTab({ trades }: { trades: Trade[] }) {
   return (
     <>
       <SectionCard
-        title="Cohort comparison"
-        subtitle="Pick two slices of the same book. Both are measured in the same 1R unit, and the verdict only separates them when the bootstrap intervals do not overlap."
+        title={tr("Cohort comparison")}
+        subtitle={tr("Pick two slices of the same book. Both are measured in the same 1R unit, and the verdict only separates them when the bootstrap intervals do not overlap.")}
       >
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginBottom: "16px" }}>
           <div>
-            <label style={{ fontSize: "11px", color: "var(--text-muted)", display: "block", marginBottom: "4px" }}>Cohort A</label>
+            <label style={{ fontSize: "11px", color: "var(--text-muted)", display: "block", marginBottom: "4px" }}>{tr("Cohort A")}</label>
             <select value={aKey} onChange={(e) => setAKey(e.target.value)} style={selectStyle}>
-              {options.map((o) => <option key={o.key} value={o.key}>{o.label}</option>)}
+              {options.map((o) => <option key={o.key} value={o.key}>{tr(o.label)}</option>)}
             </select>
           </div>
           <div>
-            <label style={{ fontSize: "11px", color: "var(--text-muted)", display: "block", marginBottom: "4px" }}>Cohort B</label>
+            <label style={{ fontSize: "11px", color: "var(--text-muted)", display: "block", marginBottom: "4px" }}>{tr("Cohort B")}</label>
             <select value={bKey} onChange={(e) => setBKey(e.target.value)} style={selectStyle}>
-              {options.map((o) => <option key={o.key} value={o.key}>{o.label}</option>)}
+              {options.map((o) => <option key={o.key} value={o.key}>{tr(o.label)}</option>)}
             </select>
           </div>
         </div>
@@ -1741,26 +1717,25 @@ function CompareTab({ trades }: { trades: Trade[] }) {
           <div style={{ fontSize: "13px", fontWeight: "700", color: verdictStyle.color }}>{verdictText}</div>
           {verdict.neededPerCohort != null && verdict.verdict !== "a" && verdict.verdict !== "b" && (
             <div style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "4px" }}>
-              About {verdict.neededPerCohort} trades per cohort would settle it at this effect size.
-            </div>
+              {tr("About")}{verdict.neededPerCohort} {tr("trades per cohort would settle it at this effect size.")}</div>
           )}
         </div>
 
-        <CompareRow label="Trades" a={String(A.trades)} b={String(B.trades)} />
-        <CompareRow label="Win rate" a={pctText(A.winRate)} b={pctText(B.winRate)} hint={`A 95% ${ciText(A.winRateCI)} · B ${ciText(B.winRateCI)}`} />
-        <CompareRow label="Expectancy" a={`${A.expectancyR >= 0 ? "+" : ""}${A.expectancyR.toFixed(2)}R`} b={`${B.expectancyR >= 0 ? "+" : ""}${B.expectancyR.toFixed(2)}R`} hint={`A 95% ${ciText(A.expectancyCI, "R")} · B ${ciText(B.expectancyCI, "R")}`} />
-        <CompareRow label="Net P&L" a={`${A.totalPnl >= 0 ? "+" : ""}$${A.totalPnl.toFixed(0)}`} b={`${B.totalPnl >= 0 ? "+" : ""}$${B.totalPnl.toFixed(0)}`} />
-        <CompareRow label="Profit factor" a={A.profitFactor == null ? "—" : A.profitFactor.toFixed(2)} b={B.profitFactor == null ? "—" : B.profitFactor.toFixed(2)} />
-        <CompareRow label="MFE capture" a={A.mfeCapture == null ? "—" : `${A.mfeCapture.toFixed(0)}%`} b={B.mfeCapture == null ? "—" : `${B.mfeCapture.toFixed(0)}%`} hint="Share of the favourable move kept on winners" />
-        <CompareRow label="Plan adherence" a={A.adherence == null ? "—" : `${A.adherence.toFixed(0)}%`} b={B.adherence == null ? "—" : `${B.adherence.toFixed(0)}%`} hint={A.reviewed + B.reviewed > 0 ? `${A.reviewed + B.reviewed} reviewed trades` : "Review trades to populate"} />
+        <CompareRow label={tr("Trades")} a={String(A.trades)} b={String(B.trades)} />
+        <CompareRow label={tr("Win rate")} a={pctText(A.winRate)} b={pctText(B.winRate)} hint={`A 95% ${ciText(A.winRateCI)} · B ${ciText(B.winRateCI)}`} />
+        <CompareRow label={tr("Expectancy")} a={`${A.expectancyR >= 0 ? "+" : ""}${A.expectancyR.toFixed(2)}R`} b={`${B.expectancyR >= 0 ? "+" : ""}${B.expectancyR.toFixed(2)}R`} hint={`A 95% ${ciText(A.expectancyCI, "R")} · B ${ciText(B.expectancyCI, "R")}`} />
+        <CompareRow label={tr("Net P&L")} a={`${A.totalPnl >= 0 ? "+" : ""}$${A.totalPnl.toFixed(0)}`} b={`${B.totalPnl >= 0 ? "+" : ""}$${B.totalPnl.toFixed(0)}`} />
+        <CompareRow label={tr("Profit factor")} a={A.profitFactor == null ? "—" : A.profitFactor.toFixed(2)} b={B.profitFactor == null ? "—" : B.profitFactor.toFixed(2)} />
+        <CompareRow label={tr("MFE capture")} a={A.mfeCapture == null ? "—" : `${A.mfeCapture.toFixed(0)}%`} b={B.mfeCapture == null ? "—" : `${B.mfeCapture.toFixed(0)}%`} hint={tr("Share of the favourable move kept on winners")} />
+        <CompareRow label={tr("Plan adherence")} a={A.adherence == null ? "—" : `${A.adherence.toFixed(0)}%`} b={B.adherence == null ? "—" : `${B.adherence.toFixed(0)}%`} hint={A.reviewed + B.reviewed > 0 ? `${A.reviewed + B.reviewed} reviewed trades` : "Review trades to populate"} />
       </SectionCard>
 
-      <SectionCard title="Reading a comparison" subtitle="What the numbers can and cannot tell you at this sample size.">
+      <SectionCard title={tr("Reading a comparison")} subtitle={tr("What the numbers can and cannot tell you at this sample size.")}>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: "14px" }}>
           {[
-            { name: "Shared 1R unit", what: "Both cohorts divide P&L by the same risk unit, so R means the same thing on both sides. Comparing raw expectancy in dollars across different position sizes would just measure size." },
-            { name: "Bootstrap interval", what: "Each expectancy is resampled 2,000 times to show how much it could move on another run of similar trades. Non-overlapping intervals are the minimum bar for a difference." },
-            { name: "Trades needed", what: "An estimate of the sample required to detect this gap with 80% power. If it is larger than your journal, the honest move is to collect more trades rather than change the rules." },
+            { name: tr("Shared 1R unit"), what: tr("Both cohorts divide P&L by the same risk unit, so R means the same thing on both sides. Comparing raw expectancy in dollars across different position sizes would just measure size.") },
+            { name: tr("Bootstrap interval"), what: tr("Each expectancy is resampled 2,000 times to show how much it could move on another run of similar trades. Non-overlapping intervals are the minimum bar for a difference.") },
+            { name: tr("Trades needed"), what: tr("An estimate of the sample required to detect this gap with 80% power. If it is larger than your journal, the honest move is to collect more trades rather than change the rules.") },
           ].map(({ name, what }) => (
             <div key={name} style={{ background: "var(--bg-secondary)", borderRadius: "10px", padding: "14px 16px" }}>
               <div style={{ fontSize: "13px", fontWeight: "700", color: "var(--text-primary)", marginBottom: "6px" }}>{name}</div>
@@ -1789,48 +1764,45 @@ function AdherencePanel({ stats }: {
 
   if (a.reviewed === 0 && versions.length === 0 && mistakes.length === 0) {
     return (
-      <SectionCard title="Plan adherence" subtitle="The gap between following your rules and breaking them, measured in R.">
+      <SectionCard title={tr("Plan adherence")} subtitle={tr("The gap between following your rules and breaking them, measured in R.")}>
         <p style={{ fontSize: "12px", color: "var(--text-muted)", lineHeight: 1.7, margin: 0 }}>
-          No trade has been reviewed yet. Open a trade from the Calendar or Dashboard and record whether it
-          followed the plan in the quick view panel — until then this comparison (the cheapest edge most books have)
-          cannot be measured.
-        </p>
+          {tr("No trade has been reviewed yet. Open a trade from the Calendar or Dashboard and record whether it followed the plan in the quick view panel — until then this comparison (the cheapest edge most books have) cannot be measured.")}</p>
       </SectionCard>
     );
   }
 
   return (
     <>
-      <SectionCard title="Plan adherence" subtitle="Trades you reviewed, split by whether you did what the plan said. Both sides use the same 1R unit.">
+      <SectionCard title={tr("Plan adherence")} subtitle={tr("Trades you reviewed, split by whether you did what the plan said. Both sides use the same 1R unit.")}>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: "12px", marginBottom: "16px" }}>
-          <MetricCard label="Reviewed" value={`${a.reviewed}`} neutral icon={Shield} sub={`${a.followed} on plan · ${a.broke} off plan`} />
-          <MetricCard label="On-plan expectancy" value={a.followedExpectancyR == null ? "—" : `${a.followedExpectancyR >= 0 ? "+" : ""}${a.followedExpectancyR.toFixed(2)}R`} positive={(a.followedExpectancyR ?? 0) >= 0} icon={Target} sub="Average per trade" />
-          <MetricCard label="Off-plan expectancy" value={a.brokeExpectancyR == null ? "—" : `${a.brokeExpectancyR >= 0 ? "+" : ""}${a.brokeExpectancyR.toFixed(2)}R`} positive={(a.brokeExpectancyR ?? 0) >= 0} icon={AlertTriangle} sub="Average per trade" />
-          <MetricCard label="Cost per break" value={a.costPerBreak == null ? "—" : `${a.costPerBreak <= 0 ? "-" : "+"}$${Math.abs(a.costPerBreak).toFixed(0)}`} positive={a.costPerBreak != null && a.costPerBreak >= 0} icon={TrendingDown} sub="Against the on-plan baseline" />
+          <MetricCard label={tr("Reviewed")} value={`${a.reviewed}`} neutral icon={Shield} sub={tr(`${a.followed} on plan · ${a.broke} off plan`)} />
+          <MetricCard label={tr("On-plan expectancy")} value={a.followedExpectancyR == null ? "—" : `${a.followedExpectancyR >= 0 ? "+" : ""}${a.followedExpectancyR.toFixed(2)}R`} positive={(a.followedExpectancyR ?? 0) >= 0} icon={Target} sub={tr("Average per trade")} />
+          <MetricCard label={tr("Off-plan expectancy")} value={a.brokeExpectancyR == null ? "—" : `${a.brokeExpectancyR >= 0 ? "+" : ""}${a.brokeExpectancyR.toFixed(2)}R`} positive={(a.brokeExpectancyR ?? 0) >= 0} icon={AlertTriangle} sub={tr("Average per trade")} />
+          <MetricCard label={tr("Cost per break")} value={a.costPerBreak == null ? "—" : `${a.costPerBreak <= 0 ? "-" : "+"}$${Math.abs(a.costPerBreak).toFixed(0)}`} positive={a.costPerBreak != null && a.costPerBreak >= 0} icon={TrendingDown} sub={tr("Against the on-plan baseline")} />
         </div>
         <p style={{ fontSize: "12px", color: "var(--text-muted)", lineHeight: 1.7, margin: 0 }}>
-          {a.reviewed < 10
+          {tr(a.reviewed < 10
             ? `Only ${a.reviewed} reviewed trades so far — treat this as a direction, not a verdict. Ten is the floor before the gap means anything.`
-            : `Across ${a.reviewed} reviewed trades, on-plan work earned ${a.followedPnl >= 0 ? "+" : ""}$${a.followedPnl.toFixed(0)} and breaks ${a.brokePnl >= 0 ? "+" : ""}$${a.brokePnl.toFixed(0)}.`}
+            : `Across ${a.reviewed} reviewed trades, on-plan work earned ${a.followedPnl >= 0 ? "+" : ""}$${a.followedPnl.toFixed(0)} and breaks ${a.brokePnl >= 0 ? "+" : ""}$${a.brokePnl.toFixed(0)}.`)}
         </p>
       </SectionCard>
 
       {mistakes.length > 0 && (
-        <SectionCard title="Logged mistakes" subtitle="Worst first, by expectancy. A tag repeated three times is a habit, not an accident.">
+        <SectionCard title={tr("Logged mistakes")} subtitle={tr("Worst first, by expectancy. A tag repeated three times is a habit, not an accident.")}>
           <div style={{ overflowX: "auto" }}>
             <div style={{ display: "grid", gridTemplateColumns: "2fr 80px 90px 110px 110px", minWidth: "480px" }}>
-              <div style={{ ...head, textAlign: "left" }}>Mistake</div>
-              <div style={head}>Trades</div>
-              <div style={head}>Win rate</div>
-              <div style={head}>Expectancy</div>
-              <div style={head}>Net P&L</div>
+              <div style={{ ...head, textAlign: "left" }}>{tr("Mistake")}</div>
+              <div style={head}>{tr("Trades")}</div>
+              <div style={head}>{tr("Win rate")}</div>
+              <div style={head}>{tr("Expectancy")}</div>
+              <div style={head}>{tr("Net P&L")}</div>
               {mistakes.map((m) => (
                 <Fragment key={m.tag}>
                   <div style={{ ...cell, textAlign: "left", color: "var(--text-primary)", fontWeight: "600" }}>{m.tag}</div>
                   <div style={{ ...cell, color: "var(--text-secondary)" }}>{m.count}</div>
                   <div style={{ ...cell, color: "var(--text-secondary)" }}>{m.winRate.toFixed(0)}%</div>
-                  <div style={{ ...cell, color: m.expectancyR >= 0 ? "var(--profit)" : "var(--loss)", fontWeight: "700" }}>{m.expectancyR >= 0 ? "+" : ""}{m.expectancyR.toFixed(2)}R</div>
-                  <div style={{ ...cell, color: m.pnl >= 0 ? "var(--profit)" : "var(--loss)" }}>{m.pnl >= 0 ? "+" : "-"}${Math.abs(m.pnl).toFixed(0)}</div>
+                  <div style={{ ...cell, color: m.expectancyR >= 0 ? "var(--profit)" : "var(--loss)", fontWeight: "700" }}>{tr(m.expectancyR >= 0 ? "+" : "")}{m.expectancyR.toFixed(2)}R</div>
+                  <div style={{ ...cell, color: m.pnl >= 0 ? "var(--profit)" : "var(--loss)" }}>{tr(m.pnl >= 0 ? "+" : "-")}${Math.abs(m.pnl).toFixed(0)}</div>
                 </Fragment>
               ))}
             </div>
@@ -1839,16 +1811,16 @@ function AdherencePanel({ stats }: {
       )}
 
       {versions.length > 0 && (
-        <SectionCard title="Setup revisions" subtitle="The same rules before and after each change. Judge a revision on this table, not on how it felt.">
+        <SectionCard title={tr("Setup revisions")} subtitle={tr("The same rules before and after each change. Judge a revision on this table, not on how it felt.")}>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: "12px" }}>
             {versions.map((v) => (
               <div key={v.version} style={{ background: "var(--bg-secondary)", borderRadius: "10px", padding: "12px 14px" }}>
-                <div style={{ fontSize: "11px", color: "var(--text-muted)", marginBottom: "4px" }}>Version {v.version}</div>
+                <div style={{ fontSize: "11px", color: "var(--text-muted)", marginBottom: "4px" }}>{tr("Version")} {v.version}</div>
                 <div style={{ fontSize: "18px", fontWeight: "800", color: v.expectancyR >= 0 ? "var(--profit)" : "var(--loss)" }}>
-                  {v.expectancyR >= 0 ? "+" : ""}{v.expectancyR.toFixed(2)}R
+                  {tr(v.expectancyR >= 0 ? "+" : "")}{v.expectancyR.toFixed(2)}R
                 </div>
                 <div style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "4px" }}>
-                  {v.count} trade{v.count !== 1 ? "s" : ""} · {v.winRate.toFixed(0)}% wins · {v.pnl >= 0 ? "+" : "-"}${Math.abs(v.pnl).toFixed(0)}
+                  {v.count}  {tr("trade")}{tr(v.count !== 1 ? "s" : "")} · {v.winRate.toFixed(0)}{tr("% wins ·")} {tr(v.pnl >= 0 ? "+" : "-")}${Math.abs(v.pnl).toFixed(0)}
                 </div>
               </div>
             ))}
@@ -1877,14 +1849,14 @@ function ExecutionResearch({ trades }: { trades: Trade[] }) {
   return (
     <>
       {hasCapture && (
-        <SectionCard title="How much of the move you keep" subtitle="Winners bucketed by P&L as a share of the best excursion the trade reached. A cluster at the left is an exit problem, not an entry problem.">
+        <SectionCard title={tr("How much of the move you keep")} subtitle={tr("Winners bucketed by P&L as a share of the best excursion the trade reached. A cluster at the left is an exit problem, not an entry problem.")}>
           <div style={{ display: "grid", gridTemplateColumns: `repeat(${capture.length}, 1fr)`, gap: "10px" }}>
             {capture.map((b) => (
               <div key={b.label} style={{ background: "var(--bg-secondary)", borderRadius: "10px", padding: "12px 10px", textAlign: "center" }}>
-                <div style={{ fontSize: "11px", color: "var(--text-muted)", marginBottom: "6px" }}>{b.label}</div>
+                <div style={{ fontSize: "11px", color: "var(--text-muted)", marginBottom: "6px" }}>{tr(b.label)}</div>
                 <div style={{ fontSize: "20px", fontWeight: "800", color: "var(--text-primary)" }}>{b.count}</div>
                 <div style={{ fontSize: "10px", color: "var(--text-muted)", marginTop: "4px" }}>
-                  {b.count > 0 ? `avg ${b.avgCapture.toFixed(0)}%` : "—"}
+                  {tr(b.count > 0 ? `avg ${b.avgCapture.toFixed(0)}%` : "—")}
                 </div>
               </div>
             ))}
@@ -1893,19 +1865,19 @@ function ExecutionResearch({ trades }: { trades: Trade[] }) {
       )}
 
       {hasAtr && (
-        <SectionCard title="Stop distance in ATR" subtitle="Planned risk per unit divided by ATR(14) at entry. Stops inside half an ATR are inside the noise of the instrument.">
+        <SectionCard title={tr("Stop distance in ATR")} subtitle={tr("Planned risk per unit divided by ATR(14) at entry. Stops inside half an ATR are inside the noise of the instrument.")}>
           <div style={{ display: "grid", gridTemplateColumns: "2fr 90px 100px 120px", minWidth: "420px" }}>
-            <div style={{ ...head, textAlign: "left" }}>Stop band</div>
-            <div style={head}>Trades</div>
-            <div style={head}>Win rate</div>
-            <div style={head}>Expectancy</div>
+            <div style={{ ...head, textAlign: "left" }}>{tr("Stop band")}</div>
+            <div style={head}>{tr("Trades")}</div>
+            <div style={head}>{tr("Win rate")}</div>
+            <div style={head}>{tr("Expectancy")}</div>
             {atr.map((b) => (
               <Fragment key={b.label}>
-                <div style={{ ...cell, textAlign: "left", color: "var(--text-primary)" }}>{b.label}</div>
+                <div style={{ ...cell, textAlign: "left", color: "var(--text-primary)" }}>{tr(b.label)}</div>
                 <div style={cell}>{b.count}</div>
-                <div style={cell}>{b.count > 0 ? `${b.winRate.toFixed(0)}%` : "—"}</div>
+                <div style={cell}>{tr(b.count > 0 ? `${b.winRate.toFixed(0)}%` : "—")}</div>
                 <div style={{ ...cell, fontWeight: "700", color: b.count === 0 ? "var(--text-muted)" : b.expectancyR >= 0 ? "var(--profit)" : "var(--loss)" }}>
-                  {b.count > 0 ? `${b.expectancyR >= 0 ? "+" : ""}${b.expectancyR.toFixed(2)}R` : "—"}
+                  {tr(b.count > 0 ? `${b.expectancyR >= 0 ? "+" : ""}${b.expectancyR.toFixed(2)}R` : "—")}
                 </div>
               </Fragment>
             ))}
@@ -1914,19 +1886,19 @@ function ExecutionResearch({ trades }: { trades: Trade[] }) {
       )}
 
       {hasRr && (
-        <SectionCard title="Outcome by intended R:R" subtitle="The reward the plan asked for against what the trades actually produced something in.">
+        <SectionCard title={tr("Outcome by intended R:R")} subtitle={tr("The reward the plan asked for against what the trades actually produced something in.")}>
           <div style={{ display: "grid", gridTemplateColumns: "2fr 90px 100px 120px", minWidth: "420px" }}>
-            <div style={{ ...head, textAlign: "left" }}>Planned R:R</div>
-            <div style={head}>Trades</div>
-            <div style={head}>Win rate</div>
-            <div style={head}>Expectancy</div>
+            <div style={{ ...head, textAlign: "left" }}>{tr("Planned R:R")}</div>
+            <div style={head}>{tr("Trades")}</div>
+            <div style={head}>{tr("Win rate")}</div>
+            <div style={head}>{tr("Expectancy")}</div>
             {rr.map((b) => (
               <Fragment key={b.label}>
-                <div style={{ ...cell, textAlign: "left", color: "var(--text-primary)" }}>{b.label}</div>
+                <div style={{ ...cell, textAlign: "left", color: "var(--text-primary)" }}>{tr(b.label)}</div>
                 <div style={cell}>{b.count}</div>
-                <div style={cell}>{b.count > 0 ? `${b.winRate.toFixed(0)}%` : "—"}</div>
+                <div style={cell}>{tr(b.count > 0 ? `${b.winRate.toFixed(0)}%` : "—")}</div>
                 <div style={{ ...cell, fontWeight: "700", color: b.count === 0 ? "var(--text-muted)" : b.expectancyR >= 0 ? "var(--profit)" : "var(--loss)" }}>
-                  {b.count > 0 ? `${b.expectancyR >= 0 ? "+" : ""}${b.expectancyR.toFixed(2)}R` : "—"}
+                  {tr(b.count > 0 ? `${b.expectancyR >= 0 ? "+" : ""}${b.expectancyR.toFixed(2)}R` : "—")}
                 </div>
               </Fragment>
             ))}

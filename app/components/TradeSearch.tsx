@@ -1,4 +1,5 @@
 "use client";
+import { t as tr } from "../lib/i18n";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Search, X, ArrowUp, ArrowDown, CornerDownLeft } from "lucide-react";
 import { useApp } from "../context/AppContext";
@@ -150,7 +151,7 @@ export default function TradeSearch() {
       <div
         role="dialog"
         aria-modal="true"
-        aria-label="Search trades"
+        aria-label={tr("Search trades")}
         style={{
           position: "fixed", top: "12vh", left: "50%", transform: "translateX(-50%)",
           width: "min(620px, 95vw)", zIndex: 321,
@@ -174,8 +175,8 @@ export default function TradeSearch() {
               setActive(0);
             }}
             onKeyDown={onInputKey}
-            placeholder="Search symbol, date, tag, setup or journal…"
-            aria-label="Search trades"
+            placeholder={tr("Search symbol, date, tag, setup or journal…")}
+            aria-label={tr("Search trades")}
             style={{
               flex: 1, background: "transparent", border: "none", outline: "none",
               color: "var(--text-primary)", fontSize: "14px",
@@ -184,7 +185,7 @@ export default function TradeSearch() {
           />
           <button
             onClick={close}
-            aria-label="Close search"
+            aria-label={tr("Close search")}
             style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)", padding: "2px", display: "flex" }}
           >
             <X size={15} />
@@ -194,9 +195,9 @@ export default function TradeSearch() {
         <div ref={listRef} style={{ maxHeight: "46vh", overflowY: "auto", padding: "6px" }}>
           {results.length === 0 && (
             <div style={{ padding: "28px 16px", textAlign: "center", fontSize: "13px", color: "var(--text-muted)" }}>
-              {query.trim()
+              {tr(query.trim()
                 ? `No trade matches “${query.trim()}” in this account.`
-                : "No trades in this account yet."}
+                : "No trades in this account yet.")}
             </div>
           )}
 
@@ -245,7 +246,7 @@ export default function TradeSearch() {
                     whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
                   }}>
                     {t.symbol}
-                    {t.exitReason ? ` · ${t.exitReason}` : ""}
+                    {tr(t.exitReason ? ` · ${t.exitReason}` : "")}
                   </div>
                 </div>
                 <div style={{
@@ -265,14 +266,14 @@ export default function TradeSearch() {
           fontSize: "11px", color: "var(--text-muted)",
         }}>
           <span>
-            {query.trim()
+            {tr(query.trim()
               ? `${total} match${total === 1 ? "" : "es"}${total > RESULT_LIMIT ? ` · showing first ${RESULT_LIMIT}` : ""}`
-              : `Recent trades${total > RESULT_LIMIT ? ` · showing ${RESULT_LIMIT} of ${total}` : ""}`}
+              : `Recent trades${total > RESULT_LIMIT ? ` · showing ${RESULT_LIMIT} of ${total}` : ""}`)}
           </span>
           <span style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-            <span style={{ display: "flex", alignItems: "center", gap: "3px" }}><ArrowUp size={11} /><ArrowDown size={11} /> navigate</span>
-            <span style={{ display: "flex", alignItems: "center", gap: "3px" }}><CornerDownLeft size={11} /> open</span>
-            <span>esc close</span>
+            <span style={{ display: "flex", alignItems: "center", gap: "3px" }}><ArrowUp size={11} /><ArrowDown size={11} />  {tr("navigate")}</span>
+            <span style={{ display: "flex", alignItems: "center", gap: "3px" }}><CornerDownLeft size={11} />  {tr("open")}</span>
+            <span>{tr("esc close")}</span>
           </span>
         </div>
       </div>

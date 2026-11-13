@@ -44,20 +44,24 @@ and whether your book would pass the prop challenge you are trading.
 | ![Prop Firm](docs/screenshots/prop-firm.png) | ![Calendar](docs/screenshots/calendar.png) |
 | **Playbook** — setups with live win rate and P&L from linked trades | **Import** — MetaTrader 5 CSV, validated column by column |
 | ![Playbook](docs/screenshots/playbook.png) | ![Import](docs/screenshots/import.png) |
+| **Review** — every week's expectancy against your own baseline | **Accounts** — one card per account; name and starting balance edited in place |
+| ![Review](docs/screenshots/review.png) | ![Accounts](docs/screenshots/accounts.png) |
 | **Export** — section toggles and a live, client-rendered PDF preview | **Settings** — appearance, guidance, risk controls, updates |
 | ![Export](docs/screenshots/export.png) | ![Settings](docs/screenshots/settings.png) |
 
 Every image is this build running on the bundled example dataset (295 synthetic trades over
-nine months), captured at 1600×1000 @2x. `docs/screenshots/` also holds one capture per
-analytics tab (Overview, Risk, Time, Heatmap, Execution, Behavior). Regenerate the whole set
-with `node scripts/capture-screenshots.js` while the dev server is running.
+nine months), captured in English at 1600×1000 @2x — Settings → Language switches the same
+screens to Hungarian. `docs/screenshots/` also holds one capture per analytics tab
+(Overview, Risk, Time, Heatmap, Execution, Behavior, Process). Regenerate the whole set with
+`node scripts/seed-example.js` followed by `node scripts/capture-screenshots.js` while the
+dev server is running (the seed step clears existing trades).
 
 ## Features
 
 **Trades and accounts**
 - MetaTrader 5 import only; the header is validated column by column, so a file that is not an MT5 export says what its first line actually was
 - Re-importing is safe — each row is keyed on its MT5 ticket (content hash for older exports) and upserted, so importing the same file updates instead of duplicating
-- Multiple accounts, each with its own starting balance; the card shows live equity and P&L as soon as trades land
+- Multiple accounts, each with its own name and starting balance — both edited in place on the card, and the card shows live equity and P&L as soon as trades land
 - Per trade: entry/exit times, planned risk, R:R, MAE/MFE, exit reason, tags, chart links, screenshots, notes
 
 **Analytics**
@@ -87,6 +91,7 @@ with `node scripts/capture-screenshots.js` while the dev server is running.
 - Client-side PDF report builder: date range, tickers, tags, status, and per-section toggles, seeded from the period you were just looking at
 - CSV/JSON export, five accent colours, light/dark with no flash, and an in-app updater that backs up the database before migrating
 - Global trade search on `⌘K` / `Ctrl+K` over symbol, date, tag, setup and journal text
+- **English or Hungarian interface** — the switch lives in Settings → Language and covers every page, insight, native dialog and the PDF report; trading data (symbols, setups, notes) is never translated
 
 ## Getting started
 

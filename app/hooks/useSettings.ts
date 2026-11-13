@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from "react";
+import { setLanguage, type Language } from "../lib/i18n";
 
 // One control instead of two booleans: how much of the guidance layer to show.
 //   off        numbers only
@@ -22,6 +23,8 @@ export interface Settings {
   weekStart: "sunday" | "monday";
   // Display only: trade times are stored in 24h and formatted on render.
   timeFormat: "24h" | "12h";
+  // Interface copy. Stored values (symbols, notes, tags) are never translated.
+  language: Language;
 }
 
 const DEFAULTS: Settings = {
@@ -37,6 +40,7 @@ const DEFAULTS: Settings = {
   guidance: "full",
   weekStart: "monday",
   timeFormat: "24h",
+  language: "en",
 };
 
 const STORAGE_KEY = "quantedge_settings";
@@ -131,10 +135,16 @@ function getServerSnapshot(): Settings {
 if (typeof window !== "undefined") {
   applyTheme(current.theme);
   applyAccentColor(current.accentColor, current.theme);
+  // The server renders English, so the first client render must too — the
+  // stored choice only reaches the DOM once hydration has settled.
+  setLanguage(current.language);
 }
 
 export function useSettings() {
   const settings = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
+  // Assign during render (not in an effect) so every component rendered below
+  // the shell in this same pass already translates into the right language.
+  setLanguage(settings.language);
 
   const updateSettings = (partial: Partial<Settings>) => {
     current = { ...current, ...partial };
@@ -152,6 +162,7 @@ export function useSettings() {
     emit();
     applyTheme(DEFAULTS.theme);
     applyAccentColor(DEFAULTS.accentColor, DEFAULTS.theme);
+    setLanguage(DEFAULTS.language);
   };
 
   return { settings, updateSettings, resetSettings };

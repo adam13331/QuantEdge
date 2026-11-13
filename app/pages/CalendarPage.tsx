@@ -1,4 +1,5 @@
 "use client";
+import { t as tr } from "../lib/i18n";
 import { useState, useEffect, useRef } from "react";
 import { ChevronLeft, ChevronRight, X, TrendingUp, TrendingDown, Calendar, BarChart2 } from "lucide-react";
 import { useApp } from "../context/AppContext";
@@ -173,11 +174,9 @@ export default function CalendarPage() {
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px" }}>
         <div>
           <h2 style={{ fontSize: "26px", fontWeight: "700", color: "var(--text-primary)", letterSpacing: "-0.5px" }}>
-            Calendar
-          </h2>
+            {tr("Calendar")}</h2>
           <p style={{ color: "var(--text-muted)", fontSize: "14px", marginTop: "4px" }}>
-            Your trading performance at a glance
-          </p>
+            {tr("Your trading performance at a glance")}</p>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
           <div style={{ display: "flex", gap: "12px" }}>
@@ -185,7 +184,7 @@ export default function CalendarPage() {
               background: "var(--bg-card)", border: "1px solid var(--border)",
               borderRadius: "10px", padding: "10px 16px", textAlign: "center",
             }}>
-              <div style={{ fontSize: "11px", color: "var(--text-muted)", marginBottom: "2px" }}>Month Return</div>
+              <div style={{ fontSize: "11px", color: "var(--text-muted)", marginBottom: "2px" }}>{tr("Month Return")}</div>
               <div style={{ fontSize: "16px", fontWeight: "700", color: monthPnl >= 0 ? WIN_COLOR : LOSS_COLOR }}>
                 {fmtPct(monthPnl)}
               </div>
@@ -194,7 +193,7 @@ export default function CalendarPage() {
               background: "var(--bg-card)", border: "1px solid var(--border)",
               borderRadius: "10px", padding: "10px 16px", textAlign: "center",
             }}>
-              <div style={{ fontSize: "11px", color: "var(--text-muted)", marginBottom: "2px" }}>Trades</div>
+              <div style={{ fontSize: "11px", color: "var(--text-muted)", marginBottom: "2px" }}>{tr("Trades")}</div>
               <div style={{ fontSize: "14px", fontWeight: "700" }}>
                 <span style={{ color: WIN_COLOR }}>{monthWins.length}W</span>
                 <span style={{ color: "var(--text-muted)", margin: "0 4px" }}>/</span>
@@ -315,11 +314,11 @@ export default function CalendarPage() {
                       {fmtPct(dayPnl)}
                     </div>
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "5px", fontSize: "10px", color: "var(--text-muted)" }}>
-                      <span>{dayTrades.length} trade{dayTrades.length !== 1 ? "s" : ""}</span>
+                      <span>{dayTrades.length}  {tr("trade")}{tr(dayTrades.length !== 1 ? "s" : "")}</span>
                       {missingNotes > 0 && (
                         <span
-                          title={`${missingNotes} trade${missingNotes !== 1 ? "s" : ""} without a journal entry`}
-                          aria-label={`${missingNotes} trade${missingNotes !== 1 ? "s" : ""} without a journal entry`}
+                          title={tr(`${missingNotes} trade${missingNotes !== 1 ? "s" : ""} without a journal entry`)}
+                          aria-label={tr(`${missingNotes} trade${missingNotes !== 1 ? "s" : ""} without a journal entry`)}
                           style={{
                             width: "6px", height: "6px", borderRadius: "50%",
                             background: "var(--warning)", flexShrink: 0,
@@ -344,7 +343,7 @@ export default function CalendarPage() {
           }}>
             <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
               <Calendar size={14} color="var(--text-muted)" />
-              <span style={{ fontSize: "11px", fontWeight: "600", color: "var(--text-muted)", letterSpacing: "0.5px" }}>TRADING DAYS</span>
+              <span style={{ fontSize: "11px", fontWeight: "600", color: "var(--text-muted)", letterSpacing: "0.5px" }}>{tr("TRADING DAYS")}</span>
             </div>
             <div style={{ fontSize: "28px", fontWeight: "800", color: "var(--text-primary)", letterSpacing: "-1px" }}>{tradingDaysCount}</div>
             <div style={{ fontSize: "12px", color: "var(--text-muted)" }}>{monthWins.length}W &nbsp;·&nbsp; {monthLosses.length}L</div>
@@ -356,12 +355,12 @@ export default function CalendarPage() {
           }}>
             <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
               <BarChart2 size={14} color="var(--text-muted)" />
-              <span style={{ fontSize: "11px", fontWeight: "600", color: "var(--text-muted)", letterSpacing: "0.5px" }}>AVG DAILY RETURN</span>
+              <span style={{ fontSize: "11px", fontWeight: "600", color: "var(--text-muted)", letterSpacing: "0.5px" }}>{tr("AVG DAILY RETURN")}</span>
             </div>
             <div style={{ fontSize: "28px", fontWeight: "800", letterSpacing: "-1px", color: avgDailyPnl >= 0 ? WIN_COLOR : LOSS_COLOR }}>
               {fmtPct(avgDailyPnl)}
             </div>
-            <div style={{ fontSize: "12px", color: "var(--text-muted)" }}>per trading day</div>
+            <div style={{ fontSize: "12px", color: "var(--text-muted)" }}>{tr("per trading day")}</div>
           </div>
 
           <div style={{
@@ -370,13 +369,13 @@ export default function CalendarPage() {
           }}>
             <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
               <TrendingUp size={14} color={WIN_COLOR} />
-              <span style={{ fontSize: "11px", fontWeight: "600", color: "var(--text-muted)", letterSpacing: "0.5px" }}>BEST DAY</span>
+              <span style={{ fontSize: "11px", fontWeight: "600", color: "var(--text-muted)", letterSpacing: "0.5px" }}>{tr("BEST DAY")}</span>
             </div>
             <div style={{ fontSize: "28px", fontWeight: "800", color: WIN_COLOR, letterSpacing: "-1px" }}>
-              {bestDay ? fmtPct(bestDay[1]) : "—"}
+              {tr(bestDay ? fmtPct(bestDay[1]) : "—")}
             </div>
             <div style={{ fontSize: "12px", color: "var(--text-muted)" }}>
-              {bestDay ? formatDisplayDate(bestDay[0]) : "No data"}
+              {tr(bestDay ? formatDisplayDate(bestDay[0]) : "No data")}
             </div>
           </div>
 
@@ -386,13 +385,13 @@ export default function CalendarPage() {
           }}>
             <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
               <TrendingDown size={14} color={LOSS_COLOR} />
-              <span style={{ fontSize: "11px", fontWeight: "600", color: "var(--text-muted)", letterSpacing: "0.5px" }}>WORST DAY</span>
+              <span style={{ fontSize: "11px", fontWeight: "600", color: "var(--text-muted)", letterSpacing: "0.5px" }}>{tr("WORST DAY")}</span>
             </div>
             <div style={{ fontSize: "28px", fontWeight: "800", color: LOSS_COLOR, letterSpacing: "-1px" }}>
-              {worstDay ? fmtPct(worstDay[1]) : "—"}
+              {tr(worstDay ? fmtPct(worstDay[1]) : "—")}
             </div>
             <div style={{ fontSize: "12px", color: "var(--text-muted)" }}>
-              {worstDay ? formatDisplayDate(worstDay[0]) : "No data"}
+              {tr(worstDay ? formatDisplayDate(worstDay[0]) : "No data")}
             </div>
           </div>
         </div>
@@ -402,7 +401,7 @@ export default function CalendarPage() {
           borderRadius: "14px", padding: "32px", textAlign: "center",
         }}>
           <div style={{ fontSize: "13px", color: "var(--text-muted)" }}>
-            No trades recorded in {MONTHS[currentMonth]} {currentYear}
+            {tr("No trades recorded in")}{" "}{MONTHS[currentMonth]} {currentYear}
           </div>
         </div>
       )}
@@ -431,14 +430,13 @@ export default function CalendarPage() {
                 </h3>
                 <div style={{ display: "flex", gap: "12px", marginTop: "4px" }}>
                   <span style={{ fontSize: "13px", color: "var(--text-muted)" }}>
-                    {selectedTrades.length} trade{selectedTrades.length !== 1 ? "s" : ""}
+                    {selectedTrades.length}  {tr("trade")}{tr(selectedTrades.length !== 1 ? "s" : "")}
                   </span>
                   <span style={{
                     fontSize: "13px", fontWeight: "700",
                     color: selectedTrades.reduce((s, t) => s + t.pnl, 0) >= 0 ? WIN_COLOR : LOSS_COLOR,
                   }}>
-                    {fmtPct(selectedTrades.reduce((s, t) => s + t.pnl, 0))} day return
-                  </span>
+                    {fmtPct(selectedTrades.reduce((s, t) => s + t.pnl, 0))} {tr("day return")}</span>
                 </div>
               </div>
               <button onClick={() => setSelectedDay(null)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)", padding: "4px" }}>
@@ -448,8 +446,7 @@ export default function CalendarPage() {
 
             <div style={{ flex: 1, overflowY: "auto", padding: "16px" }}>
               <p style={{ fontSize: "11px", color: "var(--text-muted)", marginBottom: "12px" }}>
-                Click any trade to view it and write the journal
-              </p>
+                {tr("Click any trade to view it and write the journal")}</p>
               {selectedTrades.map((trade) => (
                 <div
                   key={trade.id}
@@ -476,17 +473,17 @@ export default function CalendarPage() {
                         background: trade.optionType === "call" ? "rgba(77,159,255,0.15)" : "rgba(255,77,106,0.15)",
                         color: trade.optionType === "call" ? "var(--accent-blue)" : LOSS_COLOR,
                       }}>
-                        {trade.optionType ? `${trade.optionType.toUpperCase()} $${trade.strike}` : trade.type.toUpperCase()}
+                        {tr(trade.optionType ? `${trade.optionType.toUpperCase()} $${trade.strike}` : trade.type.toUpperCase())}
                       </span>
                     </div>
                     <span style={{ fontSize: "15px", fontWeight: "700", color: trade.pnl >= 0 ? WIN_COLOR : LOSS_COLOR }}>
-                      {trade.pnl >= 0 ? "+" : ""}${trade.pnl}
+                      {tr(trade.pnl >= 0 ? "+" : "")}${trade.pnl}
                     </span>
                   </div>
 
                   <div style={{ display: "flex", gap: "16px", flexWrap: "wrap", marginBottom: "8px" }}>
-                    <span style={{ fontSize: "12px", color: "var(--text-muted)" }}>Entry: ${trade.entryPrice}</span>
-                    <span style={{ fontSize: "12px", color: "var(--text-muted)" }}>Exit: ${trade.exitPrice}</span>
+                    <span style={{ fontSize: "12px", color: "var(--text-muted)" }}>{tr("Entry: $")}{trade.entryPrice}</span>
+                    <span style={{ fontSize: "12px", color: "var(--text-muted)" }}>{tr("Exit: $")}{trade.exitPrice}</span>
                     {trade.rr && <span style={{ fontSize: "12px", color: "var(--text-muted)" }}>R:R {trade.rr}</span>}
                     {trade.entryTime && <span style={{ fontSize: "12px", color: "var(--text-muted)" }}>{formatTime(trade.entryTime, settings.timeFormat)}</span>}
                   </div>
@@ -513,8 +510,7 @@ export default function CalendarPage() {
 
                   {!(trade.journalEntry || "").trim() && (
                     <div style={{ fontSize: "11px", fontWeight: "600", color: "var(--warning)", marginTop: "6px" }}>
-                      No journal entry yet
-                    </div>
+                      {tr("No journal entry yet")}</div>
                   )}
 
                   {trade.journalEntry && (

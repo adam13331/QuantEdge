@@ -1,8 +1,9 @@
 "use client";
+import { t as tr } from "../lib/i18n";
 import { useState } from "react";
 import { useApp } from "../context/AppContext";
 import { Account } from "../lib/types";
-import { Wallet, Plus, Check, Trash2, ChevronDown } from "lucide-react";
+import { Wallet, Plus, Check, Trash2, ChevronDown, Pencil } from "lucide-react";
 
 // Supported trading platforms. Add more here as needed —
 // the list drives the create-account dropdown and nothing else.
@@ -44,6 +45,8 @@ export default function AccountsPage() {
   const [error, setError]                 = useState("");
   const [editingBalance, setEditingBalance] = useState<string | null>(null);
   const [balanceDraft, setBalanceDraft]   = useState("");
+  const [editingName, setEditingName]     = useState<string | null>(null);
+  const [nameDraft, setNameDraft]         = useState("");
 
   // Live equity is the starting balance plus every closed trade on this
   // account. It is the figure a trader actually checks, so it leads the card
@@ -70,6 +73,18 @@ export default function AccountsPage() {
       body: JSON.stringify({ id: account.id, initialBalance: value }),
     });
     updateAccount(updated);
+  };
+
+  const handleSaveName = async (account: Account) => {
+    const value = nameDraft.trim();
+    setEditingName(null);
+    if (!value || value === account.name) return;
+    await fetch("/api/accounts", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: account.id, name: value }),
+    });
+    updateAccount({ ...account, name: value });
   };
 
   const handleCreate = async () => {
@@ -107,7 +122,7 @@ export default function AccountsPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Delete this account? This won't delete your trades.")) return;
+    if (!confirm(tr("Delete this account? This won't delete your trades."))) return;
     await fetch("/api/accounts", {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
@@ -122,11 +137,9 @@ export default function AccountsPage() {
       <div style={{ marginBottom: "32px", display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
         <div>
           <h2 style={{ fontSize: "26px", fontWeight: "700", color: "var(--text-primary)", letterSpacing: "-0.5px" }}>
-            Accounts
-          </h2>
+            {tr("Accounts")}</h2>
           <p style={{ color: "var(--text-secondary)", fontSize: "14px", marginTop: "4px" }}>
-            Manage your trading accounts and track equity per account
-          </p>
+            {tr("Manage your trading accounts and track equity per account")}</p>
         </div>
         {accounts.length > 0 && (
           <button
@@ -139,8 +152,7 @@ export default function AccountsPage() {
             }}
           >
             <Plus size={15} />
-            New Account
-          </button>
+            {tr("New Account")}</button>
         )}
       </div>
 
@@ -151,7 +163,7 @@ export default function AccountsPage() {
           borderRadius: "16px", padding: "24px", marginBottom: "24px",
         }}>
           <h3 style={{ fontSize: "15px", fontWeight: "700", color: "var(--text-primary)", marginBottom: "20px" }}>
-            {accounts.length === 0 ? "Create your first account" : "New Account"}
+            {tr(accounts.length === 0 ? "Create your first account" : "New Account")}
           </h3>
 
           {error && (
@@ -167,20 +179,18 @@ export default function AccountsPage() {
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: "16px" }}>
             <div>
               <label style={{ fontSize: "12px", color: "var(--text-secondary)", fontWeight: "600", display: "block", marginBottom: "6px" }}>
-                Account Name
-              </label>
+                {tr("Account Name")}</label>
               <input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="e.g. Main Trading Account"
+                placeholder={tr("e.g. Main Trading Account")}
                 style={inputStyle}
               />
             </div>
 
             <div>
               <label style={{ fontSize: "12px", color: "var(--text-secondary)", fontWeight: "600", display: "block", marginBottom: "6px" }}>
-                Platform
-              </label>
+                {tr("Platform")}</label>
               <SelectWrapper>
                 <select value={platform} onChange={(e) => setPlatform(e.target.value)} style={selectStyle}>
                   {PLATFORMS.map((p) => <option key={p} value={p}>{p}</option>)}
@@ -190,8 +200,7 @@ export default function AccountsPage() {
 
             <div>
               <label style={{ fontSize: "12px", color: "var(--text-secondary)", fontWeight: "600", display: "block", marginBottom: "6px" }}>
-                Initial Balance
-              </label>
+                {tr("Initial Balance")}</label>
               <input
                 value={initialBalance}
                 onChange={(e) => setInitialBalance(e.target.value)}
@@ -202,8 +211,7 @@ export default function AccountsPage() {
 
             <div>
               <label style={{ fontSize: "12px", color: "var(--text-secondary)", fontWeight: "600", display: "block", marginBottom: "6px" }}>
-                Currency
-              </label>
+                {tr("Currency")}</label>
               <SelectWrapper>
                 <select value={currency} onChange={(e) => setCurrency(e.target.value)} style={selectStyle}>
                   {["USD", "EUR", "GBP", "CAD", "AUD", "JPY"].map((c) => (
@@ -225,7 +233,7 @@ export default function AccountsPage() {
                 opacity: saving ? 0.7 : 1,
               }}
             >
-              {saving ? "Creating..." : "Create Account"}
+              {tr(saving ? "Creating..." : "Create Account")}
             </button>
             {accounts.length > 0 && (
               <button
@@ -236,8 +244,7 @@ export default function AccountsPage() {
                   color: "var(--text-primary)", fontSize: "13px", cursor: "pointer",
                 }}
               >
-                Cancel
-              </button>
+                {tr("Cancel")}</button>
             )}
           </div>
         </div>
@@ -267,7 +274,7 @@ export default function AccountsPage() {
                     padding: "2px 8px", display: "flex", alignItems: "center", gap: "4px",
                   }}>
                     <Check size={10} color="var(--accent-green)" />
-                    <span style={{ fontSize: "10px", color: "var(--accent-green)", fontWeight: "600" }}>ACTIVE</span>
+                    <span style={{ fontSize: "10px", color: "var(--accent-green)", fontWeight: "600" }}>{tr("ACTIVE")}</span>
                   </div>
                 )}
 
@@ -280,33 +287,78 @@ export default function AccountsPage() {
                   <Wallet size={18} color={isActive ? "var(--accent-green)" : "var(--text-secondary)"} />
                 </div>
 
-                <div style={{ fontSize: "16px", fontWeight: "700", color: "var(--text-primary)", marginBottom: "4px" }}>
-                  {account.name}
-                </div>
+                {editingName === account.id ? (
+                  <div style={{ display: "flex", gap: "6px", alignItems: "center", marginBottom: "4px" }}>
+                    <input
+                      value={nameDraft}
+                      onChange={(e) => setNameDraft(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") handleSaveName(account);
+                        if (e.key === "Escape") setEditingName(null);
+                      }}
+                      autoFocus
+                      maxLength={60}
+                      style={{
+                        width: "100%", padding: "5px 8px", borderRadius: "6px",
+                        border: "1px solid var(--accent-green)", background: "var(--bg-secondary)",
+                        color: "var(--text-primary)", fontSize: "15px", fontWeight: "700",
+                        fontFamily: "'DM Sans', sans-serif", boxSizing: "border-box", outline: "none",
+                      }}
+                    />
+                    <button
+                      onClick={() => handleSaveName(account)}
+                      aria-label={tr("Save name")}
+                      style={{
+                        background: "var(--accent-green-dim)", border: "none", borderRadius: "6px",
+                        padding: "6px 8px", cursor: "pointer", display: "flex", alignItems: "center",
+                        flexShrink: 0,
+                      }}
+                    >
+                      <Check size={13} color="var(--accent-green)" />
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => {
+                      setEditingName(account.id);
+                      setNameDraft(account.name);
+                    }}
+                    title={tr("Edit name")}
+                    style={{
+                      background: "none", border: "none", cursor: "pointer", padding: 0,
+                      display: "flex", alignItems: "center", gap: "6px",
+                      marginBottom: "4px", textAlign: "left",
+                    }}
+                  >
+                    <span style={{ fontSize: "16px", fontWeight: "700", color: "var(--text-primary)" }}>
+                      {account.name}
+                    </span>
+                    <Pencil size={11} color="var(--text-muted)" />
+                  </button>
+                )}
                 <div style={{ fontSize: "12px", color: "var(--text-secondary)", marginBottom: "14px" }}>
-                  {account.platform} · {stats.count} trade{stats.count === 1 ? "" : "s"}
+                  {account.platform} · {stats.count}  {tr("trade")}{tr(stats.count === 1 ? "" : "s")}
                 </div>
 
                 <div style={{ display: "flex", alignItems: "baseline", gap: "8px" }}>
                   <span style={{ fontSize: "20px", fontWeight: "800", color: "var(--text-primary)", letterSpacing: "-0.4px" }}>
                     {fmtAmount(account.currency, stats.equity)}
                   </span>
-                  <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>equity</span>
+                  <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>{tr("equity")}</span>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "4px", marginBottom: "14px" }}>
                   <span style={{ fontSize: "12px", fontWeight: "700", color: stats.pnl >= 0 ? "var(--profit)" : "var(--loss)" }}>
                     {fmtAmount(account.currency, stats.pnl, true)}
                   </span>
                   <span style={{ fontSize: "11px", color: stats.pnl >= 0 ? "var(--profit)" : "var(--loss)", opacity: 0.85 }}>
-                    {stats.pct === null ? "P&L" : `${stats.pct >= 0 ? "+" : ""}${stats.pct.toFixed(2)}%`}
+                    {tr(stats.pct === null ? "P&L" : `${stats.pct >= 0 ? "+" : ""}${stats.pct.toFixed(2)}%`)}
                   </span>
                 </div>
 
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginTop: "auto" }}>
                   <div>
                     <div style={{ fontSize: "10px", color: "var(--text-muted)", marginBottom: "2px" }}>
-                      Starting balance
-                    </div>
+                      {tr("Starting balance")}</div>
                     {editingBalance === account.id ? (
                       <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
                         <input
@@ -341,7 +393,7 @@ export default function AccountsPage() {
                           setEditingBalance(account.id);
                           setBalanceDraft(String(account.initialBalance));
                         }}
-                        title="Edit balance"
+                        title={tr("Edit balance")}
                         style={{
                           background: "none", border: "none", cursor: "pointer", padding: 0,
                           display: "flex", alignItems: "center", gap: "6px",
@@ -350,7 +402,7 @@ export default function AccountsPage() {
                         <span style={{ fontSize: "12px", color: "var(--text-secondary)" }}>
                           {fmtAmount(account.currency, account.initialBalance)}
                         </span>
-                        <span style={{ fontSize: "10px", color: "var(--text-muted)", textDecoration: "underline" }}>edit</span>
+                        <span style={{ fontSize: "10px", color: "var(--text-muted)", textDecoration: "underline" }}>{tr("edit")}</span>
                       </button>
                     )}
                   </div>
@@ -365,13 +417,12 @@ export default function AccountsPage() {
                           fontFamily: "'DM Sans', sans-serif",
                         }}
                       >
-                        Set active
-                      </button>
+                        {tr("Set active")}</button>
                     )}
                     <button
                       onClick={() => handleDelete(account.id)}
-                      aria-label={`Delete ${account.name}`}
-                      title="Delete account"
+                      aria-label={tr(`Delete ${account.name}`)}
+                      title={tr("Delete account")}
                       style={{
                         background: "rgba(255,77,106,0.1)", border: "none",
                         borderRadius: "6px", padding: "6px", cursor: "pointer",

@@ -26,6 +26,8 @@ const SHOTS = [
   { file: "calendar.png",         page: "Calendar" },
   { file: "prop-firm.png",        page: "Prop Firm" },
   { file: "playbook.png",         page: "Playbook" },
+  { file: "review.png",           page: "Review" },
+  { file: "accounts.png",         page: "Accounts" },
   { file: "import.png",           page: "Import Trades" },
   { file: "export.png",           page: "Export" },
   { file: "settings.png",         page: "Settings" },

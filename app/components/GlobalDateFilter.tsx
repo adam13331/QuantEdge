@@ -1,4 +1,5 @@
 "use client";
+import { t as tr } from "../lib/i18n";
 import { useMemo } from "react";
 import { Calendar, X } from "lucide-react";
 import { useApp } from "../context/AppContext";
@@ -65,7 +66,7 @@ export default function GlobalDateFilter() {
       }}
     >
       <Calendar size={14} color="var(--text-muted)" />
-      <span style={{ fontSize: "12px", fontWeight: "600", color: "var(--text-muted)" }}>Period</span>
+      <span style={{ fontSize: "12px", fontWeight: "600", color: "var(--text-muted)" }}>{tr("Period")}</span>
 
       <div style={{
         display: "flex", gap: "2px", padding: "2px",
@@ -102,8 +103,7 @@ export default function GlobalDateFilter() {
             color: !hasRange ? "var(--accent-green)" : "var(--text-muted)",
           }}
         >
-          All
-        </button>
+          {tr("All")}</button>
       </div>
 
       <input
@@ -111,7 +111,7 @@ export default function GlobalDateFilter() {
         onChange={(e) => setDateRange({ ...dateRange, from: e.target.value })}
         style={inputStyle}
       />
-      <span style={{ fontSize: "12px", color: "var(--text-secondary)" }}>to</span>
+      <span style={{ fontSize: "12px", color: "var(--text-secondary)" }}>{tr("to")}</span>
       <input
         type="date" value={dateRange.to}
         onChange={(e) => setDateRange({ ...dateRange, to: e.target.value })}
@@ -120,14 +120,14 @@ export default function GlobalDateFilter() {
 
       <div style={{ width: "1px", height: "22px", background: "var(--border)", flexShrink: 0 }} />
 
-      <span style={{ fontSize: "12px", fontWeight: "600", color: "var(--text-muted)" }}>Market</span>
+      <span style={{ fontSize: "12px", fontWeight: "600", color: "var(--text-muted)" }}>{tr("Market")}</span>
       <select
         value={symbolFilter}
         onChange={(e) => setSymbolFilter(e.target.value)}
         style={{ ...inputStyle, minWidth: "140px", cursor: "pointer" }}
-        aria-label="Filter analytics by market"
+        aria-label={tr("Filter analytics by market")}
       >
-        <option value="">All markets</option>
+        <option value="">{tr("All markets")}</option>
         {symbols.map((s) => (
           <option key={s} value={s}>{s}</option>
         ))}
@@ -143,8 +143,7 @@ export default function GlobalDateFilter() {
             fontFamily: "'DM Sans', sans-serif", fontWeight: "600",
           }}
         >
-          <X size={12} /> Clear
-        </button>
+          <X size={12} /> {tr("Clear")}</button>
       )}
     </div>
   );

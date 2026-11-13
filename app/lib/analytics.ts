@@ -709,8 +709,19 @@ export function externalCashFlow(trades: Trade[]): CashFlowReport {
 
 export interface ChallengeConfig {
   firm: string;
+  // Which stage of the evaluation is being scored. Phase 2 is usually a smaller
+  // target behind the same drawdown rules, so it cannot share one number.
+  phase: "challenge" | "verification";
+  // What the simulation samples: the account's own trades, or the assumed
+  // metrics below. The replay-based figures only exist for real trades.
+  source: "trades" | "custom";
+  customWinRate: number;         // % of trades that win
+  customAvgWin: number;          // average winning trade, account currency
+  customAvgLoss: number;         // average losing trade, positive
+  customTradesPerDay: number;    // trades taken per trading day
   accountSize: number;           // challenge account size, account currency
-  targetPct: number;             // profit target, % of size
+  targetPct: number;             // phase 1 (challenge) profit target, % of size
+  verificationTargetPct: number; // phase 2 target, % of size — usually smaller
   maxDdPct: number;              // max total drawdown, % of size
   ddMode: "static" | "trailing"; // static = from size, trailing = from peak
   dailyLimitPct: number;         // max daily loss, % of size (0 = no rule)
@@ -725,8 +736,15 @@ export interface ChallengeConfig {
 
 export const DEFAULT_CHALLENGE: ChallengeConfig = {
   firm: "FTMO (2-Step)",
+  phase: "challenge",
+  source: "trades",
+  customWinRate: 45,
+  customAvgWin: 200,
+  customAvgLoss: 120,
+  customTradesPerDay: 3,
   accountSize: 100000,
   targetPct: 10,
+  verificationTargetPct: 5,
   maxDdPct: 10,
   ddMode: "static",
   dailyLimitPct: 5,
@@ -751,6 +769,19 @@ export const FIRM_PRESETS: { name: string; config: Partial<ChallengeConfig> }[] 
   { name: "Funding Pips",    config: { targetPct: 8,  maxDdPct: 10, ddMode: "static",   dailyLimitPct: 5, minDays: 3, maxDays: null, consistencyPct: null } },
   { name: "Custom",          config: {} },
 ];
+
+// Expected dollars per trade under the assumed metrics. Positive is the only
+// thing that can carry an evaluation, however high the pass rate looks.
+export function customExpectancy(config: ChallengeConfig): number {
+  const p = Math.min(100, Math.max(0, config.customWinRate)) / 100;
+  return ROUND2(p * config.customAvgWin - (1 - p) * config.customAvgLoss);
+}
+
+// Every rule check reads the active phase through here rather than `targetPct`,
+// so switching phase re-scores the same trades against the right target.
+export function targetPctFor(config: ChallengeConfig): number {
+  return config.phase === "verification" ? config.verificationTargetPct : config.targetPct;
+}
 
 export function applyPreset(base: ChallengeConfig, name: string): ChallengeConfig {
   const preset = FIRM_PRESETS.find((p) => p.name === name);
@@ -805,7 +836,7 @@ const ROUND2 = (v: number) => parseFloat(v.toFixed(2));
 // been breached. Uses MetaTrader's entry times to order trades within a day.
 export function challengeStatus(trades: Trade[], config: ChallengeConfig): ChallengeStatus {
   const size  = Math.max(config.accountSize, 0);
-  const targetAmount = (size * config.targetPct) / 100;
+  const targetAmount = (size * targetPctFor(config)) / 100;
   const ddAllowed    = (size * config.maxDdPct) / 100;
   const dailyAllowed = (size * config.dailyLimitPct) / 100;
 
@@ -941,14 +972,21 @@ const SIM_DAY_BUCKETS: { label: string; test: (d: number) => boolean }[] = [
 // account size, so a $10k book can be evaluated against a $100k challenge.
 // Paths are kept and returned as percentile bands plus a sample, which is what
 // the Prop Firm tab draws as a fan.
+// The simulation only reads a trade's P&L and date, so a modelled sample can
+// be passed here without dressing it up as a journal row.
+export interface SimTrade {
+  pnl: number;
+  date: string;
+}
+
 export function simulateChallenge(
-  trades: Trade[],
+  trades: readonly SimTrade[],
   config: ChallengeConfig,
   runs = 2000,
   accountBalance = 0,
 ): ChallengeSim {
   const size = Math.max(config.accountSize, 0);
-  const targetAmount = (size * config.targetPct) / 100;
+  const targetAmount = (size * targetPctFor(config)) / 100;
   const ddAllowed    = (size * config.maxDdPct) / 100;
   const dailyAllowed = (size * config.dailyLimitPct) / 100;
 
@@ -1088,6 +1126,37 @@ export function simulateChallenge(
   };
 }
 
+// A modelled stand-in for the journal: constant-size wins and losses drawn at
+// the assumed win rate, spread over days at the assumed pace. Seeded so the
+// same assumptions always yield the same pool — otherwise the pass rate would
+// jitter on every render.
+export function syntheticTrades(config: ChallengeConfig, minPool = 120): SimTrade[] {
+  const perDay = Math.max(1, Math.round(config.customTradesPerDay));
+  const winRate = Math.min(100, Math.max(0, config.customWinRate)) / 100;
+  const win = Math.max(0, config.customAvgWin);
+  const loss = Math.max(0, config.customAvgLoss);
+  // Nothing to sample: the caller shows "set your assumptions" instead of a
+  // fake 100% timeout rate.
+  if (win <= 0 && loss <= 0) return [];
+
+  const days = Math.max(30, Math.ceil(minPool / perDay));
+  let seed = 0x9e3779b9;
+  const rand = () => {
+    seed = (seed * 1664525 + 1013904223) % 4294967296;
+    return seed / 4294967296;
+  };
+
+  const out: SimTrade[] = [];
+  const base = Date.UTC(2026, 0, 5);
+  for (let d = 0; d < days; d++) {
+    const date = new Date(base + d * 86400000).toISOString().slice(0, 10);
+    for (let k = 0; k < perDay; k++) {
+      out.push({ pnl: ROUND2(rand() < winRate ? win : -loss), date });
+    }
+  }
+  return out;
+}
+
 export interface ChallengePlan {
   dailyAllowed: number;
   ddAllowed: number;
@@ -1112,7 +1181,7 @@ export function challengePlan(trades: Trade[], config: ChallengeConfig): Challen
   const maxRiskPerTrade = dailyAllowed > 0 ? dailyAllowed / 3 : ddAllowed / 6;
   const avgPnl = trades.length > 0 ? trades.reduce((s, t) => s + t.pnl, 0) / trades.length : 0;
 
-  const remainingToTarget = Math.max(0, (size * config.targetPct) / 100 - status.totalPnl);
+  const remainingToTarget = Math.max(0, (size * targetPctFor(config)) / 100 - status.totalPnl);
   const remainingDays = config.maxDays && config.maxDays > 0
     ? Math.max(0, config.maxDays - status.tradingDays)
     : null;
@@ -1161,6 +1230,132 @@ export function challengeROI(config: ChallengeConfig, passRate: number): Challen
     roiPct: config.fee > 0 ? ROUND2((netExpected / config.fee) * 100) : 0,
     attemptsToPass: attemptsToPass != null ? ROUND2(attemptsToPass) : null,
     costToPass: attemptsToPass != null ? ROUND2(config.fee * attemptsToPass) : 0,
+  };
+}
+
+// ─── Prop-firm payout ledger ──────────────────────────────────────────
+// The config above is a plan the trader can edit freely; these helpers total
+// cash that actually moved. Fees are stored negative so one sum is the net,
+// and recovery is measured against fees rather than trades — a challenge is
+// paid for once and can then pay back many times.
+
+export type PayoutKind = "fee" | "payout";
+
+export interface PropLedgerEntry {
+  id: string;
+  kind: PayoutKind;
+  date: string;              // YYYY-MM-DD, same convention as Trade.date
+  amount: number;            // signed: negative = paid out, positive = received
+  firm?: string | null;      // prop firm the entry belongs to, fixed at save time
+  label?: string | null;
+  note?: string | null;
+}
+
+export interface PayoutSummary {
+  entries: number;
+  feeCount: number;
+  payoutCount: number;
+  feesPaid: number;              // absolute, >= 0
+  payoutsReceived: number;       // absolute, >= 0
+  net: number;                   // payouts - fees
+  recoveredPct: number | null;   // payouts / fees, null when nothing was spent
+  avgPayout: number | null;
+  breakEvenPayouts: number | null;
+  firstDate: string | null;
+  lastDate: string | null;
+}
+
+export interface PayoutCurvePoint {
+  date: string;
+  fees: number;
+  payouts: number;
+  net: number;
+}
+
+export function payoutSummary(entries: PropLedgerEntry[]): PayoutSummary {
+  let feesPaid = 0;
+  let payoutsReceived = 0;
+  let feeCount = 0;
+  let payoutCount = 0;
+  let firstDate: string | null = null;
+  let lastDate: string | null = null;
+
+  for (const e of entries) {
+    // `kind` decides the side, not the sign. A fee entered as a positive still
+    // costs money, and a payout can never be allowed to read as a cost.
+    const amount = Math.abs(e.amount);
+    if (e.kind === "fee") { feesPaid += amount; feeCount++; }
+    else { payoutsReceived += amount; payoutCount++; }
+
+    if (firstDate === null || e.date < firstDate) firstDate = e.date;
+    if (lastDate === null || e.date > lastDate) lastDate = e.date;
+  }
+
+  const avgPayout = payoutCount > 0 ? ROUND2(payoutsReceived / payoutCount) : null;
+  const shortfall = ROUND2(feesPaid - payoutsReceived);
+
+  return {
+    entries: entries.length,
+    feeCount,
+    payoutCount,
+    feesPaid: ROUND2(feesPaid),
+    payoutsReceived: ROUND2(payoutsReceived),
+    net: ROUND2(payoutsReceived - feesPaid),
+    // null rather than 0: "nothing spent yet" and "nothing recovered" are
+    // different answers and the UI has to be able to say so.
+    recoveredPct: feesPaid > 0 ? ROUND2((payoutsReceived / feesPaid) * 100) : null,
+    avgPayout,
+    breakEvenPayouts: shortfall > 0 && avgPayout !== null && avgPayout > 0
+      ? Math.ceil(shortfall / avgPayout)
+      : null,
+    firstDate,
+    lastDate,
+  };
+}
+
+// One point per entry in date order. Two cumulative lines and the net come from
+// the same series, so the chart never has to keep its own running totals.
+export function payoutCurve(entries: PropLedgerEntry[]): PayoutCurvePoint[] {
+  const ordered = [...entries].sort((a, b) =>
+    a.date === b.date ? a.id.localeCompare(b.id) : a.date.localeCompare(b.date),
+  );
+  let fees = 0;
+  let payouts = 0;
+  return ordered.map((e) => {
+    if (e.kind === "fee") fees += Math.abs(e.amount);
+    else payouts += Math.abs(e.amount);
+    return {
+      date: e.date,
+      fees: ROUND2(fees),
+      payouts: ROUND2(payouts),
+      net: ROUND2(payouts - fees),
+    };
+  });
+}
+
+// The model's expected cost of getting funded and the cash the ledger records
+// answer different questions, and the gap is the useful part: paying more than
+// the model predicted means the pass rate is optimistic or the retries arrived
+// in a bunch.
+export interface CostComparison {
+  estimated: number;  // challengeROI.costToPass: fee × attempts to pass
+  actual: number;     // fees recorded in the ledger
+  difference: number; // actual − estimated; negative means under the model
+}
+
+export function costComparison(
+  estimated: number | null,
+  summary: PayoutSummary,
+): CostComparison | null {
+  // Without a pass rate there is no attempts-to-pass figure to model from, so
+  // there is nothing honest to compare the ledger against — null, not a
+  // fabricated ratio.
+  if (estimated == null || !(estimated > 0)) return null;
+  const actual = summary.feesPaid;
+  return {
+    estimated: ROUND2(estimated),
+    actual: ROUND2(actual),
+    difference: ROUND2(actual - estimated),
   };
 }
 

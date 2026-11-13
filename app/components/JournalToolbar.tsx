@@ -1,4 +1,5 @@
 "use client";
+import { t as tr } from "../lib/i18n";
 import { Editor } from "@tiptap/react";
 import {
   Bold, Italic, Underline, Strikethrough,
@@ -222,14 +223,12 @@ function ColorPickerDropdown({
               marginBottom: 10, display: "flex", alignItems: "center", gap: 6,
             }}
           >
-            <X size={11} /> Remove color
-          </button>
+            <X size={11} /> {tr("Remove color")}</button>
 
           {pinned.length > 0 && (
             <>
               <div style={{ fontSize: 12, fontWeight: 700, color: "var(--text-muted)", letterSpacing: "0.5px", marginBottom: 6 }}>
-                PINNED
-              </div>
+                {tr("PINNED")}</div>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginBottom: 10 }}>
                 {pinned.map((c) => (
                   <div key={c} style={{ position: "relative" }}>
@@ -244,7 +243,7 @@ function ColorPickerDropdown({
                     />
                     <button
                       onClick={(e) => { e.stopPropagation(); togglePin(c); }}
-                      title="Unpin"
+                      title={tr("Unpin")}
                       style={{
                         position: "absolute", top: -4, right: -4,
                         width: 12, height: 12, borderRadius: "50%",
@@ -262,8 +261,7 @@ function ColorPickerDropdown({
           )}
 
           <div style={{ fontSize: 12, fontWeight: 700, color: "var(--text-muted)", letterSpacing: "0.5px", marginBottom: 6 }}>
-            PALETTE
-          </div>
+            {tr("PALETTE")}</div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(10, 1fr)", gap: 3, marginBottom: 10 }}>
             {palette.map((c) => (
               <div key={c} style={{ position: "relative" }} className="swatch-wrap">
@@ -281,7 +279,7 @@ function ColorPickerDropdown({
                 />
                 <button
                   onClick={(e) => { e.stopPropagation(); togglePin(c); }}
-                  title={pinned.includes(c) ? "Unpin" : "Pin"}
+                  title={tr(pinned.includes(c) ? "Unpin" : "Pin")}
                   className="swatch-pin"
                   style={{
                     position: "absolute", top: -3, right: -3,
@@ -299,8 +297,7 @@ function ColorPickerDropdown({
           </div>
 
           <div style={{ fontSize: 12, fontWeight: 700, color: "var(--text-muted)", letterSpacing: "0.5px", marginBottom: 6 }}>
-            CUSTOM HEX
-          </div>
+            {tr("CUSTOM HEX")}</div>
           <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
             <div style={{
               width: 28, height: 28, borderRadius: 6, flexShrink: 0,
@@ -311,7 +308,7 @@ function ColorPickerDropdown({
               value={hex}
               onChange={(e) => handleHexChange(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter") applyHex(); }}
-              placeholder="var(--profit)"
+              placeholder={tr("var(--profit)")}
               style={{
                 flex: 1, padding: "6px 10px", borderRadius: 6,
                 border: `1px solid ${isValidHex(hex) ? "var(--accent-green)" : "var(--border)"}`,
@@ -322,7 +319,7 @@ function ColorPickerDropdown({
             {hexPreview && (
               <button
                 onClick={() => togglePin(hex)}
-                title="Pin this color"
+                title={tr("Pin this color")}
                 style={{
                   padding: "6px 8px", borderRadius: 6, border: "1px solid var(--border)",
                   background: pinned.includes(hex) ? "var(--accent-green-dim)" : "transparent",
@@ -345,8 +342,7 @@ function ColorPickerDropdown({
                 fontFamily: "'DM Sans', sans-serif",
               }}
             >
-              Apply
-            </button>
+              {tr("Apply")}</button>
           </div>
         </div>
       )}
@@ -382,7 +378,7 @@ function FontPicker({ editor }: { editor: Editor }) {
   return (
     <div ref={ref} style={{ position: "relative" }}>
       <button
-        title="Font Family"
+        title={tr("Font Family")}
         onClick={() => setOpen(!open)}
         style={{
           display: "flex", alignItems: "center", gap: 4,
@@ -398,7 +394,7 @@ function FontPicker({ editor }: { editor: Editor }) {
         onMouseLeave={(e) => { if (!open) e.currentTarget.style.background = "transparent"; }}
       >
         <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-          {current.label}
+          {tr(current.label)}
         </span>
         <ChevronDown size={11} style={{ flexShrink: 0 }} />
       </button>
@@ -432,7 +428,7 @@ function FontPicker({ editor }: { editor: Editor }) {
                 onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.background = "var(--bg-hover)"; }}
                 onMouseLeave={(e) => { if (!isActive) e.currentTarget.style.background = "transparent"; }}
               >
-                {font.label}
+                {tr(font.label)}
               </button>
             );
           })}
@@ -461,7 +457,7 @@ function FontWeightPicker({ editor }: { editor: Editor }) {
   return (
     <div ref={ref} style={{ position: "relative" }}>
       <button
-        title="Font Weight"
+        title={tr("Font Weight")}
         onClick={() => setOpen(!open)}
         style={{
           display: "flex", alignItems: "center", gap: 4,
@@ -475,7 +471,7 @@ function FontWeightPicker({ editor }: { editor: Editor }) {
         onMouseEnter={(e) => e.currentTarget.style.background = "var(--bg-hover)"}
         onMouseLeave={(e) => { if (!open) e.currentTarget.style.background = "transparent"; }}
       >
-        {current.label}
+        {tr(current.label)}
         <ChevronDown size={11} />
       </button>
 
@@ -507,7 +503,7 @@ function FontWeightPicker({ editor }: { editor: Editor }) {
                 onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.background = "var(--bg-hover)"; }}
                 onMouseLeave={(e) => { if (!isActive) e.currentTarget.style.background = "transparent"; }}
               >
-                {w.label}
+                {tr(w.label)}
               </button>
             );
           })}
@@ -541,10 +537,10 @@ export default function JournalToolbar({ editor, onImageUpload }: Props) {
       padding: "8px 12px", borderBottom: "1px solid var(--border)",
       background: "var(--bg-secondary)",
     }}>
-      <Btn onClick={() => editor.chain().focus().undo().run()} disabled={!editor.can().undo()} title="Undo">
+      <Btn onClick={() => editor.chain().focus().undo().run()} disabled={!editor.can().undo()} title={tr("Undo")}>
         <Undo size={14} />
       </Btn>
-      <Btn onClick={() => editor.chain().focus().redo().run()} disabled={!editor.can().redo()} title="Redo">
+      <Btn onClick={() => editor.chain().focus().redo().run()} disabled={!editor.can().redo()} title={tr("Redo")}>
         <Redo size={14} />
       </Btn>
 
@@ -555,28 +551,28 @@ export default function JournalToolbar({ editor, onImageUpload }: Props) {
 
       <Divider />
 
-      <Btn onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()} active={editor.isActive("heading", { level: 1 })} title="Heading 1">
+      <Btn onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()} active={editor.isActive("heading", { level: 1 })} title={tr("Heading 1")}>
         <Heading1 size={14} />
       </Btn>
-      <Btn onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()} active={editor.isActive("heading", { level: 2 })} title="Heading 2">
+      <Btn onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()} active={editor.isActive("heading", { level: 2 })} title={tr("Heading 2")}>
         <Heading2 size={14} />
       </Btn>
-      <Btn onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()} active={editor.isActive("heading", { level: 3 })} title="Heading 3">
+      <Btn onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()} active={editor.isActive("heading", { level: 3 })} title={tr("Heading 3")}>
         <Heading3 size={14} />
       </Btn>
 
       <Divider />
 
-      <Btn onClick={() => editor.chain().focus().toggleBold().run()} active={editor.isActive("bold")} title="Bold">
+      <Btn onClick={() => editor.chain().focus().toggleBold().run()} active={editor.isActive("bold")} title={tr("Bold")}>
         <Bold size={14} />
       </Btn>
-      <Btn onClick={() => editor.chain().focus().toggleItalic().run()} active={editor.isActive("italic")} title="Italic">
+      <Btn onClick={() => editor.chain().focus().toggleItalic().run()} active={editor.isActive("italic")} title={tr("Italic")}>
         <Italic size={14} />
       </Btn>
-      <Btn onClick={() => editor.chain().focus().toggleUnderline().run()} active={editor.isActive("underline")} title="Underline">
+      <Btn onClick={() => editor.chain().focus().toggleUnderline().run()} active={editor.isActive("underline")} title={tr("Underline")}>
         <Underline size={14} />
       </Btn>
-      <Btn onClick={() => editor.chain().focus().toggleStrike().run()} active={editor.isActive("strike")} title="Strikethrough">
+      <Btn onClick={() => editor.chain().focus().toggleStrike().run()} active={editor.isActive("strike")} title={tr("Strikethrough")}>
         <Strikethrough size={14} />
       </Btn>
 
@@ -584,7 +580,7 @@ export default function JournalToolbar({ editor, onImageUpload }: Props) {
 
       <ColorPickerDropdown
         icon={<Palette size={14} />}
-        title="Text Color"
+        title={tr("Text Color")}
         palette={COLOR_PALETTE}
         pinnedKey={PINNED_TEXT_KEY}
         onSelect={(color) => editor.chain().focus().setColor(color).run()}
@@ -592,7 +588,7 @@ export default function JournalToolbar({ editor, onImageUpload }: Props) {
       />
       <ColorPickerDropdown
         icon={<Highlighter size={14} />}
-        title="Highlight"
+        title={tr("Highlight")}
         palette={HIGHLIGHT_PALETTE}
         pinnedKey={PINNED_HL_KEY}
         onSelect={(color) => editor.chain().focus().setHighlight({ color }).run()}
@@ -601,37 +597,37 @@ export default function JournalToolbar({ editor, onImageUpload }: Props) {
 
       <Divider />
 
-      <Btn onClick={() => chain.setTextAlign("left").run()} active={editor.isActive({ textAlign: "left" })} title="Align Left">
+      <Btn onClick={() => chain.setTextAlign("left").run()} active={editor.isActive({ textAlign: "left" })} title={tr("Align Left")}>
         <AlignLeft size={14} />
       </Btn>
-      <Btn onClick={() => chain.setTextAlign("center").run()} active={editor.isActive({ textAlign: "center" })} title="Align Center">
+      <Btn onClick={() => chain.setTextAlign("center").run()} active={editor.isActive({ textAlign: "center" })} title={tr("Align Center")}>
         <AlignCenter size={14} />
       </Btn>
-      <Btn onClick={() => chain.setTextAlign("right").run()} active={editor.isActive({ textAlign: "right" })} title="Align Right">
+      <Btn onClick={() => chain.setTextAlign("right").run()} active={editor.isActive({ textAlign: "right" })} title={tr("Align Right")}>
         <AlignRight size={14} />
       </Btn>
-      <Btn onClick={() => chain.setTextAlign("justify").run()} active={editor.isActive({ textAlign: "justify" })} title="Justify">
+      <Btn onClick={() => chain.setTextAlign("justify").run()} active={editor.isActive({ textAlign: "justify" })} title={tr("Justify")}>
         <AlignJustify size={14} />
       </Btn>
 
       <Divider />
 
-      <Btn onClick={() => editor.chain().focus().toggleBulletList().run()} active={editor.isActive("bulletList")} title="Bullet List">
+      <Btn onClick={() => editor.chain().focus().toggleBulletList().run()} active={editor.isActive("bulletList")} title={tr("Bullet List")}>
         <List size={14} />
       </Btn>
-      <Btn onClick={() => editor.chain().focus().toggleOrderedList().run()} active={editor.isActive("orderedList")} title="Numbered List">
+      <Btn onClick={() => editor.chain().focus().toggleOrderedList().run()} active={editor.isActive("orderedList")} title={tr("Numbered List")}>
         <ListOrdered size={14} />
       </Btn>
 
       <Divider />
 
-      <Btn onClick={() => editor.chain().focus().setHorizontalRule().run()} title="Divider Line">
+      <Btn onClick={() => editor.chain().focus().setHorizontalRule().run()} title={tr("Divider Line")}>
         <Minus size={14} />
       </Btn>
-      <Btn onClick={setLink} active={editor.isActive("link")} title="Link">
+      <Btn onClick={setLink} active={editor.isActive("link")} title={tr("Link")}>
         <Link size={14} />
       </Btn>
-      <Btn onClick={onImageUpload} title="Insert Image">
+      <Btn onClick={onImageUpload} title={tr("Insert Image")}>
         <Image size={14} />
       </Btn>
     </div>

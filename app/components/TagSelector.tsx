@@ -2,6 +2,7 @@
 import { useState, useRef, useEffect } from "react";
 import { X, Plus, Tag } from "lucide-react";
 import { useApp } from "../context/AppContext";
+import { t as tr } from "../lib/i18n";
 
 interface Props {
   selected: string[];
@@ -124,7 +125,7 @@ export default function TagSelector({ selected, onChange, maxHeight = 240 }: Pro
             onChange={(e) => { setInput(e.target.value); setOpen(true); }}
             onFocus={() => setOpen(true)}
             onKeyDown={handleKeyDown}
-            placeholder={selected.length === 0 ? "Add tags..." : "Add another tag..."}
+            placeholder={tr(selected.length === 0 ? "Add tags..." : "Add another tag...")}
             style={{
               flex: 1, background: "none", border: "none", outline: "none",
               fontSize: "13px", color: "var(--text-primary)",
@@ -193,7 +194,7 @@ export default function TagSelector({ selected, onChange, maxHeight = 240 }: Pro
                 onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
               >
                 <Plus size={12} />
-                {creating ? "Creating..." : `Create "${input.trim()}"`}
+                {tr(creating ? "Creating..." : `Create "${input.trim()}"`)}
               </button>
             )}
           </div>

@@ -1,4 +1,5 @@
 "use client";
+import { t as tr } from "../lib/i18n";
 import { useState, useRef, useMemo } from "react";
 import { useApp } from "../context/AppContext";
 import { Trade } from "../lib/types";
@@ -23,8 +24,7 @@ function FormatBadge() {
       background: "rgba(0,229,122,0.12)", color: "var(--profit)", border: "1px solid rgba(0,229,122,0.3)",
     }}>
       <Database size={10} />
-      MetaTrader Export
-    </span>
+      {tr("MetaTrader Export")}</span>
   );
 }
 
@@ -154,12 +154,11 @@ export default function ImportPage() {
       {/* Header */}
       <div style={{ marginBottom: "32px" }}>
         <h2 style={{ fontSize: "26px", fontWeight: "700", color: "var(--text-primary)", letterSpacing: "-0.5px" }}>
-          Import Trades
-        </h2>
+          {tr("Import Trades")}</h2>
         <p style={{ color: "var(--text-secondary)", fontSize: "14px", marginTop: "4px" }}>
-          {accounts.length > 0
+          {tr(accounts.length > 0
             ? "You'll confirm which account these trades belong to before anything is saved"
-            : "No trading account yet — create one first so equity is tracked"}
+            : "No trading account yet — create one first so equity is tracked")}
         </p>
         {accounts.length === 0 && (
           <button
@@ -171,8 +170,7 @@ export default function ImportPage() {
               cursor: "pointer", fontFamily: "'DM Sans', sans-serif",
             }}
           >
-            Create an account
-          </button>
+            {tr("Create an account")}</button>
         )}
       </div>
 
@@ -187,10 +185,10 @@ export default function ImportPage() {
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "16px", flexWrap: "wrap" }}>
             <div style={{ flex: 1, minWidth: "260px" }}>
               <div style={{ fontSize: "12px", fontWeight: "700", color: FORMAT_CARD.color, marginBottom: "6px" }}>
-                {FORMAT_CARD.label}
+                {tr(FORMAT_CARD.label)}
               </div>
               <div style={{ fontSize: "12px", color: "var(--text-secondary)", lineHeight: "1.5" }}>
-                {FORMAT_CARD.desc}
+                {tr(FORMAT_CARD.desc)}
               </div>
             </div>
             <a
@@ -206,8 +204,7 @@ export default function ImportPage() {
               }}
             >
               <Download size={13} />
-              Download exporter
-            </a>
+              {tr("Download exporter")}</a>
           </div>
 
           <div style={{
@@ -221,7 +218,7 @@ export default function ImportPage() {
               "3. Drop the CSV it writes to MQL5\\Files below",
             ].map((step) => (
               <div key={step} style={{ fontSize: "12px", color: "var(--text-secondary)", lineHeight: 1.45 }}>
-                {step}
+                {tr(step)}
               </div>
             ))}
           </div>
@@ -233,7 +230,7 @@ export default function ImportPage() {
         onClick={() => status === "idle" && fileRef.current?.click()}
         role="button"
         tabIndex={status === "idle" ? 0 : -1}
-        aria-label="Choose a CSV file to import"
+        aria-label={tr("Choose a CSV file to import")}
         onKeyDown={(e) => {
           if (status === "idle" && (e.key === "Enter" || e.key === " ")) {
             e.preventDefault();
@@ -268,11 +265,9 @@ export default function ImportPage() {
               <Upload size={24} color="var(--accent-green)" />
             </div>
             <div style={{ fontSize: "18px", fontWeight: "700", color: "var(--text-primary)", marginBottom: "8px" }}>
-              Drop your CSV here
-            </div>
+              {tr("Drop your CSV here")}</div>
             <div style={{ fontSize: "14px", color: "var(--text-secondary)" }}>
-              QuantEdgeExport.mq5 output — format is verified automatically
-            </div>
+              {tr("QuantEdgeExport.mq5 output — format is verified automatically")}</div>
           </>
         )}
 
@@ -307,8 +302,7 @@ export default function ImportPage() {
               }}
             >
               <RefreshCw size={12} />
-              Try again
-            </button>
+              {tr("Try again")}</button>
           </div>
         )}
 
@@ -320,7 +314,7 @@ export default function ImportPage() {
               borderTop: "3px solid var(--accent-green)",
               animation: "spin 0.8s linear infinite",
             }} />
-            <div style={{ fontSize: "14px", color: "var(--text-secondary)" }}>Saving trades…</div>
+            <div style={{ fontSize: "14px", color: "var(--text-secondary)" }}>{tr("Saving trades…")}</div>
           </div>
         )}
       </div>
@@ -334,9 +328,8 @@ export default function ImportPage() {
           borderRadius: "12px",
         }}>
           <div style={{ fontSize: "13px", color: "var(--text-secondary)" }}>
-            <span style={{ color: "var(--accent-green)", fontWeight: "700" }}>{result.count} trades</span>
-            {" "}ready to import — check the target account next
-          </div>
+            <span style={{ color: "var(--accent-green)", fontWeight: "700" }}>{result.count}  {tr("trades")}</span>
+            {tr(" ")}{tr("ready to import — check the target account next")}</div>
           <div style={{ display: "flex", gap: "10px" }}>
             <button
               onClick={reset}
@@ -349,8 +342,7 @@ export default function ImportPage() {
               }}
             >
               <X size={13} />
-              Cancel
-            </button>
+              {tr("Cancel")}</button>
             <button
               onClick={openConfirm}
               style={{
@@ -361,8 +353,7 @@ export default function ImportPage() {
                 cursor: "pointer", fontFamily: "'DM Sans', sans-serif",
               }}
             >
-              Choose account…
-              <ArrowRight size={14} />
+              {tr("Choose account…")}<ArrowRight size={14} />
             </button>
           </div>
         </div>
@@ -388,13 +379,11 @@ export default function ImportPage() {
             }}
           >
             <div style={{ fontSize: "16px", fontWeight: "700", color: "var(--text-primary)", marginBottom: "6px" }}>
-              Import into which account?
-            </div>
+              {tr("Import into which account?")}</div>
             <div style={{ fontSize: "13px", color: "var(--text-secondary)", lineHeight: "1.5", marginBottom: "18px" }}>
-              {result.count} trade{result.count !== 1 ? "s" : ""} from{" "}
-              <span style={{ color: "var(--text-primary)", fontWeight: "600" }}>{fileName}</span>{" "}
-              will be saved under the account you pick here.
-            </div>
+              {result.count}  {tr("trade")}{tr(result.count !== 1 ? "s" : "")}  {tr("from")}{tr(" ")}
+              <span style={{ color: "var(--text-primary)", fontWeight: "600" }}>{fileName}</span>{tr(" ")}
+              {tr("will be saved under the account you pick here.")}</div>
 
             <div style={{ position: "relative", marginBottom: "14px" }}>
               <select
@@ -413,7 +402,7 @@ export default function ImportPage() {
                 {accounts.map((a) => (
                   <option key={a.id} value={a.id}>{a.name} — {a.platform}</option>
                 ))}
-                <option value="">No account (leave unlinked)</option>
+                <option value="">{tr("No account (leave unlinked)")}</option>
               </select>
               <ChevronDown
                 size={14} color="var(--text-secondary)"
@@ -433,9 +422,7 @@ export default function ImportPage() {
               }}>
                 <AlertCircle size={14} style={{ flexShrink: 0, marginTop: "1px" }} />
                 <span>
-                  {misfiled.length} of these trades already exist under a different account.
-                  Continuing re-assigns them.
-                </span>
+                  {misfiled.length} {tr("of these trades already exist under a different account. Continuing re-assigns them.")}</span>
               </div>
             )}
 
@@ -445,9 +432,7 @@ export default function ImportPage() {
                 background: "rgba(251,146,60,0.08)", border: "1px solid rgba(251,146,60,0.3)",
                 fontSize: "12px", color: "#fb923c", lineHeight: "1.5",
               }}>
-                These trades will be saved without an account, so equity and analytics
-                will not include them.
-              </div>
+                {tr("These trades will be saved without an account, so equity and analytics will not include them.")}</div>
             )}
 
             <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px" }}>
@@ -460,8 +445,7 @@ export default function ImportPage() {
                   fontFamily: "'DM Sans', sans-serif",
                 }}
               >
-                Cancel
-              </button>
+                {tr("Cancel")}</button>
               <button
                 onClick={handleConfirm}
                 style={{
@@ -471,8 +455,7 @@ export default function ImportPage() {
                   cursor: "pointer", fontFamily: "'DM Sans', sans-serif",
                 }}
               >
-                Yes, import
-              </button>
+                {tr("Yes, import")}</button>
             </div>
           </div>
         </div>
@@ -485,7 +468,7 @@ export default function ImportPage() {
             fontSize: "12px", color: "var(--text-secondary)", marginBottom: "10px",
             fontWeight: "600", textTransform: "uppercase", letterSpacing: "0.05em",
           }}>
-            Preview — first {Math.min(result.trades.length, 10)} of {result.trades.length}
+            {tr("Preview — first")}{Math.min(result.trades.length, 10)}  {tr("of")} {result.trades.length}
           </div>
           <div style={{ overflowX: "auto", borderRadius: "12px", border: "1px solid var(--border)" }}>
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px" }}>
@@ -513,7 +496,7 @@ export default function ImportPage() {
                           background: trade.optionType === "call" ? "rgba(77,159,255,0.15)" : "rgba(255,77,106,0.15)",
                           color: trade.optionType === "call" ? "var(--accent-blue)" : "var(--loss)",
                         }}>
-                          {trade.optionType.toUpperCase()} {trade.strike ? `$${trade.strike}` : ""}
+                          {trade.optionType.toUpperCase()} {tr(trade.strike ? `$${trade.strike}` : "")}
                         </span>
                       ) : (
                         <span style={{
@@ -528,7 +511,7 @@ export default function ImportPage() {
                     <td style={{ padding: "10px 14px", color: "var(--text-secondary)" }}>${trade.entryPrice}</td>
                     <td style={{ padding: "10px 14px", color: "var(--text-secondary)" }}>${trade.exitPrice}</td>
                     <td style={{ padding: "10px 14px", fontWeight: "700", color: trade.pnl >= 0 ? "var(--profit)" : "var(--loss)" }}>
-                      {trade.pnl >= 0 ? "+" : ""}${trade.pnl.toFixed(2)}
+                      {tr(trade.pnl >= 0 ? "+" : "")}${trade.pnl.toFixed(2)}
                     </td>
                     <td style={{ padding: "10px 14px" }}>
                       <div style={{ display: "flex", gap: "4px", flexWrap: "wrap" }}>

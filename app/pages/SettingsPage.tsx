@@ -1,4 +1,5 @@
 "use client";
+import { t as tr, LANGUAGES } from "../lib/i18n";
 import { useState, useEffect } from "react";
 import { useSettings } from "../hooks/useSettings";
 import { useApp } from "../context/AppContext";
@@ -304,11 +305,9 @@ export default function SettingsPage() {
 
       <div style={{ marginBottom: "32px" }}>
         <h2 style={{ fontSize: "26px", fontWeight: "700", color: "var(--text-primary)", letterSpacing: "-0.5px" }}>
-          Settings
-        </h2>
+          {tr("Settings")}</h2>
         <p style={{ color: "var(--text-muted)", fontSize: "14px", marginTop: "4px" }}>
-          Preferences are saved locally to your device
-        </p>
+          {tr("Preferences are saved locally to your device")}</p>
       </div>
 
       {/* Update available banner */}
@@ -328,11 +327,9 @@ export default function SettingsPage() {
               </div>
               <div>
                 <div style={{ fontSize: "14px", fontWeight: "700", color: "var(--text-primary)", marginBottom: "2px" }}>
-                  QuantEdge v{latestVersion} is available
-                </div>
+                  {tr("QuantEdge v")}{latestVersion} {tr("is available")}</div>
                 <div style={{ fontSize: "12px", color: "var(--text-muted)" }}>
-                  You are on v{CURRENT_VERSION} · Updates your code, dependencies, and database automatically
-                </div>
+                  {tr("You are on v")}{CURRENT_VERSION} {tr("· Updates your code, dependencies, and database automatically")}</div>
               </div>
             </div>
             <div style={{ display: "flex", gap: "10px", flexShrink: 0, marginLeft: "16px" }}>
@@ -348,7 +345,7 @@ export default function SettingsPage() {
                   display: "flex", alignItems: "center", gap: "5px",
                 }}
               >
-                Changelog <ExternalLink size={11} />
+                {tr("Changelog")}<ExternalLink size={11} />
               </a>
               <button
                 onClick={handleAutoUpdate}
@@ -361,8 +358,7 @@ export default function SettingsPage() {
                 }}
               >
                 <Download size={13} />
-                Update Now
-              </button>
+                {tr("Update Now")}</button>
             </div>
           </div>
         </div>
@@ -436,11 +432,11 @@ export default function SettingsPage() {
                       : step.status === "running"  ? "var(--accent-blue)"
                       : "var(--text-primary)",
                   }}>
-                    {step.label}
+                    {tr(step.label)}
                   </div>
                   {step.message && (
                     <div style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "2px" }}>
-                      {step.message}
+                      {tr(step.message)}
                     </div>
                   )}
                 </div>
@@ -468,8 +464,7 @@ export default function SettingsPage() {
                 }}
               >
                 <RefreshCw size={12} />
-                Retry
-              </button>
+                {tr("Retry")}</button>
             </div>
           )}
 
@@ -480,8 +475,7 @@ export default function SettingsPage() {
                 borderRadius: "10px", padding: "16px",
               }}>
                 <div style={{ fontSize: "12px", color: "var(--text-muted)", marginBottom: "12px" }}>
-                  All files updated. Restart the server to apply changes.
-                </div>
+                  {tr("All files updated. Restart the server to apply changes.")}</div>
                 <div style={{
                   background: "#0a0a12", borderRadius: "8px",
                   padding: "12px 14px", marginBottom: "14px",
@@ -489,7 +483,7 @@ export default function SettingsPage() {
                   display: "flex", alignItems: "center", gap: "10px",
                 }}>
                   <Terminal size={12} color="var(--text-secondary)" style={{ flexShrink: 0 }} />
-                  <span style={{ fontFamily: "monospace", fontSize: "13px", color: "var(--profit)" }}>npm run dev</span>
+                  <span style={{ fontFamily: "monospace", fontSize: "13px", color: "var(--profit)" }}>{tr("npm run dev")}</span>
                   <button
                     onClick={() => navigator.clipboard.writeText("npm run dev")}
                     style={{
@@ -498,8 +492,7 @@ export default function SettingsPage() {
                       fontFamily: "'DM Sans', sans-serif", flexShrink: 0,
                     }}
                   >
-                    Copy
-                  </button>
+                    {tr("Copy")}</button>
                 </div>
                 <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
                   {!showRefreshPrompt ? (
@@ -520,7 +513,7 @@ export default function SettingsPage() {
                         ? <Loader size={13} style={{ animation: "spin 1s linear infinite" }} />
                         : <RefreshCw size={13} />
                       }
-                      {restartLoading ? "Restarting..." : "Restart Server"}
+                      {tr(restartLoading ? "Restarting..." : "Restart Server")}
                     </button>
                   ) : (
                     <div style={{
@@ -530,12 +523,10 @@ export default function SettingsPage() {
                       display: "flex", alignItems: "center", gap: "6px",
                     }}>
                       <Check size={13} />
-                      Server stopped — refresh this page in a few seconds
-                    </div>
+                      {tr("Server stopped — refresh this page in a few seconds")}</div>
                   )}
                   <span style={{ fontSize: "11px", color: "#555577" }}>
-                    or restart manually in your terminal
-                  </span>
+                    {tr("or restart manually in your terminal")}</span>
                 </div>
               </div>
             </div>
@@ -549,10 +540,10 @@ export default function SettingsPage() {
           borderRadius: "12px", padding: "12px 18px", marginBottom: "20px",
           fontSize: "12px", color: "var(--text-muted)",
         }}>
-          No published releases found for this fork yet. Publish one on{" "}
+          {tr("No published releases found for this fork yet. Publish one on")}{tr(" ")}
           <a href={`https://github.com/${GITHUB_REPO}/releases`} target="_blank" rel="noreferrer"
-             style={{ color: "var(--accent-green)" }}>GitHub</a>{" "}
-          to enable in-app updates, or update with <code>git pull</code>.
+             style={{ color: "var(--accent-green)" }}>{tr("GitHub")}</a>{tr(" ")}
+          {tr("to enable in-app updates, or update with")}<code>{tr("git pull")}</code>.
         </div>
       )}
 
@@ -562,22 +553,21 @@ export default function SettingsPage() {
           borderRadius: "12px", padding: "12px 18px", marginBottom: "20px",
           fontSize: "12px", color: "var(--text-muted)",
         }}>
-          Could not check for updates. Make sure you are connected to the internet.
-        </div>
+          {tr("Could not check for updates. Make sure you are connected to the internet.")}</div>
       )}
 
       {/* Two-column grid */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: "16px", alignItems: "start" }}>
         <div>
           {/* Appearance */}
-          <Section title="Appearance" icon={Palette}>
-            <Row label="Accent Color" description="Applied across the entire interface">
+          <Section title={tr("Appearance")} icon={Palette}>
+            <Row label={tr("Accent Color")} description={tr("Applied across the entire interface")}>
               <div style={{ display: "flex", gap: "8px" }}>
                 {ACCENT_COLORS.map((color) => (
                   <button
                     key={color.value}
                     onClick={() => updateSettings({ accentColor: color.value })}
-                    title={color.label}
+                    title={tr(color.label)}
                     style={{
                       width: "24px", height: "24px", borderRadius: "50%",
                       background: color.value, border: "none", cursor: "pointer",
@@ -590,7 +580,7 @@ export default function SettingsPage() {
                 ))}
               </div>
             </Row>
-            <Row label="Theme" description="Switch between dark and light interface">
+            <Row label={tr("Theme")} description={tr("Switch between dark and light interface")}>
               <div style={{ display: "flex", gap: "6px" }}>
                 {(["dark", "light"] as const).map((t) => (
                   <button
@@ -607,12 +597,36 @@ export default function SettingsPage() {
                     }}
                   >
                     {t === "dark" ? <Moon size={12} /> : <Sun size={12} />}
-                    {t}
+                    {tr(t === "dark" ? "Dark" : "Light")}
                   </button>
                 ))}
               </div>
             </Row>
-            <Row label="Time Format" description="How entry and exit times read across the journal, calendar and PDF report. Stored trades keep 24h.">
+            <Row
+              label={tr("Language")}
+              description={tr("Interface language. Stored trades, symbols and notes are never translated.")}
+            >
+              <div style={{ display: "flex", gap: "6px" }}>
+                {LANGUAGES.map(({ id, label }) => (
+                  <button
+                    key={id}
+                    onClick={() => updateSettings({ language: id })}
+                    aria-pressed={settings.language === id}
+                    style={{
+                      padding: "7px 14px", borderRadius: "8px",
+                      border: `1px solid ${settings.language === id ? "var(--accent-green)" : "var(--border)"}`,
+                      background: settings.language === id ? "var(--accent-green-dim)" : "transparent",
+                      color: settings.language === id ? "var(--accent-green)" : "var(--text-muted)",
+                      fontSize: "12px", fontWeight: "600", cursor: "pointer",
+                      fontFamily: "'DM Sans', sans-serif",
+                    }}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </Row>
+            <Row label={tr("Time Format")} description={tr("How entry and exit times read across the journal, calendar and PDF report. Stored trades keep 24h.")}>
               <div style={{ display: "flex", gap: "6px" }}>
                 {(["24h", "12h"] as const).map((f) => (
                   <button
@@ -628,7 +642,7 @@ export default function SettingsPage() {
                       fontFamily: "'DM Sans', sans-serif",
                     }}
                   >
-                    {f === "24h" ? "24-hour · 14:05" : "12-hour · 2:05 PM"}
+                    {tr(f === "24h" ? "24-hour · 14:05" : "12-hour · 2:05 PM")}
                   </button>
                 ))}
               </div>
@@ -636,10 +650,10 @@ export default function SettingsPage() {
           </Section>
 
           {/* Analytics */}
-          <Section title="Analytics" icon={Lightbulb}>
+          <Section title={tr("Analytics")} icon={Lightbulb}>
             <Row
-              label="Week Starts On"
-              description="Sets the first column of the calendar and the anchor for weekly breakdowns."
+              label={tr("Week Starts On")}
+              description={tr("Sets the first column of the calendar and the anchor for weekly breakdowns.")}
             >
               <div style={{ display: "flex", gap: "6px" }}>
                 {(["monday", "sunday"] as const).map((d) => (
@@ -655,14 +669,14 @@ export default function SettingsPage() {
                       fontFamily: "'DM Sans', sans-serif",
                     }}
                   >
-                    {d === "monday" ? "Monday" : "Sunday"}
+                    {tr(d === "monday" ? "Monday" : "Sunday")}
                   </button>
                 ))}
               </div>
             </Row>
             <Row
-              label="Guidance"
-              description="How much reading the Analytics tabs show. Off keeps the numbers; Benchmarks adds the five-band reference scales; Full adds the findings and next steps. Never hides data."
+              label={tr("Guidance")}
+              description={tr("How much reading the Analytics tabs show. Off keeps the numbers; Benchmarks adds the five-band reference scales; Full adds the findings and next steps. Never hides data.")}
             >
               <div style={{ display: "flex", gap: "6px" }}>
                 {(["off", "benchmarks", "full"] as const).map((mode) => (
@@ -679,7 +693,7 @@ export default function SettingsPage() {
                       fontFamily: "'DM Sans', sans-serif",
                     }}
                   >
-                    {mode === "benchmarks" ? "Benchmarks" : mode === "off" ? "Off" : "Full"}
+                    {tr(mode === "benchmarks" ? "Benchmarks" : mode === "off" ? "Off" : "Full")}
                   </button>
                 ))}
               </div>
@@ -688,49 +702,47 @@ export default function SettingsPage() {
 
           {/* Risk Controls. These were stored but never editable, so the
               Dashboard guard could only ever be blank. */}
-          <Section title="Risk Controls" icon={Shield}>
+          <Section title={tr("Risk Controls")} icon={Shield}>
             <Row
-              label="Daily loss limit"
-              description="Loss at which the Dashboard marks the day as done. 0 turns the guard off."
+              label={tr("Daily loss limit")}
+              description={tr("Loss at which the Dashboard marks the day as done. 0 turns the guard off.")}
             >
               <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
                 <span style={{ fontSize: "12px", color: "var(--text-muted)" }}>{settings.currencyFormat}</span>
                 <input
                   type="number" min={0} step={50}
                   value={settings.dailyLossLimit || ""}
-                  placeholder="Off"
-                  aria-label="Daily loss limit"
+                  placeholder={tr("Off")}
+                  aria-label={tr("Daily loss limit")}
                   onChange={(e) => updateSettings({ dailyLossLimit: Math.max(0, Number(e.target.value) || 0) })}
                   style={riskInputStyle}
                 />
               </div>
             </Row>
             <Row
-              label="Max trades per day"
-              description="Trade count that ends the session. 0 turns the guard off."
+              label={tr("Max trades per day")}
+              description={tr("Trade count that ends the session. 0 turns the guard off.")}
             >
               <input
                 type="number" min={0} step={1}
                 value={settings.maxDailyTrades || ""}
-                placeholder="Off"
-                aria-label="Max trades per day"
+                placeholder={tr("Off")}
+                aria-label={tr("Max trades per day")}
                 onChange={(e) => updateSettings({ maxDailyTrades: Math.max(0, Math.round(Number(e.target.value) || 0)) })}
                 style={riskInputStyle}
               />
             </Row>
             <p style={{ fontSize: "11px", color: "var(--text-muted)", margin: 0, lineHeight: 1.5 }}>
-              The Dashboard shows today&apos;s loss and trade count against these limits. They are a
-              reminder, not a lock — nothing stops a trade from being imported.
-            </p>
+              {tr("The Dashboard shows today's loss and trade count against these limits. They are a reminder, not a lock — nothing stops a trade from being imported.")}</p>
           </Section>
         </div>
 
         <div>
           {/* Data Management */}
-          <Section title="Data Management" icon={Database}>
+          <Section title={tr("Data Management")} icon={Database}>
             <Row
-              label="Export Trades (CSV)"
-              description={`${trades.length} trade${trades.length !== 1 ? "s" : ""} across ${accounts.length} account${accounts.length !== 1 ? "s" : ""}`}
+              label={tr("Export Trades (CSV)")}
+              description={tr(`${trades.length} trade${trades.length !== 1 ? "s" : ""} across ${accounts.length} account${accounts.length !== 1 ? "s" : ""}`)}
             >
               <button
                 onClick={handleExport}
@@ -747,12 +759,12 @@ export default function SettingsPage() {
                 }}
               >
                 {exportDone && <Check size={13} />}
-                {exportDone ? "Exported" : "Export CSV"}
+                {tr(exportDone ? "Exported" : "Export CSV")}
               </button>
             </Row>
             <Row
-              label="Export Trades (JSON)"
-              description="Full data export including all fields and journal entries"
+              label={tr("Export Trades (JSON)")}
+              description={tr("Full data export including all fields and journal entries")}
             >
               <button
                 onClick={handleJsonExport}
@@ -769,12 +781,12 @@ export default function SettingsPage() {
                 }}
               >
                 {jsonExportDone && <Check size={13} />}
-                {jsonExportDone ? "Exported" : "Export JSON"}
+                {tr(jsonExportDone ? "Exported" : "Export JSON")}
               </button>
             </Row>
             <Row
-              label="Export PDF Report"
-              description="Generate a full performance report with filters and layout options"
+              label={tr("Export PDF Report")}
+              description={tr("Generate a full performance report with filters and layout options")}
             >
               <button
                 onClick={() => setActivePage("export")}
@@ -787,14 +799,13 @@ export default function SettingsPage() {
                 }}
               >
                 <FileDown size={13} />
-                Open Export
-              </button>
+                {tr("Open Export")}</button>
             </Row>
           </Section>
 
           {/* About */}
-          <Section title="About" icon={Info}>
-            <Row label="Version" description="Current installed version">
+          <Section title={tr("About")} icon={Info}>
+            <Row label={tr("Version")} description={tr("Current installed version")}>
               <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
                 <span style={{
                   fontSize: "12px", fontWeight: "700", color: "var(--accent-green)",
@@ -806,7 +817,7 @@ export default function SettingsPage() {
                 <button
                   onClick={checkForUpdates}
                   disabled={checkingUpdate || isUpdateRunning}
-                  title="Check for updates"
+                  title={tr("Check for updates")}
                   style={{
                     background: "none", border: "none",
                     cursor: (checkingUpdate || isUpdateRunning) ? "default" : "pointer",
@@ -827,7 +838,7 @@ export default function SettingsPage() {
                     }}
                   />
                   <span style={{ fontSize: "13px", color: "var(--text-muted)", fontFamily: "'DM Sans', sans-serif" }}>
-                    {checkingUpdate ? "Checking..." : "Check for updates"}
+                    {tr(checkingUpdate ? "Checking..." : "Check for updates")}
                   </span>
                 </button>
               </div>
@@ -838,10 +849,10 @@ export default function SettingsPage() {
 
       {/* Kept apart from the exports above: these two discard data and should
           not sit one row from a button a trader presses routinely. */}
-      <Section title="Danger zone" icon={AlertTriangle} tone="danger">
+      <Section title={tr("Danger zone")} icon={AlertTriangle} tone="danger">
         <Row
-          label="Reset settings"
-          description="Restores appearance, analytics and risk settings to defaults. Trades, accounts and journal entries are untouched."
+          label={tr("Reset settings")}
+          description={tr("Restores appearance, analytics and risk settings to defaults. Trades, accounts and journal entries are untouched.")}
         >
           <button
             onClick={resetSettings}
@@ -852,12 +863,11 @@ export default function SettingsPage() {
               cursor: "pointer", fontFamily: "'DM Sans', sans-serif",
             }}
           >
-            Reset to defaults
-          </button>
+            {tr("Reset to defaults")}</button>
         </Row>
         <Row
-          label="Clear all trades"
-          description="Permanently deletes every trade in every account. This cannot be undone; export a JSON backup first."
+          label={tr("Clear all trades")}
+          description={tr("Permanently deletes every trade in every account. This cannot be undone; export a JSON backup first.")}
         >
           <button
             onClick={handleClearTrades}
@@ -870,7 +880,7 @@ export default function SettingsPage() {
               fontFamily: "'DM Sans', sans-serif",
             }}
           >
-            {cleared ? "Cleared" : clearConfirm ? "Confirm — cannot be undone" : "Clear all trades"}
+            {tr(cleared ? "Cleared" : clearConfirm ? "Confirm — cannot be undone" : "Clear all trades")}
           </button>
         </Row>
       </Section>

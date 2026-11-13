@@ -1,4 +1,5 @@
 "use client";
+import { t as tr } from "../lib/i18n";
 import { useApp } from "../context/AppContext";
 import PropFirmPanel from "../components/PropFirmPanel";
 
@@ -12,11 +13,9 @@ export default function PropFirmPage() {
     <div>
       <div style={{ marginBottom: "32px" }}>
         <h2 style={{ fontSize: "26px", fontWeight: "700", color: "var(--text-primary)", letterSpacing: "-0.5px" }}>
-          Prop Firm
-        </h2>
+          {tr("Prop Firm")}</h2>
         <p style={{ color: "var(--text-muted)", fontSize: "14px", marginTop: "4px" }}>
-          Where you stand against the challenge rules
-        </p>
+          {tr("Where you stand against the evaluation rules, and what the account pays")}</p>
       </div>
 
       <PropFirmPanel trades={trades} activeAccount={activeAccount} />
