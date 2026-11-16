@@ -8,6 +8,7 @@
 // only repeats a metric is not a recommendation.
 
 import type { Trade } from "./types";
+import { SAMPLE_FLOOR } from "./analytics";
 import type {
   HourBucket, ProcessBucket, GapBucket, CostProfile, RRiskProfile,
   StopQuality, LegStats, CashFlowReport,
@@ -110,7 +111,7 @@ export interface AnalyticsFacts {
 // Trading conventions, not laws. They live in one block so they can be argued
 // with in one place rather than hunted across nine rule sets.
 const T = {
-  minSampleTrades: 30,      // below this the whole verdict is provisional
+  minSampleTrades: SAMPLE_FLOOR, // below this the whole verdict is provisional
   minSlice: 5,              // per day / hour / symbol before a slice is trusted
   minHourSlice: 5,
 

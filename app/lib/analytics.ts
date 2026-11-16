@@ -188,6 +188,91 @@ export function weekdayHeaders(weekStart: "sunday" | "monday"): string[] {
   return [...days.slice(offset), ...days.slice(0, offset)];
 }
 
+// ─── Calendar ───────────────────────────────────────────────────────────
+
+// The sample floor the Calendar caveat and the insights engine share, so the
+// page cannot quote a different threshold than the recommendations fire on.
+export const SAMPLE_FLOOR = 30;
+
+// A trade's side, normalized. MetaTrader writes "long"/"short", but imported
+// or older rows can carry either case; a strict equality check dropped those
+// from every direction split without saying so.
+export function tradeSide(trade: Trade): "long" | "short" {
+  return (trade.direction || "").trim().toLowerCase().startsWith("s") ? "short" : "long";
+}
+
+// The book's 1R when a trade has no accepted risk on record: the mean losing
+// trade. Same fallback rMultiples() uses, so a calendar row's R and the R
+// distribution chart cannot disagree.
+export function averageLoss(trades: Trade[]): number {
+  const losses = trades.filter((t) => t.pnl < 0);
+  return losses.length > 0
+    ? Math.abs(losses.reduce((s, t) => s + t.pnl, 0) / losses.length)
+    : 0;
+}
+
+export function tradeR(trade: Trade, avgLoss: number): number | null {
+  const unit = trade.plannedRisk != null && trade.plannedRisk > 0 ? trade.plannedRisk : avgLoss;
+  if (!(unit > 0)) return null;
+  return parseFloat((trade.pnl / unit).toFixed(2));
+}
+
+export interface MonthWeek {
+  index: number;
+  pnl: number;
+  trades: number;
+}
+
+// Weekly subtotals for one month's grid. The week index is the grid row, using
+// the same offset as leadingBlanks, so a total can never sit beside a row of
+// days it does not own.
+export function monthWeeks(
+  trades: Trade[],
+  year: number,
+  month: number,
+  weekStart: "sunday" | "monday",
+): MonthWeek[] {
+  const first = leadingBlanks(new Date(year, month, 1), weekStart);
+  const rows: MonthWeek[] = Array.from({ length: 6 }, (_, index) => ({ index, pnl: 0, trades: 0 }));
+  for (const t of trades) {
+    const [y, m, day] = normalizeDate(t.date).split("-").map(Number);
+    if (y !== year || m - 1 !== month || !day) continue;
+    const row = Math.floor((first + day - 1) / 7);
+    if (row < 0 || row > 5) continue;
+    rows[row].pnl += t.pnl;
+    rows[row].trades += 1;
+  }
+  for (const r of rows) r.pnl = parseFloat(r.pnl.toFixed(2));
+  return rows;
+}
+
+export interface DayRisk {
+  lossBreached: boolean;
+  tradeBreached: boolean;
+  lossWarning: boolean;
+  tradeWarning: boolean;
+}
+
+// Same thresholds and same comparison the Dashboard's guard strip uses, so a
+// day the Calendar marks is a day the guard would have flagged too. A limit of
+// 0 means "not configured" and never fires.
+export function dayRisk(
+  pnl: number,
+  count: number,
+  dailyLossLimit: number,
+  maxDailyTrades: number,
+): DayRisk {
+  const loss = Math.abs(Math.min(pnl, 0));
+  const lossBreached  = dailyLossLimit > 0 && loss >= dailyLossLimit;
+  const tradeBreached = maxDailyTrades > 0 && count >= maxDailyTrades;
+  return {
+    lossBreached,
+    tradeBreached,
+    lossWarning:  !lossBreached  && dailyLossLimit > 0 && (loss / dailyLossLimit) * 100 >= 75,
+    tradeWarning: !tradeBreached && maxDailyTrades > 0 && (count / maxDailyTrades) * 100 >= 75,
+  };
+}
+
 export interface HourBucket {
   hour: number;
   label: string;
@@ -438,8 +523,8 @@ export function byReEntryGap(trades: Trade[]): GapBucket[] {
 
 export function byDirection(trades: Trade[]): ProcessBucket[] {
   return [
-    roll("Long",  trades.filter((t) => t.direction === "long")),
-    roll("Short", trades.filter((t) => t.direction === "short")),
+    roll("Long",  trades.filter((t) => tradeSide(t) === "long")),
+    roll("Short", trades.filter((t) => tradeSide(t) === "short")),
   ];
 }
 

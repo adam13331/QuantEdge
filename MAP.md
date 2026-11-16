@@ -45,6 +45,7 @@ fall back to a keyword grep in the same file — the file itself will be right.
 | Settings default | `app/hooks/useSettings.ts`: add a field to `Settings` (~3) and to `DEFAULTS`. localStorage-backed, merged on load |
 | Translate a new string | Wrap the copy in `tr(...)` (`import { t as tr } from "../lib/i18n"`) and add the English text as a key to the matching `app/lib/i18n.hu.*.ts`. Keys are the English source; generated sentences are matched with every figure masked to `{0}`, `{1}`. Run `node scripts/i18n-check.js` — it fails on a missing key, an untranslated value or placeholder drift |
 | Show a trade time | `formatTime(value, settings.timeFormat)` from `app/lib/time.ts` (~7) — stored times stay 24h `HH:MM`; Calendar drawer, journal stat pills and the PDF pass the setting through. Never splice `entryTime` into JSX raw |
+| Calendar day drawer / weekly totals / day risk flags | `app/pages/CalendarPage.tsx` — the page filters the global `dateRange` + `symbolFilter` itself (it is not under `useAnalyticsSummary`), and every derived figure comes from `monthWeeks` / `dayRisk` / `byDirection` / `tradeR` in `app/lib/analytics.ts`. Never sum a week or test a limit inline |
 | Prop-firm challenge math | `app/lib/analytics.ts` `ChallengeConfig` ~710 → `challengeStatus` ~806 → `simulateChallenge` ~944; UI in `app/components/PropFirmPanel.tsx` |
 | Challenge fees and payouts | `prisma/schema.prisma` `PropLedgerEntry` 145 → `app/api/prop-ledger/route.ts` (owns the signed amount: fees negative) → `app/lib/analytics.ts` `payoutSummary` 1205 / `payoutCurve` 1248 → `app/components/PayoutTracker.tsx`, mounted on the prop-firm **Funded ROI** subtab |
 | Ledger period view | `app/components/PayoutTracker.tsx` `scope` / `period` state and `chooseScope` — YYYY-MM-DD prefixes, so filtering never parses a date; every figure comes from `payoutSummary` / `payoutCurve` on the filtered rows |
@@ -70,6 +71,9 @@ Only the entries an agent actually needs. `fn` = exported function.
 `rollingWinRate` 141 · `byDayOfWeek` 151 · `byHourOfDay` 199 · `streaks` 226 ·
 `tradeHours` 249 · `parseRR` 280 · `byInstrument` 307 · `durationMinutes` 342 ·
 `byDuration` 379 · `byReEntryGap` 409 · `byDirection` 437 · `costProfile` 454 ·
+Calendar (195–283): `SAMPLE_FLOOR` 195 (shared with `insights.ts` `T`) ·
+`tradeSide` 200 · `averageLoss` 207 · `tradeR` 214 · `monthWeeks` 229 ·
+`dayRisk` 259 ·
 `recoveryFactor` 471 · `revengeSequences` 485 · `rRiskProfile` 523 ·
 `stopQuality` 550 · `byExitReason` 590 · `byMagic` 600 · `legStats` 633 ·
 `externalCashFlow` 670 · `DEFAULT_CHALLENGE` 726 · `FIRM_PRESETS` 744 ·
@@ -171,7 +175,9 @@ rows only badge a firm that differs from it) ·
 PDF wrapper the app imports)
 
 Pages (default export unless noted): `Dashboard` 194 ·
-`CalendarPage` 494 · `PropFirmPage` 24 (thin shell over `PropFirmPanel`) ·
+`CalendarPage` 44 (period/market filter, 7-day grid + a Week column that is dropped below 760px, day drawer
+with direction split, ‹ › day stepping, missing-notes dimming, risk-flag cells,
+inline trade add) · `PropFirmPage` 24 (thin shell over `PropFirmPanel`) ·
 `PlaybookPage` 1103 (`ExperimentsPanel` 934) · `ReviewPage` 170 ·
 `ImportPage` 520 · `ExportPage` 828 ·
 `AccountsPage` 392 · `JournalEditorPage` 767 · `SettingsPage` 858

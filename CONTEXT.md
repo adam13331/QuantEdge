@@ -168,6 +168,39 @@ changed, say so in one line and leave the rest untouched. This file answers
 
 ## Session log
 
+- 2026-11-16 — Calendar overhaul (ten items): it now applies the global
+  `dateRange` + `symbolFilter` itself and offers a clear-filters banner (it was
+  the only page ignoring them); month names, weekday headers, the drawer
+  heading and the best/worst dates follow `settings.language` instead of
+  hardcoded `en-US`; the day drawer shows a Long/Short split strip and each row
+  carries its % alongside the $, plus planned risk, R (`tradeR`, average-loss
+  fallback), hold time, exit time and exit reason; day cells flag a daily-loss
+  or trade-cap breach from the Settings risk controls (`dayRisk`, same
+  comparison as the Dashboard guard); the grid gained a Week column
+  (`monthWeeks`) and the monthly cards a Journaled card; the drawer steps to the
+  neighbouring trading day with ‹ › and the arrow keys, and the month/selection
+  is kept per tab in `sessionStorage`; a missing-notes toggle dims written-up
+  days; empty days open the drawer with an inline quick-add form that POSTs
+  through `/api/trades`; and months under `SAMPLE_FLOOR` (30, now shared with
+  `insights.ts` `T.minSampleTrades`) lead with the provisional caveat.
+  `byDirection` is now case-insensitive via the new `tradeSide`. The Week column
+  is dropped below 760px (`matchMedia`, like `Sidebar`), because at 480px it
+  left the day cells 35px wide; without it they are 48px and the grid fits.
+  Eighteen throwaway assertions cover the new `analytics.ts` helpers; typecheck,
+  per-file lint, `scripts/i18n-check.js` and the production build are clean.
+  Verified live at 1600 and 480px (no element crosses the viewport, drawer
+  fills the screen and its form fits), plus one quick-add round trip
+  (created, appeared in the drawer with its %, then deleted again).
+  `docs/screenshots/calendar.png` is stale — regenerating it needs the example
+  dataset on a second port, not the working journal.
+
+- 2026-11-16 — The Calendar's day drawer (`CalendarPage`) now shows each
+  trade's direction as a Long/Short chip beside the symbol, coloured with the
+  profit/loss tokens. Direction is read case-insensitively from
+  `Trade.direction`, so hand-entered `Long` and exported `long` both render.
+  Typecheck clean; the file's two pre-existing `set-state-in-effect` lint
+  errors are untouched.
+
 - 2026-11-04 — Reorganised the Evaluation and Funded ROI tabs around one
   collapsed input card each. On Evaluation everything that configures the
   measurement — stage switch, sample source, the four custom-metric fields,
