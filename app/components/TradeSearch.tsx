@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Search, X, ArrowUp, ArrowDown, CornerDownLeft } from "lucide-react";
 import { useApp } from "../context/AppContext";
 import { Trade } from "../lib/types";
+import { moneyRaw as fmtMoneyRaw } from "../lib/money";
 
 // TipTap stores the journal as a JSON document. Searching the raw string would
 // only ever match structural keys, so flatten the text nodes instead. Only the
@@ -43,7 +44,7 @@ function haystack(t: Trade): string {
 }
 
 const money = (v: number) =>
-  `${v < 0 ? "-" : v > 0 ? "+" : ""}$${Math.abs(v).toLocaleString("en-US", { maximumFractionDigits: 2 })}`;
+  `${v < 0 ? "-" : v > 0 ? "+" : ""}${fmtMoneyRaw(Math.abs(v).toLocaleString("en-US", { maximumFractionDigits: 2 }))}`;
 
 const RESULT_LIMIT = 8;
 

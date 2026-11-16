@@ -13,6 +13,7 @@ import {
   challengeStatus, simulateChallenge, challengeROI, targetPctFor,
 } from "../lib/analytics";
 import { FileDown, Filter, Layout, Eye, ChevronDown } from "lucide-react";
+import { money as fmtMoney } from "../lib/money";
 
 // Single dynamic import wrapping both PDFDownloadLink and TradingReportPDF
 // They must live in the same module boundary — splitting them causes the 'su is not a function' crash
@@ -238,7 +239,7 @@ function LivePreview({ stats, options, challenge }: { stats: ReportStats; option
     padding: "20px", marginBottom: "12px",
     width: "100%", color: "#1a1a2e",
   };
-  const money = (n: number) => `${n >= 0 ? "+" : "-"}$${Math.abs(n).toFixed(0)}`;
+  const money = (n: number) => `${n >= 0 ? "+" : "-"}${fmtMoney(Math.abs(n), 0)}`;
   const green = "#00b85e";
   const red = "#cc3355";
 
@@ -330,7 +331,7 @@ function LivePreview({ stats, options, challenge }: { stats: ReportStats; option
             { label: tr("Win Rate"), value: `${stats.winRate}%` },
             { label: tr("Avg Realised R"), value: stats.avgRR === null ? "—" : `${stats.avgRR >= 0 ? "+" : ""}${stats.avgRR.toFixed(2)}R`, color: stats.avgRR === null ? undefined : stats.avgRR > 0 ? green : red },
             { label: tr("Expectancy"), value: money(stats.expectancyDollars), color: stats.expectancyDollars >= 0 ? green : red },
-            { label: tr("$/Hour"), value: stats.hourlyRate === null ? "—" : `$${stats.hourlyRate.toFixed(2)}` },
+            { label: tr("Per hour"), value: stats.hourlyRate === null ? "—" : `${fmtMoney(stats.hourlyRate, 2)}` },
           ])}
         </div>
       )}
@@ -346,8 +347,8 @@ function LivePreview({ stats, options, challenge }: { stats: ReportStats; option
           ])}
           {stats.riskCoverage > 0 ? (
             <>
-              {kv("Avg planned risk", `$${stats.avgRisk.toFixed(2)}`)}
-              {kv("Risk range", `$${stats.minRisk.toFixed(0)} – $${stats.maxRisk.toFixed(0)}`)}
+              {kv("Avg planned risk", `${fmtMoney(stats.avgRisk, 2)}`)}
+              {kv("Risk range", `${fmtMoney(stats.minRisk, 0)} – ${fmtMoney(stats.maxRisk, 0)}`)}
               {kv("Risk consistency", `${stats.riskConsistency.toFixed(0)}%`)}
               {kv("Stop breaches", String(stats.stopBreaches))}
             </>
@@ -360,7 +361,7 @@ function LivePreview({ stats, options, challenge }: { stats: ReportStats; option
           {head("R-Multiple Distribution")}
           {grid([
             { label: tr("Avg R"), value: `${stats.avgR >= 0 ? "+" : ""}${stats.avgR.toFixed(2)}R`, color: stats.avgR >= 0 ? green : red },
-            { label: tr("1R Unit"), value: stats.rUnit > 0 ? `$${stats.rUnit.toFixed(0)}` : "—" },
+            { label: tr("1R Unit"), value: stats.rUnit > 0 ? `${fmtMoney(stats.rUnit, 0)}` : "—" },
             { label: tr("Expectancy"), value: stats.expectancyR === null ? "—" : `${stats.expectancyR.toFixed(2)}R` },
           ])}
           {stats.rBuckets.length > 0 ? stats.rBuckets.map((b) => (
@@ -379,8 +380,8 @@ function LivePreview({ stats, options, challenge }: { stats: ReportStats; option
         <div>
           {head("Execution Quality")}
           {stats.execCoverage > 0 ? grid([
-            { label: tr("Avg MAE"), value: `$${stats.avgMae.toFixed(0)}`, color: red },
-            { label: tr("Avg MFE"), value: `$${stats.avgMfe.toFixed(0)}`, color: green },
+            { label: tr("Avg MAE"), value: `${fmtMoney(stats.avgMae, 0)}`, color: red },
+            { label: tr("Avg MFE"), value: `${fmtMoney(stats.avgMfe, 0)}`, color: green },
             { label: tr("Entry Eff"), value: `${stats.entryEff.toFixed(0)}%` },
             { label: tr("Exit Eff"), value: `${stats.exitEff.toFixed(0)}%` },
           ]) : note("No MAE/MFE data — re-run the exporter with excursion scanning.")}

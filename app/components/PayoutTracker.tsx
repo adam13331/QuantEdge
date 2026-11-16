@@ -11,6 +11,7 @@ import {
   type PayoutCurvePoint, type PayoutKind, type PropLedgerEntry,
 } from "../lib/analytics";
 import { SectionCard } from "./AnalyticsCards";
+import { moneyRaw as fmtMoneyRaw } from "../lib/money";
 
 const labelStyle: React.CSSProperties = {
   fontSize: "10px", fontWeight: 700, color: "var(--text-muted)",
@@ -57,9 +58,9 @@ const arrowButtonStyle: React.CSSProperties = {
 };
 
 const money = (v: number) =>
-  `${v < 0 ? "-" : ""}$${Math.abs(v).toLocaleString("en-US", { maximumFractionDigits: 2 })}`;
+  `${v < 0 ? "-" : ""}${fmtMoneyRaw(Math.abs(v).toLocaleString("en-US", { maximumFractionDigits: 2 }))}`;
 const money0 = (v: number) =>
-  `${v < 0 ? "-" : ""}$${Math.abs(v).toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
+  `${v < 0 ? "-" : ""}${fmtMoneyRaw(Math.abs(v).toLocaleString("en-US", { maximumFractionDigits: 0 }))}`;
 const pct1 = (v: number) => `${v.toFixed(0)}%`;
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
 

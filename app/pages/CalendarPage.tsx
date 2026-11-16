@@ -10,6 +10,7 @@ import {
 } from "../lib/analytics";
 import { formatTime } from "../lib/time";
 import { Trade } from "../lib/types";
+import { moneyRaw as fmtMoneyRaw, currencySymbol as currencySign } from "../lib/money";
 
 const CALENDAR_RETURN_DAY = "quantedge_calendar_return_day";
 const CALENDAR_VIEW = "quantedge_calendar_view";
@@ -967,20 +968,20 @@ export default function CalendarPage() {
                           background: trade.optionType === "call" ? "rgba(77,159,255,0.15)" : "rgba(255,77,106,0.15)",
                           color: trade.optionType === "call" ? "var(--accent-blue)" : LOSS_COLOR,
                         }}>
-                          {tr(trade.optionType ? `${trade.optionType.toUpperCase()} $${trade.strike}` : trade.type.toUpperCase())}
+                          {tr(trade.optionType ? `${trade.optionType.toUpperCase()} ${fmtMoneyRaw(trade.strike)}` : trade.type.toUpperCase())}
                         </span>
                       </div>
                       <div style={{ display: "flex", alignItems: "baseline", gap: "6px", flexShrink: 0 }}>
                         <span style={{ fontSize: "15px", fontWeight: "700", color: trade.pnl >= 0 ? WIN_COLOR : LOSS_COLOR }}>
-                          {tr(trade.pnl >= 0 ? "+" : "")}${trade.pnl}
+                          {tr(trade.pnl >= 0 ? "+" : "")}{currencySign()}{trade.pnl}
                         </span>
                         <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>{fmtPct(trade.pnl)}</span>
                       </div>
                     </div>
 
                     <div style={{ display: "flex", gap: "16px", flexWrap: "wrap", marginBottom: "8px" }}>
-                      <span style={{ fontSize: "12px", color: "var(--text-muted)" }}>{tr("Entry: $")}{trade.entryPrice}</span>
-                      <span style={{ fontSize: "12px", color: "var(--text-muted)" }}>{tr("Exit: $")}{trade.exitPrice}</span>
+                      <span style={{ fontSize: "12px", color: "var(--text-muted)" }}>{tr("Entry")} {currencySign()}{trade.entryPrice}</span>
+                      <span style={{ fontSize: "12px", color: "var(--text-muted)" }}>{tr("Exit")} {currencySign()}{trade.exitPrice}</span>
                       {trade.rr && <span style={{ fontSize: "12px", color: "var(--text-muted)" }}>R:R {trade.rr}</span>}
                       {trade.entryTime && <span style={{ fontSize: "12px", color: "var(--text-muted)" }}>{formatTime(trade.entryTime, settings.timeFormat)}</span>}
                     </div>
@@ -989,7 +990,7 @@ export default function CalendarPage() {
                       <div style={{ display: "flex", gap: "16px", flexWrap: "wrap", marginBottom: "8px" }}>
                         {trade.plannedRisk != null && (
                           <span style={{ fontSize: "12px", color: "var(--text-muted)" }}>
-                            {tr("Risk: $")}{trade.plannedRisk.toFixed(2)}</span>
+                            {tr("Risk")} {currencySign()}{trade.plannedRisk.toFixed(2)}</span>
                         )}
                         {r !== null && (
                           <span style={{ fontSize: "12px", fontWeight: "600", color: r >= 0 ? WIN_COLOR : LOSS_COLOR }}>

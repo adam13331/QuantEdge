@@ -1,5 +1,6 @@
 "use client";
 import { t as tr } from "../lib/i18n";
+import { currencySymbol as currencySign } from "../lib/money";
 import { useMemo } from "react";
 import { Upload, ShieldCheck, ShieldAlert } from "lucide-react";
 import { useApp } from "../context/AppContext";
@@ -129,7 +130,7 @@ function DailyRiskStrip({ trades }: { trades: Trade[] }) {
       <div style={{ flexShrink: 0, textAlign: "right" }}>
         <div style={{ fontSize: "10px", color: "var(--text-muted)", marginBottom: "2px" }}>{tr("TODAY")}</div>
         <div style={{ fontSize: "16px", fontWeight: "800", color: todayPnl >= 0 ? "var(--profit)" : "var(--loss)" }}>
-          {tr(todayPnl >= 0 ? "+" : "")}${todayPnl.toFixed(2)}
+          {tr(todayPnl >= 0 ? "+" : "")}{currencySign()}{todayPnl.toFixed(2)}
         </div>
       </div>
     </div>

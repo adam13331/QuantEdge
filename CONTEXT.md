@@ -168,6 +168,24 @@ changed, say so in one line and leave the rest untouched. This file answers
 
 ## Session log
 
+- 2026-11-16 — Recommended three, all done. **(1) Tests:** `vitest` 3 (pinned
+  because vitest 5 wants `@types/node` ≥22 and this project pins 20), `npm test`,
+  `vitest.config.ts`, 21 cases in `app/lib/analytics.test.ts` over the load-
+  bearing maths. `AGENTS.md` no longer says a throwaway script is the only
+  proof. **(2) Backups:** `app/lib/backup.ts` + `app/api/backup/route.ts`
+  (download, list, restore with a pre-restore copy and WAL cleanup) and a
+  Settings → Backups section; verified by a download/restore round trip that
+  kept all 89 rows, a 400 for a non-SQLite upload and a 404 for `../` paths.
+  **(3) Currency:** `app/lib/money.ts` is now the only formatter; a codemod moved
+  100 `$${…}` sites plus the JSX `$` prefixes, `settings.currencyFormat` drives
+  `setCurrency()` from `useSettings`, and the i18n mask accepts `€`/`£`/`CA$`/`A$`
+  so translated sentences survive the switch — two Hungarian keys had to be
+  re-shaped for the new placeholder count. Switching to EUR was checked live on
+  the Dashboard (8 amounts, 0 dollars) and the Calendar drawer; the setting was
+  restored to USD afterwards. `npx prisma`, no migrations, schema untouched.
+  Known: `npm run lint` still fails on nine pre-existing files (SettingsPage was
+  fixed on the way through).
+
 - 2026-11-16 — Calendar overhaul (ten items): it now applies the global
   `dateRange` + `symbolFilter` itself and offers a clear-filters banner (it was
   the only page ignoring them); month names, weekday headers, the drawer

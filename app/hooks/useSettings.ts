@@ -1,5 +1,6 @@
 import { useSyncExternalStore } from "react";
 import { setLanguage, type Language } from "../lib/i18n";
+import { setCurrency } from "../lib/money";
 
 // One control instead of two booleans: how much of the guidance layer to show.
 //   off        numbers only
@@ -143,8 +144,10 @@ if (typeof window !== "undefined") {
 export function useSettings() {
   const settings = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
   // Assign during render (not in an effect) so every component rendered below
-  // the shell in this same pass already translates into the right language.
+  // the shell in this same pass already translates into the right language and
+  // formats money with the right currency.
   setLanguage(settings.language);
+  setCurrency(settings.currencyFormat);
 
   const updateSettings = (partial: Partial<Settings>) => {
     current = { ...current, ...partial };

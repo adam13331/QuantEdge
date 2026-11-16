@@ -1,5 +1,6 @@
 "use client";
 import { t as tr } from "../lib/i18n";
+import { currencySymbol as currencySign } from "../lib/money";
 import { useMemo } from "react";
 import { useApp } from "../context/AppContext";
 import { weeklyReview, adherenceStats, cohortStats, riskUnit } from "../lib/analytics";
@@ -139,7 +140,7 @@ export default function ReviewPage() {
                   <div style={{ padding: "10px 14px", fontSize: "12px", color: "var(--text-secondary)", borderTop: "1px solid var(--border)" }}>{w.weekStart}</div>
                   <div style={{ padding: "10px 14px", fontSize: "12px", color: "var(--text-secondary)", textAlign: "right", borderTop: "1px solid var(--border)" }}>{w.trades}</div>
                   <div style={{ padding: "10px 14px", fontSize: "12px", fontWeight: "600", textAlign: "right", borderTop: "1px solid var(--border)", color: w.pnl >= 0 ? "var(--profit)" : "var(--loss)" }}>
-                    {tr(w.pnl >= 0 ? "+" : "-")}${Math.abs(w.pnl).toFixed(0)}
+                    {tr(w.pnl >= 0 ? "+" : "-")}{currencySign()}{Math.abs(w.pnl).toFixed(0)}
                   </div>
                   <div style={{ padding: "10px 14px", fontSize: "12px", fontWeight: "600", textAlign: "right", borderTop: "1px solid var(--border)", color: w.expectancyR >= 0 ? "var(--profit)" : "var(--loss)" }}>
                     {tr(w.expectancyR >= 0 ? "+" : "")}{w.expectancyR.toFixed(2)}R

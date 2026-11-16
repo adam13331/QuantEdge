@@ -5,6 +5,7 @@ import { X, Clock, TrendingUp, Link, Save, Image, Trash2, ExternalLink, Library,
 import { Trade } from "../lib/types";
 import { useApp } from "../context/AppContext";
 import TagSelector from "./TagSelector";
+import { moneyRaw as fmtMoneyRaw, currencySymbol as currencySign } from "../lib/money";
 
 interface Props {
   trade: Trade | null;
@@ -371,7 +372,7 @@ export default function TradePanel({ trade, onClose, onSave }: Props) {
                 background: trade.optionType === "call" ? "rgba(77,159,255,0.15)" : "rgba(255,77,106,0.15)",
                 color: trade.optionType === "call" ? "var(--accent-blue)" : "var(--accent-red)",
               }}>
-                {tr(trade.optionType ? `${trade.optionType.toUpperCase()} $${trade.strike}` : trade.type.toUpperCase())}
+                {tr(trade.optionType ? `${trade.optionType.toUpperCase()} ${fmtMoneyRaw(trade.strike)}` : trade.type.toUpperCase())}
               </span>
               <span style={{
                 padding: "2px 8px", borderRadius: "4px", fontSize: "11px", fontWeight: "600",
@@ -387,7 +388,7 @@ export default function TradePanel({ trade, onClose, onSave }: Props) {
                 fontSize: "13px", fontWeight: "700",
                 color: isWin ? "var(--profit)" : "var(--loss)",
               }}>
-                {tr(isWin ? "+" : "")}${trade.pnl}
+                {tr(isWin ? "+" : "")}{currencySign()}{trade.pnl}
               </span>
             </div>
           </div>
@@ -454,11 +455,11 @@ export default function TradePanel({ trade, onClose, onSave }: Props) {
           {/* Trade stats */}
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "10px", marginBottom: "22px" }}>
             {[
-              { label: tr("Entry"),      value: `$${trade.entryPrice}` },
-              { label: tr("Exit"),       value: `$${trade.exitPrice}`  },
+              { label: tr("Entry"),      value: `${fmtMoneyRaw(trade.entryPrice)}` },
+              { label: tr("Exit"),       value: `${fmtMoneyRaw(trade.exitPrice)}`  },
               { label: tr("Qty"),        value: String(trade.quantity) },
-              { label: tr("Commission"), value: `$${trade.commission}` },
-              { label: tr("Fees"),       value: `$${trade.fees}`       },
+              { label: tr("Commission"), value: `${fmtMoneyRaw(trade.commission)}` },
+              { label: tr("Fees"),       value: `${fmtMoneyRaw(trade.fees)}`       },
               { label: tr("Expiry"),     value: trade.expiry || "—"    },
             ].map(({ label, value }) => (
               <div key={label} style={{

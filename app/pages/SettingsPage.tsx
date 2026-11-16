@@ -1,10 +1,10 @@
 "use client";
 import { t as tr, LANGUAGES } from "../lib/i18n";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useSettings } from "../hooks/useSettings";
 import { useApp } from "../context/AppContext";
 import {
-  Palette, Database, Info,
+  Palette, Database, Info, HardDrive, Upload,
   ExternalLink, Check, FileDown,
   Download, RefreshCw, Terminal, Loader, X,
   CheckCircle2, Circle, AlertCircle, MinusCircle,
@@ -50,7 +50,10 @@ const STEP_DEFS = [
 ];
 
 function Section({ title, icon: Icon, children, tone = "default" }: {
-  title: string; icon: any; children: React.ReactNode; tone?: "default" | "danger";
+  title: string;
+  icon: React.ComponentType<{ size?: number | string; color?: string }>;
+  children: React.ReactNode;
+  tone?: "default" | "danger";
 }) {
   const danger = tone === "danger";
   return (
@@ -129,10 +132,39 @@ export default function SettingsPage() {
   const [jsonExportDone, setJsonExportDone] = useState(false);
   const [clearConfirm, setClearConfirm]     = useState(false);
   const [cleared, setCleared]               = useState(false);
+  const [backups, setBackups]               = useState<{ name: string; size: number; modified: number }[]>([]);
+  const [restoring, setRestoring]           = useState(false);
+  const [restoreMsg, setRestoreMsg]         = useState("");
+  const restoreInput                        = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     checkForUpdates();
+    // The rolling pre-update backups are already on disk; listing them is the
+    // only way the user can actually retrieve one.
+    fetch("/api/backup?list=1")
+      .then((res) => res.json())
+      .then((data) => setBackups(Array.isArray(data.backups) ? data.backups : []))
+      .catch(() => {});
   }, []);
+
+  const handleRestore = async (file: File) => {
+    if (!window.confirm(tr("Replace the current database with this file? A safety copy of what is there now is saved first."))) return;
+    setRestoring(true);
+    setRestoreMsg("");
+    try {
+      const body = new FormData();
+      body.append("file", file);
+      const res = await fetch("/api/backup", { method: "POST", body });
+      if (!res.ok) throw new Error();
+      setRestoreMsg(tr("Restored — reloading…"));
+      // The whole client holds the old rows in memory; a reload is what makes
+      // the restored file the app's truth.
+      setTimeout(() => window.location.reload(), 800);
+    } catch {
+      setRestoreMsg(tr("Restore failed"));
+      setRestoring(false);
+    }
+  };
 
   const checkForUpdates = async () => {
     setCheckingUpdate(true);
@@ -801,6 +833,89 @@ export default function SettingsPage() {
                 <FileDown size={13} />
                 {tr("Open Export")}</button>
             </Row>
+          </Section>
+
+          {/* Backups */}
+          <Section title={tr("Backups")} icon={HardDrive}>
+            <Row
+              label={tr("Download database")}
+              description={tr("A copy of the SQLite file holding every trade, journal entry and setting. Keep it somewhere other than this machine.")}
+            >
+              <a
+                href="/api/backup"
+                download
+                style={{
+                  padding: "8px 16px", borderRadius: "8px",
+                  border: "1px solid var(--border)", background: "transparent",
+                  color: "var(--text-primary)", fontSize: "12px", fontWeight: "600",
+                  cursor: "pointer", fontFamily: "'DM Sans', sans-serif",
+                  display: "flex", alignItems: "center", gap: "6px", textDecoration: "none",
+                }}
+              >
+                <Download size={13} />
+                {tr("Download .db")}</a>
+            </Row>
+            <Row
+              label={tr("Restore from a file")}
+              description={tr("Replaces the current database. A safety copy is saved to backups/ first.")}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                {restoreMsg && (
+                  <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>{restoreMsg}</span>
+                )}
+                <input
+                  ref={restoreInput}
+                  type="file"
+                  accept=".db,application/vnd.sqlite3"
+                  style={{ display: "none" }}
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) handleRestore(file);
+                    e.target.value = "";
+                  }}
+                />
+                <button
+                  onClick={() => restoreInput.current?.click()}
+                  disabled={restoring}
+                  style={{
+                    padding: "8px 16px", borderRadius: "8px",
+                    border: "1px solid var(--border)", background: "transparent",
+                    color: "var(--text-primary)", fontSize: "12px", fontWeight: "600",
+                    cursor: restoring ? "default" : "pointer", fontFamily: "'DM Sans', sans-serif",
+                    display: "flex", alignItems: "center", gap: "6px",
+                    opacity: restoring ? 0.6 : 1,
+                  }}
+                >
+                  <Upload size={13} />
+                  {tr(restoring ? "Restoring…" : "Choose a .db file")}</button>
+              </div>
+            </Row>
+            {backups.length > 0 && (
+              <div style={{ borderTop: "1px solid var(--border)", paddingTop: "14px", marginTop: "6px" }}>
+                <div style={{
+                  fontSize: "11px", fontWeight: "600", color: "var(--text-muted)",
+                  letterSpacing: "0.5px", marginBottom: "8px",
+                }}>
+                  {tr("RECENT BACKUPS")}</div>
+                {backups.slice(0, 6).map((backup) => (
+                  <a
+                    key={backup.name}
+                    href={`/api/backup?file=${encodeURIComponent(backup.name)}`}
+                    download
+                    style={{
+                      display: "flex", justifyContent: "space-between", gap: "12px",
+                      padding: "5px 0", textDecoration: "none",
+                      fontSize: "12px", color: "var(--text-secondary)",
+                    }}
+                  >
+                    <span style={{ fontFamily: "monospace" }}>{backup.name}</span>
+                    <span style={{ color: "var(--text-muted)" }}>
+                      {(backup.size / 1024).toFixed(0)} KB
+                    </span>
+                  </a>
+                ))}
+              </div>
+            )}
           </Section>
 
           {/* About */}

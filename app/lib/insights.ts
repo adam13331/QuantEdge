@@ -9,6 +9,7 @@
 
 import type { Trade } from "./types";
 import { SAMPLE_FLOOR } from "./analytics";
+import { money as fmtMoney, moneyRaw as fmtMoneyRaw } from "./money";
 import type {
   HourBucket, ProcessBucket, GapBucket, CostProfile, RRiskProfile,
   StopQuality, LegStats, CashFlowReport,
@@ -429,7 +430,7 @@ export type GuideKey = keyof typeof LOOK_FOR;
 
 // ─── Helpers ────────────────────────────────────────────────────────────
 
-const money = (v: number, digits = 2) => `${v < 0 ? "-" : "+"}$${Math.abs(v).toFixed(digits)}`;
+const money = (v: number, digits = 2) => `${v < 0 ? "-" : "+"}${fmtMoneyRaw(Math.abs(v).toFixed(digits))}`;
 const pct = (v: number, digits = 1) => `${v.toFixed(digits)}%`;
 const share = (part: number, whole: number) => (whole > 0 ? (part / whole) * 100 : 0);
 const sum = (values: number[]) => values.reduce((s, v) => s + v, 0);
@@ -777,7 +778,7 @@ function riskInsights(f: AnalyticsFacts): Insight[] {
         level: "bad",
         guide: "riskPct",
         title: "Risk per trade is large enough to end the account on a streak",
-        detail: `${pct(f.riskPctAvg, 2)} of balance per trade ($${f.avgRisk.toFixed(2)}). Six ordinary losers in a row would take roughly ${pct(f.riskPctAvg * 6, 0)} — a normal month, not a bad one.`,
+        detail: `${pct(f.riskPctAvg, 2)} of balance per trade (${fmtMoney(f.avgRisk, 2)}). Six ordinary losers in a row would take roughly ${pct(f.riskPctAvg * 6, 0)} — a normal month, not a bad one.`,
         metric: `${pct(f.riskPctAvg, 2)}`,
       });
     } else if (f.riskPctAvg > T.riskWarnPct) {
@@ -801,7 +802,7 @@ function riskInsights(f: AnalyticsFacts): Insight[] {
         level: "good",
         guide: "riskPct",
         title: "Risk per trade sits in the survivable band",
-        detail: `${pct(f.riskPctAvg, 2)} of balance per trade ($${f.avgRisk.toFixed(2)}). A normal losing run costs a fraction of the account.`,
+        detail: `${pct(f.riskPctAvg, 2)} of balance per trade (${fmtMoney(f.avgRisk, 2)}). A normal losing run costs a fraction of the account.`,
         metric: `${pct(f.riskPctAvg, 2)}`,
       });
     }
@@ -1500,7 +1501,7 @@ function processInsights(f: AnalyticsFacts): Insight[] {
       level: "bad",
       guide: "costPct",
       title: "Costs are consuming a tenth of everything won",
-      detail: `$${costs.costs.toFixed(2)} of commission and fees against $${costs.grossProfit.toFixed(2)} gross profit ($${costs.costPerTrade.toFixed(2)} per trade). Every extra trade carries that friction whether it wins or loses, so reducing trade count is worth more than raising targets here.`,
+      detail: `${fmtMoney(costs.costs, 2)} of commission and fees against ${fmtMoney(costs.grossProfit, 2)} gross profit (${fmtMoney(costs.costPerTrade, 2)} per trade). Every extra trade carries that friction whether it wins or loses, so reducing trade count is worth more than raising targets here.`,
       metric: pct(costs.costPctOfGross, 2),
     });
   } else if (costs.costPctOfGross >= T.costWarnPct) {
@@ -1508,7 +1509,7 @@ function processInsights(f: AnalyticsFacts): Insight[] {
       level: "warn",
       guide: "costPct",
       title: "Costs are a meaningful slice of gross profit",
-      detail: `${pct(costs.costPctOfGross, 2)} of gross profit ($${costs.costPerTrade.toFixed(2)} per trade). Trimming low-conviction trades improves the net result without touching the strategy.`,
+      detail: `${pct(costs.costPctOfGross, 2)} of gross profit (${fmtMoney(costs.costPerTrade, 2)} per trade). Trimming low-conviction trades improves the net result without touching the strategy.`,
       metric: pct(costs.costPctOfGross, 2),
     });
   } else if (costs.costPctOfGross > 0 && costs.costPctOfGross < T.costNoisePct) {
@@ -1516,7 +1517,7 @@ function processInsights(f: AnalyticsFacts): Insight[] {
       level: "good",
       guide: "costPct",
       title: "Costs are noise against gross profit",
-      detail: `${pct(costs.costPctOfGross, 2)} of gross profit ($${costs.costPerTrade.toFixed(2)} per trade). Execution cost is not constraining this edge — trade selection is the only lever worth pulling.`,
+      detail: `${pct(costs.costPctOfGross, 2)} of gross profit (${fmtMoney(costs.costPerTrade, 2)} per trade). Execution cost is not constraining this edge — trade selection is the only lever worth pulling.`,
       metric: pct(costs.costPctOfGross, 2),
     });
   }
@@ -1767,7 +1768,7 @@ function processInsights(f: AnalyticsFacts): Insight[] {
         level: "bad",
         guide: "depositShare",
         title: "Deposits are carrying the equity curve",
-        detail: `$${f.cashFlow.deposits.toFixed(2)} went in and $${Math.abs(f.cashFlow.withdrawals).toFixed(2)} came out, a net ${money(f.cashFlow.netFlow)}. Trading itself produced ${money(f.totalPnl)}, so the balance is rising on external cash rather than performance — read every ratio on this tab without it.`,
+        detail: `${fmtMoney(f.cashFlow.deposits, 2)} went in and ${fmtMoney(Math.abs(f.cashFlow.withdrawals), 2)} came out, a net ${money(f.cashFlow.netFlow)}. Trading itself produced ${money(f.totalPnl)}, so the balance is rising on external cash rather than performance — read every ratio on this tab without it.`,
         metric: money(f.cashFlow.netFlow, 0),
       });
     } else if (flowShare >= 20) {
@@ -1775,7 +1776,7 @@ function processInsights(f: AnalyticsFacts): Insight[] {
         level: "bad",
         guide: "depositShare",
         title: "Deposits are inflating the equity curve",
-        detail: `$${f.cashFlow.deposits.toFixed(2)} went in and $${Math.abs(f.cashFlow.withdrawals).toFixed(2)} came out, a net ${money(f.cashFlow.netFlow)}. That is ${pct(flowShare, 0)} of net profit — read every ratio on this tab as trading performance without it.`,
+        detail: `${fmtMoney(f.cashFlow.deposits, 2)} went in and ${fmtMoney(Math.abs(f.cashFlow.withdrawals), 2)} came out, a net ${money(f.cashFlow.netFlow)}. That is ${pct(flowShare, 0)} of net profit — read every ratio on this tab as trading performance without it.`,
         metric: money(f.cashFlow.netFlow, 0),
       });
     } else {

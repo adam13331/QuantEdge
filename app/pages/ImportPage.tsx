@@ -4,6 +4,7 @@ import { useState, useRef, useMemo } from "react";
 import { useApp } from "../context/AppContext";
 import { Trade } from "../lib/types";
 import { parseMetaTraderCSV, isMetaTraderCSV, firstLine } from "../lib/parseMetaTraderCSV";
+import { moneyRaw as fmtMoneyRaw, currencySymbol as currencySign } from "../lib/money";
 import {
   Upload, CheckCircle, AlertCircle, FileText,
   ArrowRight, X, Database, RefreshCw, ChevronDown, Download,
@@ -496,7 +497,7 @@ export default function ImportPage() {
                           background: trade.optionType === "call" ? "rgba(77,159,255,0.15)" : "rgba(255,77,106,0.15)",
                           color: trade.optionType === "call" ? "var(--accent-blue)" : "var(--loss)",
                         }}>
-                          {trade.optionType.toUpperCase()} {tr(trade.strike ? `$${trade.strike}` : "")}
+                          {trade.optionType.toUpperCase()} {tr(trade.strike ? `${fmtMoneyRaw(trade.strike)}` : "")}
                         </span>
                       ) : (
                         <span style={{
@@ -508,10 +509,10 @@ export default function ImportPage() {
                       )}
                     </td>
                     <td style={{ padding: "10px 14px", color: "var(--text-secondary)" }}>{trade.quantity}</td>
-                    <td style={{ padding: "10px 14px", color: "var(--text-secondary)" }}>${trade.entryPrice}</td>
-                    <td style={{ padding: "10px 14px", color: "var(--text-secondary)" }}>${trade.exitPrice}</td>
+                    <td style={{ padding: "10px 14px", color: "var(--text-secondary)" }}>{currencySign()}{trade.entryPrice}</td>
+                    <td style={{ padding: "10px 14px", color: "var(--text-secondary)" }}>{currencySign()}{trade.exitPrice}</td>
                     <td style={{ padding: "10px 14px", fontWeight: "700", color: trade.pnl >= 0 ? "var(--profit)" : "var(--loss)" }}>
-                      {tr(trade.pnl >= 0 ? "+" : "")}${trade.pnl.toFixed(2)}
+                      {tr(trade.pnl >= 0 ? "+" : "")}{currencySign()}{trade.pnl.toFixed(2)}
                     </td>
                     <td style={{ padding: "10px 14px" }}>
                       <div style={{ display: "flex", gap: "4px", flexWrap: "wrap" }}>

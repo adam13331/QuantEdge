@@ -101,7 +101,7 @@ function insightKeys() {
 // Long/Short are trading terms Hungarian keeps verbatim (the direction labels in
 // the analytics dictionary already read "Long" / "Short"), so an entry whose
 // value equals its key is correct rather than untranslated.
-const NEUTRAL = /^(QuantEdge|QuantEdge v|QuantEdge — Trading Performance Report|FTMO|npm run dev|git pull|GitHub|https:\/\/tradingview\.com\/\.\.\.|var\(--profit\)|\.\/types|\.\/analytics|→ running|Sharpe|Sortino|Calmar|ROI|Minimum|Platform|MetaTrader|MAE \/ MFE|MFE \/ \(MFE \+ MAE\)|Stop R|Kelly|≤ \{0\}× Kelly|\{0\}x|Long|Short|is|it|was|s|es)$/;
+const NEUTRAL = /^(QuantEdge|QuantEdge v|QuantEdge — Trading Performance Report|FTMO|npm run dev|git pull|GitHub|https:\/\/tradingview\.com\/\.\.\.|var\(--profit\)|\.\/types|\.\/analytics|\.\/money|→ running|Sharpe|Sortino|Calmar|ROI|Minimum|Platform|MetaTrader|MAE \/ MFE|MFE \/ \(MFE \+ MAE\)|Stop R|Kelly|≤ \{0\}× Kelly|\{0\}x|Long|Short|is|it|was|s|es)$/;
 
 // Format-only keys: nothing but placeholders and punctuation (bands such as
 // "{0}+" or "< {0}"), which read the same in both languages.

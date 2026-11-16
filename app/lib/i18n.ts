@@ -40,7 +40,10 @@ export function getLanguage(): Language {
 // sentence free to move it anywhere. Tickers are matched first and kept whole —
 // a finding about GER40 must not be read as a sentence about "GER" and "40".
 // Grouped thousands first, so "10,000, axis" takes the number and leaves the comma.
-const TOKEN = /(?<![A-Za-z0-9])(?:[A-Z]{2,}[0-9]{1,4})(?![A-Za-z0-9])|[-+]?\$?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?%?/g;
+// The currency prefix is part of the token so a €1,234.56 masks exactly like
+// \$1,234.56: switching the display currency must not orphan a translated
+// sentence (the stored keys never change).
+const TOKEN = /(?<![A-Za-z0-9])(?:[A-Z]{2,}[0-9]{1,4})(?![A-Za-z0-9])|[-+]?(?:CA\$|A\$)?[$€£]?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?%?/g;
 
 function mask(text: string): { key: string; values: string[] } {
   const values: string[] = [];

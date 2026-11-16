@@ -4,6 +4,7 @@ import {
   Document, Page, Text, View, StyleSheet, Image,
 } from "@react-pdf/renderer";
 import { Trade, Account } from "../lib/types";import { formatTime } from "../lib/time";
+import { money as fmtMoney, moneyRaw as fmtMoneyRaw } from "../lib/money";
 import { buildReportStats,
   durationMinutes, byDuration, byReEntryGap, byDirection, costProfile,
   recoveryFactor, rRiskProfile, stopQuality,
@@ -265,7 +266,7 @@ const styles = StyleSheet.create({
 });
 
 function fmt(n: number) {
-  return `${n >= 0 ? "+" : "-"}$${Math.abs(n).toFixed(2)}`;
+  return `${n >= 0 ? "+" : "-"}${fmtMoney(Math.abs(n), 2)}`;
 }
 
 // Shared layout for the analysis tables added to the report.
@@ -452,9 +453,9 @@ export default function TradingReportPDF({ trades, account, dateRange, logoUrl, 
                 </Text>
               </View>
               <View style={styles.statCard}>
-                <Text style={styles.statLabel}>{tr("$/Hour")}</Text>
+                <Text style={styles.statLabel}>{tr("Per hour")}</Text>
                 <Text style={(s.hourlyRate ?? 0) >= 0 ? styles.statValueGreen : styles.statValueRed}>
-                  {tr(s.hourlyRate === null ? "—" : `${s.hourlyRate >= 0 ? "+" : ""}$${s.hourlyRate.toFixed(2)}`)}
+                  {tr(s.hourlyRate === null ? "—" : `${s.hourlyRate >= 0 ? "+" : ""}${fmtMoney(s.hourlyRate, 2)}`)}
                 </Text>
                 <Text style={styles.statSub}>
                   {tr(s.hourlyRate === null ? "Needs entry/exit times" : `over ${s.totalHours.toFixed(1)}h in market`)}
@@ -535,8 +536,8 @@ export default function TradingReportPDF({ trades, account, dateRange, logoUrl, 
                   <Text style={styles.dh}>{tr("Basis")}</Text>
                 </View>
                 {[
-                  ["Avg planned risk", `$${s.avgRisk.toFixed(2)}`, `${s.riskPctAvg.toFixed(2)}% of balance`],
-                  ["Risk range", `$${s.minRisk.toFixed(2)} – $${s.maxRisk.toFixed(2)}`, "smallest to largest stop"],
+                  ["Avg planned risk", `${fmtMoney(s.avgRisk, 2)}`, `${s.riskPctAvg.toFixed(2)}% of balance`],
+                  ["Risk range", `${fmtMoney(s.minRisk, 2)} – ${fmtMoney(s.maxRisk, 2)}`, "smallest to largest stop"],
                   ["Risk consistency", `${s.riskConsistency.toFixed(0)}%`, s.riskConsistency >= 80 ? "sizing is deliberate" : "sizing drifts between trades"],
                   ["Stop breaches", String(s.stopBreaches), s.stopBreaches === 0 ? "no loss exceeded planned risk" : "losses past planned risk"],
                 ].map(([label, value, basis], i) => (
@@ -547,7 +548,7 @@ export default function TradingReportPDF({ trades, account, dateRange, logoUrl, 
                   </View>
                 ))}
                 <SectionNote>
-                  {tr(`1R = $${s.avgRisk.toFixed(2)} across ${s.riskCoverage} of ${trades.length} trades. Set a stop loss in MetaTrader and re-run the exporter to raise this coverage.`)}
+                  {tr(`1R = ${fmtMoney(s.avgRisk, 2)} across ${s.riskCoverage} of ${trades.length} trades. Set a stop loss in MetaTrader and re-run the exporter to raise this coverage.`)}
                 </SectionNote>
               </>
             ) : (
@@ -571,7 +572,7 @@ export default function TradingReportPDF({ trades, account, dateRange, logoUrl, 
               <View style={styles.statCard}>
                 <Text style={styles.statLabel}>{tr("1R Unit")}</Text>
                 <Text style={styles.statValueGreen}>
-                  {tr(s.rUnit > 0 ? `$${s.rUnit.toFixed(2)}` : "—")}
+                  {tr(s.rUnit > 0 ? `${fmtMoney(s.rUnit, 2)}` : "—")}
                 </Text>
                 <Text style={styles.statSub}>{tr(s.rUnitSource === "planned" ? "From your stop loss" : "Average loss (fallback)")}</Text>
               </View>
@@ -624,12 +625,12 @@ export default function TradingReportPDF({ trades, account, dateRange, logoUrl, 
                 <View style={styles.statRow}>
                   <View style={styles.statCard}>
                     <Text style={styles.statLabel}>{tr("Avg MAE")}</Text>
-                    <Text style={styles.statValueRed}>${s.avgMae.toFixed(2)}</Text>
+                    <Text style={styles.statValueRed}>{fmtMoney(s.avgMae, 2)}</Text>
                     <Text style={styles.statSub}>{tr("Worst excursion against")}</Text>
                   </View>
                   <View style={styles.statCard}>
                     <Text style={styles.statLabel}>{tr("Avg MFE")}</Text>
-                    <Text style={styles.statValueGreen}>${s.avgMfe.toFixed(2)}</Text>
+                    <Text style={styles.statValueGreen}>{fmtMoney(s.avgMfe, 2)}</Text>
                     <Text style={styles.statSub}>{tr("Best excursion in favour")}</Text>
                   </View>
                   <View style={styles.statCard}>
@@ -822,8 +823,8 @@ export default function TradingReportPDF({ trades, account, dateRange, logoUrl, 
                     </View>
                     {[
                       ["Net external flow", fmt(proc.cash.netFlow), proc.cash.netFlow === 0 ? "#1a1a2e" : proc.cash.netFlow > 0 ? "#00b85e" : "#cc3355"],
-                      ["Deposits", `$${proc.cash.deposits.toFixed(2)}`, "#1a1a2e"],
-                      ["Withdrawals", `$${proc.cash.withdrawals.toFixed(2)}`, "#1a1a2e"],
+                      ["Deposits", `${fmtMoney(proc.cash.deposits, 2)}`, "#1a1a2e"],
+                      ["Withdrawals", `${fmtMoney(proc.cash.withdrawals, 2)}`, "#1a1a2e"],
                     ].map(([label, value, color], i) => (
                       <View key={label} style={i % 2 === 0 ? styles.dataRow : styles.dataRowAlt}>
                         <Text style={[styles.dcBold, COLS.label]}>{label}</Text>
@@ -849,8 +850,8 @@ export default function TradingReportPDF({ trades, account, dateRange, logoUrl, 
               <Text style={styles.dh}>{tr("Standing")}</Text>
             </View>
             {[
-              ["Profit target", `${targetPctFor(challenge)}% · $${prop.status.targetAmount.toFixed(2)}`, `${prop.status.profitProgress.toFixed(1)}% reached`],
-              ["Max drawdown", `${challenge.maxDdPct}% ${challenge.ddMode}`, `$${prop.status.ddUsed.toFixed(2)} of $${prop.status.ddAllowed.toFixed(2)}`],
+              ["Profit target", `${targetPctFor(challenge)}% · ${fmtMoney(prop.status.targetAmount, 2)}`, `${prop.status.profitProgress.toFixed(1)}% reached`],
+              ["Max drawdown", `${challenge.maxDdPct}% ${challenge.ddMode}`, `${fmtMoney(prop.status.ddUsed, 2)} of ${fmtMoney(prop.status.ddAllowed, 2)}`],
               ["Daily limit", challenge.dailyLimitPct > 0 ? `${challenge.dailyLimitPct}%` : "none", challenge.dailyLimitPct > 0 ? `worst ${fmt(prop.status.worstDayPnl)}` : "—"],
               ["Min trading days", challenge.minDays > 0 ? `${challenge.minDays} days` : "none", `${prop.status.tradingDays} days`],
               ["Time limit", challenge.maxDays ? `${challenge.maxDays} days` : "none", prop.plan.remainingDays != null ? `${prop.plan.remainingDays} left` : "—"],
@@ -1034,11 +1035,11 @@ export default function TradingReportPDF({ trades, account, dateRange, logoUrl, 
               <Text style={styles.colType}>
                 {t.optionType ? t.optionType.toUpperCase() : t.type.toUpperCase()}
               </Text>
-              <Text style={styles.colStrike}>{tr(t.strike ? `$${t.strike}` : "—")}</Text>
+              <Text style={styles.colStrike}>{tr(t.strike ? `${fmtMoneyRaw(t.strike)}` : "—")}</Text>
               <Text style={styles.colExpiry}>{t.expiry || "—"}</Text>
               <Text style={styles.colQty}>{t.quantity}</Text>
-              <Text style={styles.colEntry}>${t.entryPrice}</Text>
-              <Text style={styles.colExit}>${t.exitPrice}</Text>
+              <Text style={styles.colEntry}>{fmtMoneyRaw(t.entryPrice)}</Text>
+              <Text style={styles.colExit}>{fmtMoneyRaw(t.exitPrice)}</Text>
               <Text style={[styles.colPnl, { color: t.pnl >= 0 ? "#00b85e" : "#cc3355" }]}>
                 {fmt(t.pnl)}
               </Text>
@@ -1077,12 +1078,12 @@ export default function TradingReportPDF({ trades, account, dateRange, logoUrl, 
                       <Text style={styles.journalSymbol}>{t.underlying}</Text>
                       <Text style={{ fontSize: 8, color: "#888" }}>
                         {t.optionType ? t.optionType.toUpperCase() : t.type.toUpperCase()}
-                        {tr(t.strike ? ` · $${t.strike}` : "")}
+                        {tr(t.strike ? ` · ${fmtMoneyRaw(t.strike)}` : "")}
                         {tr(t.expiry ? ` · ${t.expiry}` : "")}
                       </Text>
                     </View>
                     <Text style={[styles.journalPnl, { color: t.pnl >= 0 ? "#00b85e" : "#cc3355" }]}>
-                      {tr(t.pnl >= 0 ? "+" : "")}${t.pnl.toFixed(2)}
+                      {tr(t.pnl >= 0 ? "+" : "")}{fmtMoney(t.pnl, 2)}
                     </Text>
                   </View>
 

@@ -60,7 +60,12 @@ reading, never the numbers. It migrates the old `showRecommendations` /
 - The local SQLite file is `prisma/prisma/quantedge.db` (Prisma resolves the
   `file:./prisma/quantedge.db` URL against the schema directory). Never read it,
   and when code needs it on disk, check both locations — see
-  `findDatabasePath()` in `app/api/update/route.ts`.
+  `findDatabasePath()` in `app/lib/backup.ts` (the updater keeps its own copy of
+  the same two candidates; both must stay in step).
+- `app/api/backup/route.ts` serves the file for download, lists the rolling
+  copies, and restores an upload. A restore always writes a `pre-restore-*.db`
+  copy first, disconnects Prisma, then drops the `-wal`/`-shm` of the replaced
+  file. Keep that order — skipping any step corrupts or loses data.
 - The in-app updater (`app/api/update/route.ts`) backs up the db before
   migrating and prunes to the 5 most recent. Keep that ordering intact.
 
@@ -74,11 +79,18 @@ reading, never the numbers. It migrates the old `showRecommendations` /
 - The build prints a Node `DEP0205` deprecation warning on stderr. That is noise;
   judge success from `Compiled successfully` and `✓ Generating static pages`.
 - `npm run lint` already fails on pre-existing errors in `JournalToolbar`,
-  `Sidebar`, `TradePanel` and `PropFirmPanel`. Lint your own files and report
-  those separately; do not claim the tree is clean.
-- There is no test suite. For pure functions in `app/lib`, compile the module to
-  a temp dir and drive it from a throwaway Node script — that is the only
-  available proof.
+  `Sidebar`, `TradePanel`, `PropFirmPanel`, `AnalyticsSections`, `AppContext`,
+  `ExportPage`, `JournalEditorPage` and `PlaybookPage`. Lint your own files and
+  report those separately; do not claim the tree is clean.
+- Tests: `npm test` (vitest, `app/lib/**/*.test.ts`). Pure app/lib functions
+  belong there rather than in a throwaway script; a new exported helper in
+  `analytics.ts` should arrive with its cases. `npm test` must be green before
+  you report a change as done.
+- Money: format through `app/lib/money.ts` (`money`, `moneyRaw`, `moneyGrouped`,
+  `currencySymbol`). Never write a literal `$` in front of an amount, and never
+  re-implement the symbol — a EUR account would read as dollars everywhere.
+  Sentences that go through `tr()` may contain the formatted amount because the
+  i18n mask treats `$`, `€`, `£`, `CA$` and `A$` as part of one token.
 
 ## Style
 

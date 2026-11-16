@@ -17,7 +17,7 @@ export const HU_ANALYTICS_2: Record<string, string> = {
   "Avg: {0} trades/day": "Átl.: {0} kötés/nap",
   "{0} of {1} stayed under {2}R": "{1}-ból {0} maradt {2}R alatt",
   "{0} entries per position on average.": "Pozíciónként átlagosan {0} belépés.",
-  "{0} position{1} added to at a worse price than the first entry ({2}{3} net). Averaging down widens risk exactly when the market is proving you wrong.": "{0} pozíciót növeltek az első belépésnél rosszabb áron (nettó {2}{3}). A lefelé átlagolás pontosan akkor szélesíti a kockázatot, amikor a piac bebizonyítja, hogy tévedsz.",
+  "{0} position{1} added to at a worse price than the first entry ({2} net). Averaging down widens risk exactly when the market is proving you wrong.": "{0} pozíciót növeltek az első belépésnél rosszabb áron (nettó {2}). A lefelé átlagolás pontosan akkor szélesíti a kockázatot, amikor a piac bebizonyítja, hogy tévedsz.",
   "{0} on plan · {1} off plan": "{0} terv szerint · {1} terven kívül",
   "{0} win / {1} loss": "{0} nyertes / {1} vesztes",
   "{0} of {1} rated · BE = {2}R": "{1}-ból {0} értékelve · BE = {2}R",

@@ -39,7 +39,10 @@ fall back to a keyword grep in the same file — the file itself will be right.
 | Add a chart to an Analytics tab | `app/components/AnalyticsSections.tsx`, find the `activeTab === "<id>" &&` block (~606–1460), wrap in `SectionCard` |
 | Add a Prisma column | `prisma/schema.prisma` → `npx prisma migrate dev` (manual, no seed script) → `app/lib/types.ts` `Trade` → `scripts/QuantEdgeExport.mq5` header + row → `QUANTEDGE_COLUMNS` in `parseMetaTraderCSV.ts` (order matters, all four) |
 | CSV import format | `app/lib/parseMetaTraderCSV.ts` `QUANTEDGE_COLUMNS` (6). Must stay in sync with the `.mq5` exporter; `QUANTEDGE_HEADER` is built from it at line 14 |
-| Self-update / backup logic | `app/api/update/route.ts` (458). Keep: db backup → migrate → prune to 5. `findDatabasePath()` must cover both possible SQLite locations |
+| Self-update logic | `app/api/update/route.ts` (458). Keep: db backup → migrate → prune to 5. `findDatabasePath()` must cover both possible SQLite locations |
+| Download / restore / list database backups | `app/lib/backup.ts` (`findDatabasePath`, `createBackup`, `listBackups`, `isSqliteFile`, `discardWalFiles`) → `app/api/backup/route.ts` (`GET` file, `GET ?list=1`, `GET ?file=`, `POST` upload) → Settings "Backups" section |
+| Format money | `app/lib/money.ts` (`money`, `moneyRaw`, `moneyGrouped`, `currencySymbol`). Never write `$` before an amount. The display currency comes from `settings.currencyFormat` via `setCurrency()` in `useSettings` |
+| Run the tests | `app/lib/*.test.ts` under vitest; `npm test`. New pure helpers in `analytics.ts` belong here |
 | PDF report layout | `app/components/TradingReportPDF.tsx` (~311 default export); options wired in `ExportPDFInner.tsx` |
 | Theme / accent colour | `app/hooks/useSettings.ts` `applyAccentColor` (59) + CSS vars in `app/globals.css`; accent swatches in `app/pages/SettingsPage.tsx` `ACCENT_COLORS` |
 | Settings default | `app/hooks/useSettings.ts`: add a field to `Settings` (~3) and to `DEFAULTS`. localStorage-backed, merged on load |

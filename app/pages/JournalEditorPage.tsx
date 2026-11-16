@@ -20,6 +20,7 @@ import { useSettings } from "../hooks/useSettings";
 import { Trade, JournalTemplate } from "../lib/types";
 import JournalToolbar from "../components/JournalToolbar";
 import TagSelector from "../components/TagSelector";
+import { moneyRaw as fmtMoneyRaw, currencySymbol as currencySign } from "../lib/money";
 import {
   ArrowLeft, FileText, Check, Loader, LayoutTemplate, X, Trash2,
   Library, ChevronDown, ChevronLeft, ChevronRight,
@@ -757,17 +758,17 @@ export default function JournalEditorPage() {
             </span>
           </div>
           <div style={{ fontSize: 26, fontWeight: 800, color: isWin ? "var(--accent-green)" : "var(--loss)" }}>
-            {tr(isWin ? "+" : "")}${trade.pnl.toFixed(2)}
+            {tr(isWin ? "+" : "")}{currencySign()}{trade.pnl.toFixed(2)}
           </div>
         </div>
 
         {/* Stat pills */}
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
           <StatPill label={tr("DATE")}  value={trade.date} />
-          <StatPill label={tr("ENTRY")} value={`$${trade.entryPrice}`} />
-          <StatPill label={tr("EXIT")}  value={`$${trade.exitPrice}`} />
+          <StatPill label={tr("ENTRY")} value={`${fmtMoneyRaw(trade.entryPrice)}`} />
+          <StatPill label={tr("EXIT")}  value={`${fmtMoneyRaw(trade.exitPrice)}`} />
           <StatPill label={tr("QTY")}   value={String(trade.quantity)} />
-          {trade.strike    && <StatPill label={tr("STRIKE")}     value={`$${trade.strike}`} />}
+          {trade.strike    && <StatPill label={tr("STRIKE")}     value={`${fmtMoneyRaw(trade.strike)}`} />}
           {trade.expiry    && <StatPill label={tr("EXPIRY")}     value={trade.expiry} />}
           {trade.rr        && <StatPill label="R:R"        value={trade.rr} />}
           {trade.entryTime && <StatPill label={tr("ENTRY TIME")} value={formatTime(trade.entryTime, settings.timeFormat)} color="var(--text-secondary)" />}

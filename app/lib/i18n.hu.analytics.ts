@@ -240,7 +240,7 @@ export const HU_ANALYTICS: Record<string, string> = {
   "An estimate of the sample required to detect this gap with 80% power. If it is larger than your journal, the honest move is to collect more trades rather than change the rules.": "Becslés arról, mekkora minta kell ehhez a különbséghez 80%-os erővel. Ha nagyobb a naplódnál, a tisztességes lépés több kötést gyűjteni, nem szabályt változtatni.",
   "Trades needed": "Szükséges kötések",
   "About {0} per window would settle it.": "Körülbelül {0} / ablak eldöntené.",
-  "Across {0} reviewed trades, on-plan work earned {1}{2} and breaks {3}{4}.": "{0} értékelt kötés alapján a terv szerinti munka {1}{2}-t hozott, a szabályszegések pedig {3}{4}-t.",
+  "Across {0} reviewed trades, on-plan work earned {1} and breaks {2}.": "{0} értékelt kötés alapján a terv szerinti munka {1}-t hozott, a szabályszegések pedig {2}-t.",
   "Only {0} reviewed trades so far — treat this as a direction, not a verdict. Ten is the floor before the gap means anything.": "Eddig csak {0} értékelt kötés — kezeld irányként, ne ítéletként. Tíz a minimum, hogy a különbség bármit jelentsen.",
   "Mark trades after a rule change to build this cohort": "Jelöld meg a szabályváltozás utáni kötéseket ehhez a kohorszhoz",
   "Reviewed · Followed the plan": "Értékelve · Követte a tervet",

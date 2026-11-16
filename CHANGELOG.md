@@ -7,6 +7,20 @@ All notable changes to QuantEdge are documented here.
 
 ## [Unreleased — QuantEdge fork]
 
+- **Database backups are now reachable.** Settings → Backups downloads the live
+  SQLite file, lists the rolling copies the updater writes, and restores an
+  upload after validating it is really a SQLite database. A restore saves a
+  `pre-restore-*.db` copy first and clears the stale `-wal`/`-shm`, so a bad file
+  can always be undone from the app.
+- **The currency setting is real.** One formatter (`app/lib/money.ts`) now
+  supplies every amount on screen and in the PDF, driven by the Settings
+  currency; accounts no longer read as dollars when they are not. The i18n mask
+  treats `€`/`£`/`CA$`/`A$` as part of the number token, so translated sentences
+  keep matching when the symbol changes.
+- **A test suite exists.** `npm test` runs vitest over `app/lib` — date
+  normalisation, dispersion and risk ratios, profit factor, drawdowns, R
+  multiples, directional splits, weekday buckets, calendar weeks and the day
+  risk flags. The throwaway-script ritual is retired.
 - **Prop Firm tab redesigned around one answer.** A verdict card leads — pass
   probability ring, the standing in one sentence and target / drawdown / worst
   day — then clickable firm presets with the rule fields behind an **Edit

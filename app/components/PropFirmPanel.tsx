@@ -11,6 +11,7 @@ import {
 } from "../lib/analytics";
 import { SectionCard } from "./AnalyticsCards";
 import PayoutTracker from "./PayoutTracker";
+import { moneyRaw as fmtMoneyRaw, currencySymbol as currencySign } from "../lib/money";
 import {
   Target, Shield, Activity, AlertTriangle, Clock, TrendingUp,
   Percent, Award, ChevronDown, CheckCircle2, XCircle, Info,
@@ -44,7 +45,7 @@ const PATH_COLORS: Record<ChallengeOutcome, string> = {
 };
 
 const money0 = (v: number) =>
-  `${v < 0 ? "-" : ""}$${Math.abs(v).toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
+  `${v < 0 ? "-" : ""}${fmtMoneyRaw(Math.abs(v).toLocaleString("en-US", { maximumFractionDigits: 0 }))}`;
 
 type BandTooltipRow = { p5: number; p50: number; p95: number };
 
@@ -309,7 +310,7 @@ export default function PropFirmPanel({ trades, activeAccount }: { trades: Trade
   const plan   = useMemo(() => challengePlan(trades, config), [trades, config]);
   const roi    = useMemo(() => challengeROI(config, sim.passRate), [config, sim.passRate]);
 
-  const money = (v: number) => `${v < 0 ? "-" : ""}$${Math.abs(v).toLocaleString("en-US", { maximumFractionDigits: 2 })}`;
+  const money = (v: number) => `${v < 0 ? "-" : ""}${fmtMoneyRaw(Math.abs(v).toLocaleString("en-US", { maximumFractionDigits: 2 }))}`;
   const pct1  = (v: number) => `${v.toFixed(1)}%`;
 
   const verdict = useMemo(() => {
@@ -703,8 +704,8 @@ export default function PropFirmPanel({ trades, activeAccount }: { trades: Trade
             {config.source === "custom" && (
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: "12px", marginBottom: "12px" }}>
                 <NumberField label={tr("Win rate %")} value={config.customWinRate} onChange={(x) => set("customWinRate", x)} />
-                <NumberField label={tr("Average win $")} value={config.customAvgWin} onChange={(x) => set("customAvgWin", x)} step={10} />
-                <NumberField label={tr("Average loss $")} value={config.customAvgLoss} onChange={(x) => set("customAvgLoss", x)} step={10} />
+                <NumberField label={`${tr("Average win")} (${currencySign()})`} value={config.customAvgWin} onChange={(x) => set("customAvgWin", x)} step={10} />
+                <NumberField label={`${tr("Average loss")} (${currencySign()})`} value={config.customAvgLoss} onChange={(x) => set("customAvgLoss", x)} step={10} />
                 <NumberField label={tr("Trades / day")} value={config.customTradesPerDay} onChange={(x) => set("customTradesPerDay", x)} />
               </div>
             )}

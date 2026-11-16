@@ -27,6 +27,7 @@ import { buildInsights, type SectionId } from "../lib/insights";
 import { SectionCard, MetricCard, InsightPanel } from "./AnalyticsCards";
 import { useSettings } from "../hooks/useSettings";
 import { Trade } from "../lib/types";
+import { money as fmtMoney, moneyRaw as fmtMoneyRaw, currencySymbol as currencySign } from "../lib/money";
 
 
 function tooltipStyleUnused() {}
@@ -351,26 +352,26 @@ export function OverviewMetrics({ stats }: {
     <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: "16px", marginBottom: "32px" }}>
       <MetricCard
         label={tr("Net P&L")}
-        value={`${stats.totalPnl >= 0 ? "+" : ""}$${stats.totalPnl.toFixed(2)}`}
+        value={`${stats.totalPnl >= 0 ? "+" : ""}${fmtMoney(stats.totalPnl, 2)}`}
         positive={stats.totalPnl >= 0}
         icon={TrendingUp}
         sub={tr(returnPct === null
           ? `${totalTrades} trades · set an initial balance`
-          : `${returnPct >= 0 ? "+" : ""}${returnPct.toFixed(2)}% of $${stats.initBal.toLocaleString()}`)}
+          : `${returnPct >= 0 ? "+" : ""}${returnPct.toFixed(2)}% of ${fmtMoneyRaw(stats.initBal.toLocaleString())}`)}
       />
       <MetricCard
         label={tr("Expectancy")}
         value={`${stats.avgR >= 0 ? "+" : ""}${stats.avgR.toFixed(2)}R`}
         positive={stats.avgR > 0}
         icon={Activity}
-        sub={tr(`${perTrade >= 0 ? "+" : ""}$${perTrade.toFixed(2)} per trade · BE = 0R`)}
+        sub={tr(`${perTrade >= 0 ? "+" : ""}${fmtMoney(perTrade, 2)} per trade · BE = 0R`)}
       />
       <MetricCard
         label={tr("Profit Factor")}
         value={pfLabel}
         positive={stats.profitFactor >= 1}
         icon={Zap}
-        sub={tr(`$${grossWins.toFixed(0)} gross win / $${grossLosses.toFixed(0)} gross loss`)}
+        sub={tr(`${fmtMoney(grossWins, 0)} gross win / ${fmtMoney(grossLosses, 0)} gross loss`)}
       />
       <MetricCard
         label={tr("Drawdown")}
@@ -379,8 +380,8 @@ export function OverviewMetrics({ stats }: {
         neutral={stats.maxDdPct === 0}
         icon={TrendingDown}
         sub={tr(stats.currentDdDays > 0
-          ? `$${Math.abs(stats.maxDd).toFixed(0)} peak-to-trough · ${stats.currentDdDays}d current`
-          : `$${Math.abs(stats.maxDd).toFixed(0)} peak-to-trough · at high-water mark`)}
+          ? `${fmtMoney(Math.abs(stats.maxDd), 0)} peak-to-trough · ${stats.currentDdDays}d current`
+          : `${fmtMoney(Math.abs(stats.maxDd), 0)} peak-to-trough · at high-water mark`)}
       />
       <MetricCard
         label={tr("Risk per Trade")}
@@ -390,8 +391,8 @@ export function OverviewMetrics({ stats }: {
         sub={tr(stats.avgRisk <= 0
           ? "Add a stop loss to size risk"
           : stats.initBal <= 0
-          ? `$${stats.avgRisk.toFixed(0)} average risk · set an initial balance`
-          : `$${stats.avgRisk.toFixed(0)} average · ${stats.riskCoverage}/${totalTrades} sized`)}
+          ? `${fmtMoney(stats.avgRisk, 0)} average risk · set an initial balance`
+          : `${fmtMoney(stats.avgRisk, 0)} average · ${stats.riskCoverage}/${totalTrades} sized`)}
       />
       <MetricCard
         label={tr("Win Rate")}
@@ -451,13 +452,13 @@ function HoldVsProfitScatter({ trades }: { trades: Trade[] }) {
             tick={axisStyle}
             axisLine={false}
             tickLine={false}
-            tickFormatter={(v: number) => `$${v}`}
+            tickFormatter={(v: number) => `${fmtMoneyRaw(v)}`}
             width={64}
           />
           <Tooltip
             contentStyle={tooltipStyle}
             cursor={{ strokeDasharray: "3 3" }}
-            formatter={(v) => [`$${Number(v).toFixed(2)}`, "P&L"]}
+            formatter={(v) => [`${fmtMoney(Number(v), 2)}`, "P&L"]}
             labelFormatter={(v) => `Hold ${formatHoldMinutes(Number(v))}`}
           />
           <ReferenceLine y={0} stroke="var(--text-secondary)" strokeDasharray="4 4" strokeWidth={1} />
@@ -661,7 +662,7 @@ export default function AnalyticsSections() {
                   axisLine={false}
                   tickLine={false}
                   domain={stats.equityDomain}
-                  tickFormatter={(v: number) => `$${Math.round(v).toLocaleString()}`}
+                  tickFormatter={(v: number) => `${fmtMoneyRaw(Math.round(v).toLocaleString())}`}
                   width={68}
                 />
                 <ReferenceLine
@@ -671,7 +672,7 @@ export default function AnalyticsSections() {
                   strokeWidth={1}
                   label={{ value: "Start", position: "insideTopLeft", fill: "var(--text-secondary)", fontSize: 12 }}
                 />
-                <Tooltip contentStyle={tooltipStyle} formatter={((v: any) => [`$${v.toFixed(2)}`, "Equity"]) as any} />
+                <Tooltip contentStyle={tooltipStyle} formatter={((v: any) => [`${fmtMoney(v, 2)}`, "Equity"]) as any} />
                 <Area type="monotone" dataKey="equity" stroke="var(--profit)" strokeWidth={2} fill="url(#equityGrad)" dot={false} activeDot={{ r: 4, fill: "var(--profit)" }} />
               </AreaChart>
             </ResponsiveContainer>
@@ -684,7 +685,7 @@ export default function AnalyticsSections() {
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" vertical={false} />
                   <XAxis dataKey="symbol" tick={axisStyle} axisLine={false} tickLine={false} />
                   <YAxis tick={axisStyle} axisLine={false} tickLine={false} />
-                  <Tooltip contentStyle={tooltipStyle} formatter={((v: any) => [`$${v.toFixed(2)}`, "P&L"]) as any} />
+                  <Tooltip contentStyle={tooltipStyle} formatter={((v: any) => [`${fmtMoney(v, 2)}`, "P&L"]) as any} />
                   <Bar dataKey="pnl" radius={[4, 4, 0, 0]}>
                     {stats.symbolData.map((e) => <Cell key={e.symbol} fill={e.pnl >= 0 ? "var(--profit)" : "var(--loss)"} />)}
                   </Bar>
@@ -699,7 +700,7 @@ export default function AnalyticsSections() {
                     <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" vertical={false} />
                     <XAxis dataKey="tag" tick={axisStyle} axisLine={false} tickLine={false} />
                     <YAxis tick={axisStyle} axisLine={false} tickLine={false} />
-                    <Tooltip contentStyle={tooltipStyle} formatter={((v: any) => [`$${v.toFixed(2)}`, "P&L"]) as any} />
+                    <Tooltip contentStyle={tooltipStyle} formatter={((v: any) => [`${fmtMoney(v, 2)}`, "P&L"]) as any} />
                     <Bar dataKey="pnl" radius={[4, 4, 0, 0]}>
                       {stats.tagData.map((e) => <Cell key={e.tag} fill={e.pnl >= 0 ? "var(--profit)" : "var(--loss)"} />)}
                     </Bar>
@@ -723,12 +724,12 @@ export default function AnalyticsSections() {
                     <div style={{ marginBottom: "16px" }}>
                       <div style={{ fontSize: "11px", color: "var(--text-secondary)", marginBottom: "4px" }}>{tr("Wins")}</div>
                       <div style={{ fontSize: "26px", fontWeight: "800", color: "var(--profit)" }}>{stats.wins.length}</div>
-                      <div style={{ fontSize: "11px", color: "var(--text-secondary)" }}>{tr("Avg +$")}{stats.avgWin.toFixed(2)}</div>
+                      <div style={{ fontSize: "11px", color: "var(--text-secondary)" }}>{tr("Avg +")}{currencySign()}{stats.avgWin.toFixed(2)}</div>
                     </div>
                     <div>
                       <div style={{ fontSize: "11px", color: "var(--text-secondary)", marginBottom: "4px" }}>{tr("Losses")}</div>
                       <div style={{ fontSize: "26px", fontWeight: "800", color: "var(--loss)" }}>{stats.losses.length}</div>
-                      <div style={{ fontSize: "11px", color: "var(--text-secondary)" }}>{tr("Avg -$")}{stats.avgLoss.toFixed(2)}</div>
+                      <div style={{ fontSize: "11px", color: "var(--text-secondary)" }}>{tr("Avg -")}{currencySign()}{stats.avgLoss.toFixed(2)}</div>
                     </div>
                   </div>
                 </div>
@@ -766,7 +767,7 @@ export default function AnalyticsSections() {
             <MetricCard label={tr("Calmar Ratio")}  value={stats.calmar === 0 ? "N/A" : stats.calmar.toFixed(2)} positive={stats.calmar > 1} neutral={stats.calmar === 0} icon={Zap} sub={tr("Annualized return / Max DD")} />
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "12px", marginBottom: "20px" }}>
-            <MetricCard label={tr("Max Drawdown")}       value={`$${Math.abs(stats.maxDd).toFixed(2)}`} positive={false} neutral={stats.maxDd === 0} icon={TrendingDown}
+            <MetricCard label={tr("Max Drawdown")}       value={`${fmtMoney(Math.abs(stats.maxDd), 2)}`} positive={false} neutral={stats.maxDd === 0} icon={TrendingDown}
               sub={tr(stats.maxDdPct !== 0 ? `${stats.maxDdPct.toFixed(2)}% from peak` : "No drawdown")} />
             <MetricCard label={tr("Max DD Duration")}    value={stats.longestDdDays === 0 ? "0 days" : `${stats.longestDdDays}d`} positive={stats.longestDdDays < 7} neutral={stats.longestDdDays === 0} icon={Calendar} sub={tr("Longest peak → recovery")} />
             <MetricCard label={tr("Current DD Duration")} value={stats.currentDdDays === 0 ? "None" : `${stats.currentDdDays}d`} positive={stats.currentDdDays === 0} icon={AlertTriangle}
@@ -776,9 +777,9 @@ export default function AnalyticsSections() {
           {stats.riskCoverage > 0 ? (
             <>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: "12px", marginBottom: "20px" }}>
-                <MetricCard label={tr("Planned Risk")}   value={`$${stats.avgRisk.toFixed(2)}`} neutral={false} positive={stats.riskPctAvg <= 2} icon={Shield}
+                <MetricCard label={tr("Planned Risk")}   value={`${fmtMoney(stats.avgRisk, 2)}`} neutral={false} positive={stats.riskPctAvg <= 2} icon={Shield}
                   sub={tr(`${stats.riskPctAvg.toFixed(2)}% of balance per trade`)} />
-                <MetricCard label={tr("Risk Range")}     value={`$${stats.minRisk.toFixed(0)} – $${stats.maxRisk.toFixed(0)}`} neutral icon={SlidersHorizontal}
+                <MetricCard label={tr("Risk Range")}     value={`${fmtMoney(stats.minRisk, 0)} – ${fmtMoney(stats.maxRisk, 0)}`} neutral icon={SlidersHorizontal}
                   sub={tr("Smallest to largest stop")} />
                 <MetricCard label={tr("Risk Consistency")} value={`${stats.riskConsistency.toFixed(0)}%`} positive={stats.riskConsistency >= 80} neutral={stats.riskConsistency === 0} icon={Target}
                   sub={tr(stats.riskConsistency >= 80 ? "Sizing is deliberate" : "Sizing drifts between trades")} />
@@ -888,7 +889,7 @@ export default function AnalyticsSections() {
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" vertical={false} />
                 <XAxis dataKey="day" tick={axisStyle} axisLine={false} tickLine={false} />
                 <YAxis tick={axisStyle} axisLine={false} tickLine={false} />
-                <Tooltip contentStyle={tooltipStyle} formatter={((v: any) => [`$${v.toFixed(2)}`, "Total P&L"]) as any} />
+                <Tooltip contentStyle={tooltipStyle} formatter={((v: any) => [`${fmtMoney(v, 2)}`, "Total P&L"]) as any} />
                 <ReferenceLine y={0} stroke="var(--text-secondary)" strokeWidth={1} />
                 <Bar dataKey="pnl" radius={[4, 4, 0, 0]}>
                   {stats.dowData.map((e) => <Cell key={e.day} fill={e.pnl >= 0 ? "var(--profit)" : "var(--loss)"} />)}
@@ -903,7 +904,7 @@ export default function AnalyticsSections() {
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" vertical={false} />
                 <XAxis dataKey="date" tick={axisStyle} axisLine={false} tickLine={false} />
                 <YAxis tick={axisStyle} axisLine={false} tickLine={false} />
-                <Tooltip contentStyle={tooltipStyle} formatter={((v: any) => [`$${v.toFixed(2)}`, "Daily P&L"]) as any} />
+                <Tooltip contentStyle={tooltipStyle} formatter={((v: any) => [`${fmtMoney(v, 2)}`, "Daily P&L"]) as any} />
                 <ReferenceLine y={0} stroke="var(--text-secondary)" strokeWidth={1} />
                 <Bar dataKey="pnl" radius={[3, 3, 0, 0]}>
                   {stats.daily.map((e, i) => <Cell key={i} fill={e.pnl >= 0 ? "var(--profit)" : "var(--loss)"} />)}
@@ -967,8 +968,8 @@ export default function AnalyticsSections() {
                 return (
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: "12px", marginBottom: "24px" }}>
                     <MetricCard label={tr("Hours Tracked")}  value={String(stats.hourData.length)}     neutral icon={Clock}       sub={tr(`${withTime} of ${trades.length} trades`)} />
-                    <MetricCard label={tr("Best Hour")}      value={best.label}                         positive icon={TrendingUp}  sub={tr(`+$${best.totalPnl.toFixed(0)} · ${best.winRate}% WR`)} />
-                    <MetricCard label={tr("Worst Hour")}     value={worst.label}                        positive={false} icon={TrendingDown} sub={tr(`$${worst.totalPnl.toFixed(0)} · ${worst.winRate}% WR`)} />
+                    <MetricCard label={tr("Best Hour")}      value={best.label}                         positive icon={TrendingUp}  sub={tr(`+${fmtMoney(best.totalPnl, 0)} · ${best.winRate}% WR`)} />
+                    <MetricCard label={tr("Worst Hour")}     value={worst.label}                        positive={false} icon={TrendingDown} sub={tr(`${fmtMoney(worst.totalPnl, 0)} · ${worst.winRate}% WR`)} />
                     <MetricCard label={tr("Busiest Hour")}   value={busiest.label}                      neutral icon={BarChart2}   sub={tr(`${busiest.count} trades`)} />
                   </div>
                 );
@@ -1022,10 +1023,10 @@ export default function AnalyticsSections() {
                         const h = entry?.payload;
                         if (!h) return [v, ""];
                         if (heatmapMetric === "pnl")
-                          return [`$${v.toFixed(2)}`, `${h.count} trades · ${h.winRate}% WR`];
+                          return [`${fmtMoney(v, 2)}`, `${h.count} trades · ${h.winRate}% WR`];
                         if (heatmapMetric === "winrate")
-                          return [`${v}%`, `${h.count} trades · $${h.totalPnl.toFixed(0)} P&L`];
-                        return [v, `$${h.totalPnl.toFixed(0)} · ${h.winRate}% WR`];
+                          return [`${v}%`, `${h.count} trades · ${fmtMoney(h.totalPnl, 0)} P&L`];
+                        return [v, `${fmtMoney(h.totalPnl, 0)} · ${h.winRate}% WR`];
                       }) as any}
                     />
                     {heatmapMetric === "pnl" && <ReferenceLine y={0} stroke="var(--text-secondary)" strokeWidth={1} />}
@@ -1103,8 +1104,8 @@ export default function AnalyticsSections() {
               <div style={{ marginBottom: "12px", fontSize: "12px", color: "var(--text-muted)" }}>
                 {stats.maeFdCount}  {tr("of")} {trades.length} {tr("trades have MAE/MFE logged")}</div>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: "12px", marginBottom: "20px" }}>
-                <MetricCard label={tr("Avg MAE")}          value={`$${stats.avgMae.toFixed(2)}`}    positive={false} icon={TrendingDown} sub={tr("Avg worst excursion")} />
-                <MetricCard label={tr("Avg MFE")}          value={`$${stats.avgMfe.toFixed(2)}`}    positive icon={TrendingUp} sub={tr("Avg best excursion")} />
+                <MetricCard label={tr("Avg MAE")}          value={`${fmtMoney(stats.avgMae, 2)}`}    positive={false} icon={TrendingDown} sub={tr("Avg worst excursion")} />
+                <MetricCard label={tr("Avg MFE")}          value={`${fmtMoney(stats.avgMfe, 2)}`}    positive icon={TrendingUp} sub={tr("Avg best excursion")} />
                 <MetricCard label={tr("Entry Efficiency")} value={`${stats.entryEff.toFixed(1)}%`}  positive={stats.entryEff >= 60} icon={Target} sub={tr("MFE / (MFE + MAE) — higher is better")} />
                 <MetricCard label={tr("Exit Efficiency")}  value={`${stats.exitEff.toFixed(1)}%`}   positive={stats.exitEff >= 60} icon={Zap} sub={tr("PnL / MFE on wins — higher = less left on table")} />
               </div>
@@ -1117,7 +1118,7 @@ export default function AnalyticsSections() {
                     <YAxis tick={axisStyle} axisLine={false} tickLine={false} />
                     <Tooltip
                       contentStyle={tooltipStyle}
-                      formatter={((v: any, name: any) => [`$${v}`, name === "mfe" ? "MFE" : "MAE"]) as any}
+                      formatter={((v: any, name: any) => [`${fmtMoneyRaw(v)}`, name === "mfe" ? "MFE" : "MAE"]) as any}
                     />
                     <Bar dataKey="mfe" fill="var(--profit)" radius={[4, 4, 0, 0]} name="mfe" />
                     <Bar dataKey="mae" fill="var(--loss)" radius={[4, 4, 0, 0]} name="mae" />
@@ -1218,8 +1219,8 @@ export default function AnalyticsSections() {
               <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
                 {[
                   { label: tr("Win Rate"),     value: `${stats.winRate.toFixed(1)}%`,                                            note: tr("from your trade history") },
-                  { label: tr("Avg Win"),      value: `$${stats.avgWin.toFixed(2)}`,                                             note: tr("from your trade history") },
-                  { label: tr("Avg Loss"),     value: `$${stats.avgLoss.toFixed(2)}`,                                            note: tr("from your trade history") },
+                  { label: tr("Avg Win"),      value: `${fmtMoney(stats.avgWin, 2)}`,                                             note: tr("from your trade history") },
+                  { label: tr("Avg Loss"),     value: `${fmtMoney(stats.avgLoss, 2)}`,                                            note: tr("from your trade history") },
                   { label: tr("Payoff Ratio"), value: `${(stats.avgWin / Math.max(stats.avgLoss, 0.01)).toFixed(2)}:1`,          note: tr("avg win / avg loss") },
                 ].map(({ label, value, note }) => (
                   <div key={label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 14px", background: "var(--bg-secondary)", borderRadius: "8px" }}>
@@ -1314,7 +1315,7 @@ export default function AnalyticsSections() {
               sub={tr(stats.rRisk.sigma === 0 ? "Needs 3+ trades" : "From your R dispersion, approximate")} />
             <MetricCard label={tr("Costs / Gross Profit")} value={`${stats.costs.costPctOfGross.toFixed(2)}%`}
               positive={stats.costs.costPctOfGross < 10} neutral={stats.costs.costPctOfGross === 0} icon={Zap}
-              sub={tr(`$${stats.costs.costs.toFixed(2)} total · $${stats.costs.costPerTrade.toFixed(2)}/trade`)} />
+              sub={tr(`${fmtMoney(stats.costs.costs, 2)} total · ${fmtMoney(stats.costs.costPerTrade, 2)}/trade`)} />
           </div>
 
           <SectionCard title={tr("Outcome by Hold Time")} subtitle={tr("Do your fastest trades pay, or bleed? For a scalper this is often the single most actionable number in the journal.")}>
@@ -1325,7 +1326,7 @@ export default function AnalyticsSections() {
                 <YAxis tick={axisStyle} axisLine={false} tickLine={false} />
                 <Tooltip contentStyle={tooltipStyle}
                   formatter={((v: any, _n: any, p: any) =>
-                    [`$${v} · ${p.payload.trades} trades · ${p.payload.winRate}% win`, "Net"]) as any} />
+                    [`${fmtMoneyRaw(v)} · ${p.payload.trades} trades · ${p.payload.winRate}% win`, "Net"]) as any} />
                 <ReferenceLine y={0} stroke="var(--text-secondary)" strokeWidth={1} />
                 <Bar dataKey="pnl" radius={[4, 4, 0, 0]}>
                   {stats.durationData.map((d, i) => (
@@ -1394,8 +1395,8 @@ export default function AnalyticsSections() {
                   </div>
                   {[
                     { k: "Win rate",      v: `${d.winRate}%`,                              c: "var(--text-primary)" },
-                    { k: "Net",           v: `${d.pnl >= 0 ? "+" : ""}$${d.pnl.toFixed(2)}`,    c: d.pnl >= 0 ? "var(--profit)" : "var(--loss)" },
-                    { k: "Avg per trade", v: `${d.avgPnl >= 0 ? "+" : ""}$${d.avgPnl.toFixed(2)}`, c: d.avgPnl >= 0 ? "var(--profit)" : "var(--loss)" },
+                    { k: "Net",           v: `${d.pnl >= 0 ? "+" : ""}${fmtMoney(d.pnl, 2)}`,    c: d.pnl >= 0 ? "var(--profit)" : "var(--loss)" },
+                    { k: "Avg per trade", v: `${d.avgPnl >= 0 ? "+" : ""}${fmtMoney(d.avgPnl, 2)}`, c: d.avgPnl >= 0 ? "var(--profit)" : "var(--loss)" },
                   ].map((row) => (
                     <div key={row.k} style={{ display: "flex", justifyContent: "space-between", marginTop: "6px" }}>
                       <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>{tr(row.k)}</span>
@@ -1442,7 +1443,7 @@ export default function AnalyticsSections() {
                   <YAxis tick={axisStyle} axisLine={false} tickLine={false} />
                   <Tooltip contentStyle={tooltipStyle}
                     formatter={((v: any, _n: any, p: any) =>
-                      [`$${v} · ${p.payload.trades} trades · ${p.payload.winRate}% win`, "Net"]) as any} />
+                      [`${fmtMoneyRaw(v)} · ${p.payload.trades} trades · ${p.payload.winRate}% win`, "Net"]) as any} />
                   <ReferenceLine y={0} stroke="var(--text-secondary)" strokeWidth={1} />
                   <Bar dataKey="pnl" radius={[4, 4, 0, 0]}>
                     {stats.exitReasons.map((d, i) => (
@@ -1478,8 +1479,8 @@ export default function AnalyticsSections() {
                     </div>
                     {[
                       { k: "Win rate",      v: `${d.winRate}%`,                              c: "var(--text-primary)" },
-                      { k: "Net",           v: `${d.pnl >= 0 ? "+" : ""}$${d.pnl.toFixed(2)}`,    c: d.pnl >= 0 ? "var(--profit)" : "var(--loss)" },
-                      { k: "Avg per trade", v: `${d.avgPnl >= 0 ? "+" : ""}$${d.avgPnl.toFixed(2)}`, c: d.avgPnl >= 0 ? "var(--profit)" : "var(--loss)" },
+                      { k: "Net",           v: `${d.pnl >= 0 ? "+" : ""}${fmtMoney(d.pnl, 2)}`,    c: d.pnl >= 0 ? "var(--profit)" : "var(--loss)" },
+                      { k: "Avg per trade", v: `${d.avgPnl >= 0 ? "+" : ""}${fmtMoney(d.avgPnl, 2)}`, c: d.avgPnl >= 0 ? "var(--profit)" : "var(--loss)" },
                     ].map((row) => (
                       <div key={row.k} style={{ display: "flex", justifyContent: "space-between", marginTop: "6px" }}>
                         <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>{tr(row.k)}</span>
@@ -1502,7 +1503,7 @@ export default function AnalyticsSections() {
                       <span>{d.trades}  {tr("trade")}{tr(d.trades !== 1 ? "s" : "")}</span><span>{d.winRate}{tr("% win")}</span>
                     </div>
                     <div style={{ fontSize: "16px", fontWeight: "700", marginTop: "8px", color: d.trades === 0 ? "var(--text-muted)" : d.pnl >= 0 ? "var(--profit)" : "var(--loss)" }}>
-                      {tr(d.trades === 0 ? "—" : `${d.pnl >= 0 ? "+" : ""}$${d.pnl.toFixed(2)}`)}
+                      {tr(d.trades === 0 ? "—" : `${d.pnl >= 0 ? "+" : ""}${fmtMoney(d.pnl, 2)}`)}
                     </div>
                   </div>
                 ))}
@@ -1511,7 +1512,7 @@ export default function AnalyticsSections() {
                 <p style={{ fontSize: "12px", color: "var(--text-muted)", lineHeight: 1.7, margin: 0 }}>
                   {tr(stats.legData.averagedDown.trades === 0
                     ? "Every position was a single clean entry in this range — no scaling, no adding into a move."
-                    : `${stats.legData.averagedDown.trades} position${stats.legData.averagedDown.trades !== 1 ? "s were" : " was"} added to at a worse price than the first entry (${stats.legData.averagedDownPnl >= 0 ? "+" : ""}$${stats.legData.averagedDownPnl.toFixed(2)} net). Averaging down widens risk exactly when the market is proving you wrong.`)}
+                    : `${stats.legData.averagedDown.trades} position${stats.legData.averagedDown.trades !== 1 ? "s were" : " was"} added to at a worse price than the first entry (${stats.legData.averagedDownPnl >= 0 ? "+" : ""}${fmtMoney(stats.legData.averagedDownPnl, 2)} net). Averaging down widens risk exactly when the market is proving you wrong.`)}
                   {tr(` ${stats.legData.avgLegs.toFixed(2)} entries per position on average.`)}
                 </p>
               </div>
@@ -1521,11 +1522,11 @@ export default function AnalyticsSections() {
           {stats.cashFlow.coverage >= 2 && (
             <SectionCard title={tr("Account Reconciliation")} subtitle={tr("The exporter records the account balance after every trade. Comparing that to each trade's own P&L shows whether deposits or withdrawals are flattering the equity curve.")}>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "12px", marginBottom: "16px" }}>
-                <MetricCard label={tr("Net Cash Flow")} value={`${stats.cashFlow.netFlow >= 0 ? "+" : ""}$${stats.cashFlow.netFlow.toFixed(2)}`}
+                <MetricCard label={tr("Net Cash Flow")} value={`${stats.cashFlow.netFlow >= 0 ? "+" : ""}${fmtMoney(stats.cashFlow.netFlow, 2)}`}
                   positive={false} neutral={stats.cashFlow.netFlow === 0} icon={Activity}
                   sub={tr(stats.cashFlow.netFlow === 0 ? "No external cash detected" : "Deposits minus withdrawals")} />
-                <MetricCard label={tr("Deposits")} value={`$${stats.cashFlow.deposits.toFixed(2)}`} neutral icon={TrendingUp} sub={tr("Cash paid into the account")} />
-                <MetricCard label={tr("Withdrawals")} value={`$${Math.abs(stats.cashFlow.withdrawals).toFixed(2)}`} neutral icon={TrendingDown} sub={tr("Cash taken out of the account")} />
+                <MetricCard label={tr("Deposits")} value={`${fmtMoney(stats.cashFlow.deposits, 2)}`} neutral icon={TrendingUp} sub={tr("Cash paid into the account")} />
+                <MetricCard label={tr("Withdrawals")} value={`${fmtMoney(Math.abs(stats.cashFlow.withdrawals), 2)}`} neutral icon={TrendingDown} sub={tr("Cash taken out of the account")} />
               </div>
               <div style={{ background: "var(--bg-secondary)", borderRadius: "10px", padding: "14px 16px" }}>
                 {stats.cashFlow.points.length === 0 ? (
@@ -1724,7 +1725,7 @@ function CompareTab({ trades }: { trades: Trade[] }) {
         <CompareRow label={tr("Trades")} a={String(A.trades)} b={String(B.trades)} />
         <CompareRow label={tr("Win rate")} a={pctText(A.winRate)} b={pctText(B.winRate)} hint={`A 95% ${ciText(A.winRateCI)} · B ${ciText(B.winRateCI)}`} />
         <CompareRow label={tr("Expectancy")} a={`${A.expectancyR >= 0 ? "+" : ""}${A.expectancyR.toFixed(2)}R`} b={`${B.expectancyR >= 0 ? "+" : ""}${B.expectancyR.toFixed(2)}R`} hint={`A 95% ${ciText(A.expectancyCI, "R")} · B ${ciText(B.expectancyCI, "R")}`} />
-        <CompareRow label={tr("Net P&L")} a={`${A.totalPnl >= 0 ? "+" : ""}$${A.totalPnl.toFixed(0)}`} b={`${B.totalPnl >= 0 ? "+" : ""}$${B.totalPnl.toFixed(0)}`} />
+        <CompareRow label={tr("Net P&L")} a={`${A.totalPnl >= 0 ? "+" : ""}${fmtMoney(A.totalPnl, 0)}`} b={`${B.totalPnl >= 0 ? "+" : ""}${fmtMoney(B.totalPnl, 0)}`} />
         <CompareRow label={tr("Profit factor")} a={A.profitFactor == null ? "—" : A.profitFactor.toFixed(2)} b={B.profitFactor == null ? "—" : B.profitFactor.toFixed(2)} />
         <CompareRow label={tr("MFE capture")} a={A.mfeCapture == null ? "—" : `${A.mfeCapture.toFixed(0)}%`} b={B.mfeCapture == null ? "—" : `${B.mfeCapture.toFixed(0)}%`} hint={tr("Share of the favourable move kept on winners")} />
         <CompareRow label={tr("Plan adherence")} a={A.adherence == null ? "—" : `${A.adherence.toFixed(0)}%`} b={B.adherence == null ? "—" : `${B.adherence.toFixed(0)}%`} hint={A.reviewed + B.reviewed > 0 ? `${A.reviewed + B.reviewed} reviewed trades` : "Review trades to populate"} />
@@ -1778,12 +1779,12 @@ function AdherencePanel({ stats }: {
           <MetricCard label={tr("Reviewed")} value={`${a.reviewed}`} neutral icon={Shield} sub={tr(`${a.followed} on plan · ${a.broke} off plan`)} />
           <MetricCard label={tr("On-plan expectancy")} value={a.followedExpectancyR == null ? "—" : `${a.followedExpectancyR >= 0 ? "+" : ""}${a.followedExpectancyR.toFixed(2)}R`} positive={(a.followedExpectancyR ?? 0) >= 0} icon={Target} sub={tr("Average per trade")} />
           <MetricCard label={tr("Off-plan expectancy")} value={a.brokeExpectancyR == null ? "—" : `${a.brokeExpectancyR >= 0 ? "+" : ""}${a.brokeExpectancyR.toFixed(2)}R`} positive={(a.brokeExpectancyR ?? 0) >= 0} icon={AlertTriangle} sub={tr("Average per trade")} />
-          <MetricCard label={tr("Cost per break")} value={a.costPerBreak == null ? "—" : `${a.costPerBreak <= 0 ? "-" : "+"}$${Math.abs(a.costPerBreak).toFixed(0)}`} positive={a.costPerBreak != null && a.costPerBreak >= 0} icon={TrendingDown} sub={tr("Against the on-plan baseline")} />
+          <MetricCard label={tr("Cost per break")} value={a.costPerBreak == null ? "—" : `${a.costPerBreak <= 0 ? "-" : "+"}${fmtMoney(Math.abs(a.costPerBreak), 0)}`} positive={a.costPerBreak != null && a.costPerBreak >= 0} icon={TrendingDown} sub={tr("Against the on-plan baseline")} />
         </div>
         <p style={{ fontSize: "12px", color: "var(--text-muted)", lineHeight: 1.7, margin: 0 }}>
           {tr(a.reviewed < 10
             ? `Only ${a.reviewed} reviewed trades so far — treat this as a direction, not a verdict. Ten is the floor before the gap means anything.`
-            : `Across ${a.reviewed} reviewed trades, on-plan work earned ${a.followedPnl >= 0 ? "+" : ""}$${a.followedPnl.toFixed(0)} and breaks ${a.brokePnl >= 0 ? "+" : ""}$${a.brokePnl.toFixed(0)}.`)}
+            : `Across ${a.reviewed} reviewed trades, on-plan work earned ${a.followedPnl >= 0 ? "+" : ""}${fmtMoney(a.followedPnl, 0)} and breaks ${a.brokePnl >= 0 ? "+" : ""}${fmtMoney(a.brokePnl, 0)}.`)}
         </p>
       </SectionCard>
 

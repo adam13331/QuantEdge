@@ -4,6 +4,7 @@ import { useState, useMemo } from "react";
 import { useApp } from "../context/AppContext";
 import { Playbook, Experiment, PlaybookRevision } from "../lib/types";
 import { cohortStats, riskUnit, compareCohorts } from "../lib/analytics";
+import { money as fmtMoney, currencySymbol as currencySign } from "../lib/money";
 import {
   Plus, X, ChevronDown, Library, TrendingUp,
   TrendingDown, Target, Edit2, Trash2, BookOpen,
@@ -325,8 +326,8 @@ function PlaybookDetail({
               {[
                 { label: tr("Trades"),  value: String(tradeCount),                  color: "var(--text-primary)" },
                 { label: tr("Win Rate"), value: `${winRate}%`,                      color: winRate >= 50 ? "var(--profit)" : "var(--loss)" },
-                { label: tr("Net P&L"), value: `${totalPnl >= 0 ? "+" : ""}$${totalPnl.toFixed(0)}`, color: totalPnl >= 0 ? "var(--profit)" : "var(--loss)" },
-                { label: tr("Avg Win"), value: `+$${avgWin.toFixed(0)}`,            color: "var(--profit)" },
+                { label: tr("Net P&L"), value: `${totalPnl >= 0 ? "+" : ""}${fmtMoney(totalPnl, 0)}`, color: totalPnl >= 0 ? "var(--profit)" : "var(--loss)" },
+                { label: tr("Avg Win"), value: `+${fmtMoney(avgWin, 0)}`,            color: "var(--profit)" },
               ].map(({ label, value, color }) => (
                 <div key={label} style={{
                   background: "var(--bg-card)", borderRadius: "8px", padding: "8px 10px",
@@ -597,7 +598,7 @@ function PlaybookCard({
             <div style={{ flex: 1, textAlign: "center" }}>
               <div style={{ fontSize: "10px", color: "var(--text-muted)", marginBottom: "2px" }}>{tr("NET P&L")}</div>
               <div style={{ fontSize: "14px", fontWeight: "700", color: totalPnl >= 0 ? "var(--profit)" : "var(--loss)" }}>
-                {tr(totalPnl >= 0 ? "+" : "")}${totalPnl.toFixed(0)}
+                {tr(totalPnl >= 0 ? "+" : "")}{currencySign()}{totalPnl.toFixed(0)}
               </div>
             </div>
           </div>
